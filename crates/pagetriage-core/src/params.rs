@@ -8,6 +8,56 @@ use crate::error::{Error, Result};
 
 const FUSION_TOML: &str = include_str!("../params/fusion.toml");
 const BLANK_PAGE_TOML: &str = include_str!("../params/blank_page.toml");
+const SAUVOLA_TOML: &str = include_str!("../params/sauvola.toml");
+const WOLF_TOML: &str = include_str!("../params/wolf.toml");
+const HOWE_TOML: &str = include_str!("../params/howe.toml");
+
+/// Sauvola local threshold (see `params/sauvola.toml`).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SauvolaParams {
+    pub window: usize,
+    pub k: f64,
+    pub dynamic_range: f64,
+}
+
+/// Wolf-Jolion local threshold (see `params/wolf.toml`).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WolfParams {
+    pub window: usize,
+    pub a: f64,
+}
+
+/// How much of Howe's parameter tuning to run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HoweMode {
+    Static,
+    TuneC,
+    Dual,
+}
+
+/// Howe graph-cut binariser (see `params/howe.toml`).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HoweParams {
+    pub mode: HoweMode,
+    pub radius: f64,
+    pub outlier_sigmas: f64,
+    pub phi: f64,
+    pub cost_scale: f64,
+    pub t_lo: f64,
+    pub sigma_e: f64,
+    pub static_c: f64,
+    pub static_t_hi: f64,
+    pub tau1: f64,
+    pub tau2: f64,
+    pub c_start: f64,
+    pub c_steps: usize,
+    pub steps_per_octave: u32,
+    pub curve_smoothing: Vec<f64>,
+}
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -31,6 +81,9 @@ pub struct BlankPageParams {
 pub struct Params {
     pub fusion: FusionParams,
     pub blank_page: BlankPageParams,
+    pub sauvola: SauvolaParams,
+    pub wolf: WolfParams,
+    pub howe: HoweParams,
 }
 
 impl Params {
@@ -52,7 +105,9 @@ impl Params {
     /// The embedded defaults as one TOML document (what `pagetriage params` prints).
     pub fn defaults_toml() -> String {
         format!(
-            "# --- fusion ---\n[fusion]\n{FUSION_TOML}\n# --- blank_page ---\n[blank_page]\n{BLANK_PAGE_TOML}"
+            "# --- fusion ---\n[fusion]\n{FUSION_TOML}\n# --- blank_page ---\n[blank_page]\n{BLANK_PAGE_TOML}\n\
+             # --- sauvola ---\n[sauvola]\n{SAUVOLA_TOML}\n# --- wolf ---\n[wolf]\n{WOLF_TOML}\n\
+             # --- howe ---\n[howe]\n{HOWE_TOML}"
         )
     }
 
@@ -108,6 +163,84 @@ impl Params {
                 "blank_page.coverage_floor must be > 0".into(),
             ));
         }
+        self.validate_binarizers()
+    }
+
+    fn validate_binarizers(&self) -> Result<()> {
+        let bad = |msg: &str| Err(Error::InvalidParams(msg.into()));
+        let (s, w, h) = (&self.sauvola, &self.wolf, &self.howe);
+        for (name, window) in [("sauvola.window", s.window), ("wolf.window", w.window)] {
+            if window == 0 || window.is_multiple_of(2) || window > 10_001 {
+                return bad(&format!(
+                    "{name} must be odd and in 1..=10001, got {window}"
+                ));
+            }
+        }
+        let finite = [
+            ("sauvola.k", s.k),
+            ("sauvola.dynamic_range", s.dynamic_range),
+            ("wolf.a", w.a),
+            ("howe.radius", h.radius),
+            ("howe.outlier_sigmas", h.outlier_sigmas),
+            ("howe.phi", h.phi),
+            ("howe.cost_scale", h.cost_scale),
+            ("howe.t_lo", h.t_lo),
+            ("howe.sigma_e", h.sigma_e),
+            ("howe.static_c", h.static_c),
+            ("howe.static_t_hi", h.static_t_hi),
+            ("howe.tau1", h.tau1),
+            ("howe.tau2", h.tau2),
+            ("howe.c_start", h.c_start),
+        ];
+        for (name, v) in finite {
+            if !v.is_finite() {
+                return bad(&format!("{name} must be finite, got {v}"));
+            }
+        }
+        if !(0.0..=1.0).contains(&s.k) || s.dynamic_range <= 0.0 {
+            return bad("sauvola.k must be in [0, 1] and sauvola.dynamic_range > 0");
+        }
+        if !(0.0..=1.0).contains(&w.a) {
+            return bad("wolf.a must be in [0, 1]");
+        }
+        if h.radius <= 0.0 || h.radius > 500.0 || h.sigma_e <= 0.0 || h.sigma_e > 50.0 {
+            return bad("howe.radius must be in (0, 500] and howe.sigma_e in (0, 50]");
+        }
+        if h.outlier_sigmas < 0.0 || h.outlier_sigmas > 20.0 {
+            return bad("howe.outlier_sigmas must be in [0, 20]");
+        }
+        if h.phi >= 0.0 || h.cost_scale <= 0.0 || h.cost_scale > 1000.0 {
+            return bad("howe.phi must be negative and howe.cost_scale in (0, 1000]");
+        }
+        for (name, v) in [
+            ("howe.t_lo", h.t_lo),
+            ("howe.static_t_hi", h.static_t_hi),
+            ("howe.tau1", h.tau1),
+            ("howe.tau2", h.tau2),
+        ] {
+            if !(0.0..1.0).contains(&v) {
+                return bad(&format!("{name} must be in [0, 1), got {v}"));
+            }
+        }
+        if h.c_start <= 0.0 || h.static_c <= 0.0 || h.c_steps < 2 || h.c_steps > 200 {
+            return bad("howe.c_start and howe.static_c must be > 0 and howe.c_steps in 2..=200");
+        }
+        if h.steps_per_octave == 0 || h.steps_per_octave > 64 {
+            return bad("howe.steps_per_octave must be in 1..=64");
+        }
+        // The solver uses 32-bit capacities: the largest scaled cost must stay far from overflow.
+        let top = h.c_start.max(h.static_c)
+            * crate::math::pow(2.0, h.c_steps as f64 / f64::from(h.steps_per_octave))
+            * h.cost_scale;
+        if top > 1.0e8 || (-h.phi * h.cost_scale) > 1.0e8 {
+            return bad("howe: scaled costs would overflow the 32-bit solver capacities");
+        }
+        if h.curve_smoothing.is_empty()
+            || h.curve_smoothing.len() > 15
+            || h.curve_smoothing.iter().any(|v| !v.is_finite() || *v < 0.0)
+        {
+            return bad("howe.curve_smoothing must be 1..=15 finite non-negative taps");
+        }
         Ok(())
     }
 }
@@ -121,6 +254,9 @@ fn defaults_table() -> Result<toml::Table> {
     let mut table = toml::Table::new();
     table.insert("fusion".into(), parse("fusion", FUSION_TOML)?);
     table.insert("blank_page".into(), parse("blank_page", BLANK_PAGE_TOML)?);
+    table.insert("sauvola".into(), parse("sauvola", SAUVOLA_TOML)?);
+    table.insert("wolf".into(), parse("wolf", WOLF_TOML)?);
+    table.insert("howe".into(), parse("howe", HOWE_TOML)?);
     Ok(table)
 }
 

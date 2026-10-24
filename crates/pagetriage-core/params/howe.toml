@@ -1,0 +1,53 @@
+# Howe's Laplacian-energy binariser: a graph cut over per-pixel Laplacian label costs and
+# Canny-edge-aware neighbour penalties, with the penalty c and the high Canny threshold tuned per
+# image by a stability criterion.
+# Source for everything below unless a line says otherwise: N. R. Howe, "Document binarization with
+# automatic parameter tuning", IJDAR 16(3):247-258, 2013 (author's manuscript). Section and table
+# numbers refer to that paper. Intensities are 0..255.
+
+# "static": one graph cut with static_c and static_t_hi.
+# "tune_c": tune c per image (Algorithm 1) at static_t_hi.
+# "dual":   tune c, and choose t_hi from {tau1, tau2} (Algorithm 3). The paper's best method.
+mode = "dual"
+
+# Gaussian sigma (the paper calls it a "radius") of the local mean and standard deviation used to
+# find bright outlier pixels (Sec. 2.1, r = 20).
+radius = 20.0
+
+# A pixel is a bright outlier when it is more than this many local standard deviations above the
+# local mean (Sec. 2.1, "two standard deviations").
+outlier_sigmas = 2.0
+
+# Label cost that forces bright outliers to background, in MATLAB `del2` units (Sec. 2.1,
+# phi = -500). Equation 4 prints it as the (negative) cost of the ink label; its stated purpose is
+# to force background, so the ink cost is set to -phi here.
+phi = -500.0
+
+# Integer scale between the paper's cost units and the solver's. The solver works on the exact
+# integer 5-point Laplacian, which is 4x MATLAB's `del2`; c and phi are given in `del2` units and
+# multiplied by this. Source: assumption (the paper does not say which Laplacian it uses); chosen
+# on DIBCO 2009 + H-DIBCO 2010, never on 2011.
+cost_scale = 4.0
+
+# Canny: lower hysteresis threshold and smoothing sigma, both fixed (Table 2 "Static" column,
+# trained on DIBCO 2009 + H-DIBCO 2010). Thresholds are fractions of the largest gradient
+# magnitude (assumption: MATLAB `edge` convention).
+t_lo = 0.1
+sigma_e = 0.6
+
+# Static c and high Canny threshold (Table 2 "Static" column).
+static_c = 160.0
+static_t_hi = 0.4
+
+# The two candidate high Canny thresholds of Algorithm 3 (Sec. 2.3).
+tau1 = 0.25
+tau2 = 0.5
+
+# Candidate c values for Algorithm 1: c_i = c_start * 2^(i / steps_per_octave), i = 0..=c_steps
+# (40 to 5120 at 4 steps per octave).
+c_start = 40.0
+c_steps = 28
+steps_per_octave = 4
+
+# Taps of the Gaussian of radius 1 that smooths the instability curve (Algorithm 1).
+curve_smoothing = [0.02, 0.13, 0.35, 0.35, 0.13, 0.02]

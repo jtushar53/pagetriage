@@ -1,0 +1,16 @@
+# Sauvola local-threshold binariser: T = m * (1 + k * (s / R - 1)), with m and s the mean and
+# standard deviation of the gray values in a window around the pixel. Ink when gray <= T.
+# Source: J. Sauvola and M. Pietikainen, "Adaptive document image binarization", Pattern
+# Recognition 33(2):225-236, 2000.
+
+# Window side in pixels (odd). Source: project plan default (w = 75), which cites the Doxa library
+# defaults; not checked against Doxa. Tuned on <none yet>.
+window = 75
+
+# Weight of the standard-deviation term. Source: project plan default (k = 0.2), same caveat.
+# Tuned on <none yet>.
+k = 0.2
+
+# Dynamic range of the standard deviation (R). Source: Sauvola & Pietikainen 2000 (R = 128 for
+# 8-bit images).
+dynamic_range = 128.0

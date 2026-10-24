@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 
 use crate::schema::Finding;
 
+pub mod binarize;
 pub mod content_type;
 
 #[derive(Debug, Default)]

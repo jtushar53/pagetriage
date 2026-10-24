@@ -1,0 +1,13 @@
+# Wolf-Jolion local-threshold binariser:
+#   T = (1 - a) * m + a * M + a * (s / S_max) * (m - M)
+# with m, s the local mean and standard deviation, M the page's minimum gray value and S_max the
+# page's largest local standard deviation. Ink when gray <= T.
+# Source: C. Wolf and J.-M. Jolion, "Extraction and recognition of artificial text in multimedia
+# documents", Formal Pattern Analysis & Applications 6(4):309-326, 2004 (formula as recalled, not
+# re-checked against the paper).
+
+# Window side in pixels (odd). Source: same default as Sauvola (project plan). Tuned on <none yet>.
+window = 75
+
+# Mixing weight a. Source: Wolf & Jolion 2004 use 0.5 (recalled, not re-checked). Tuned on <none yet>.
+a = 0.5
