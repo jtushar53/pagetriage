@@ -8,10 +8,10 @@
 //!
 //! * it is deep enough to see but shallow enough to be low-contrast (a fraction of the page's
 //!   ink/paper gap), and
-//! * it is narrow (a crease is a line, not a broad shadow), at least a few blocks from the page
-//!   edge, and present in nearly every column (row, for vertical folds), counting columns with
-//!   no usable paper as misses, so a stain, a stamp, a shadow or the gaps between text lines do
-//!   not count.
+//! * it is long (a few inches), narrow (a crease is a line, not a broad shadow), away from the page
+//!   edge, and present in nearly every column (row, for vertical folds) where the paper can be
+//!   measured at all, with enough such columns, so a stain, a stamp or a shadow that covers only
+//!   part of the page does not count.
 //!
 //! Valleys are insensitive to a smooth lighting gradient (a linear ramp has no valley). A page
 //! with many equally strong valleys in one direction (ruled paper) is treated as having none: real
@@ -84,10 +84,11 @@ fn search(
     along: usize,
     cell: &dyn Fn(usize, usize) -> Option<f64>,
     gap_levels: f64,
+    min_along: usize,
     p: &QualityParams,
 ) -> Search {
     let a = p.fold_arm_blocks.max(1);
-    if lines < 2 * a + 1 || along < 4 {
+    if lines < 2 * a + 1 || along < min_along.max(4) {
         return Search::default();
     }
     // Per-line profile: median over the line's valid blocks.
@@ -133,20 +134,26 @@ fn search(
         if !local_max {
             continue;
         }
-        // Coverage: the share of ALL columns that show at least half this valley (allowing one
-        // block of tilt). Columns with no usable paper (text, stamps) count as misses, so a
-        // valley that exists only between text lines does not pass.
-        let mut hit = 0usize;
+        // Coverage: of the columns where the valley can be measured at all (text and stamps hide
+        // the paper in others), the share that show at least half of it, allowing one block of
+        // tilt. Enough columns must be measurable, or a short valley between two text lines
+        // would pass.
+        let (mut have, mut hit) = (0usize, 0usize);
         for i in 0..along {
             let col: Vec<Option<f64>> = (0..lines).map(|l| cell(l, i)).collect();
             let best = (j.saturating_sub(1)..=(j + 1).min(lines - 1))
                 .filter_map(|k| dip(&col, k, a))
                 .fold(None, |m: Option<f64>, v| Some(m.map_or(v, |x| x.max(v))));
-            if best.is_some_and(|v| v >= 0.5 * d) {
-                hit += 1;
+            if let Some(v) = best {
+                have += 1;
+                if v >= 0.5 * d {
+                    hit += 1;
+                }
             }
         }
-        if hit as f64 >= p.fold_min_coverage * along as f64 {
+        if have as f64 >= p.fold_min_measurable * along as f64
+            && hit as f64 >= p.fold_min_coverage * have as f64
+        {
             candidates += 1;
             // One-sided shading: the two shoulders differ, but by less than the valley is deep. No
             // difference is a printed or pencilled rule; a difference larger than the valley is the
@@ -166,15 +173,18 @@ fn search(
 pub fn locate(
     grid: &BlockGrid,
     gap_levels: f64,
+    dpi: u16,
     p: &QualityParams,
 ) -> (Vec<(bool, usize, f64, f64)>, u32) {
     let min_px = p.fold_min_block_pixels;
     let (bx, by) = (grid.blocks_x, grid.blocks_y);
     let horizontal = |l: usize, i: usize| grid.mean(i, l, min_px);
     let vertical = |l: usize, i: usize| grid.mean(l, i, min_px);
+    // A fold is long: the line must be at least this many blocks.
+    let min_along = (p.fold_min_length_in * f64::from(dpi) / grid.block as f64).ceil() as usize;
     let (h, v) = (
-        search(by, bx, &horizontal, gap_levels, p),
-        search(bx, by, &vertical, gap_levels, p),
+        search(by, bx, &horizontal, gap_levels, min_along, p),
+        search(bx, by, &vertical, gap_levels, min_along, p),
     );
     let mut out = Vec::new();
     for (is_horizontal, direction) in [(true, &h), (false, &v)] {
@@ -192,9 +202,9 @@ pub fn locate(
 }
 
 /// Count the fold lines of a page from its paper block grid. `gap_levels` is the ink/paper gap in
-/// gray levels.
-pub fn detect(grid: &BlockGrid, gap_levels: f64, p: &QualityParams) -> Folds {
-    let (lines, candidates) = locate(grid, gap_levels, p);
+/// gray levels and `dpi` the page's resolution (a fold must be a few inches long).
+pub fn detect(grid: &BlockGrid, gap_levels: f64, dpi: u16, p: &QualityParams) -> Folds {
+    let (lines, candidates) = locate(grid, gap_levels, dpi, p);
     let deepest = lines.iter().fold(
         (0.0f64, 0.0f64),
         |best, &(_, _, d, s)| if d > best.0 { (d, s) } else { best },
@@ -235,7 +245,7 @@ mod tests {
     fn run(g: &[u8], w: usize, h: usize, gap: f64) -> Folds {
         let p = test_params();
         let grid = BlockGrid::new(g, &vec![1u8; w * h], w, h, p.paper_block_px);
-        detect(&grid, gap, &p)
+        detect(&grid, gap, 72, &p)
     }
 
     #[test]
@@ -262,6 +272,55 @@ mod tests {
         assert_eq!(run(&vec![220u8; w * h], w, h, 180.0).count(), 0);
         let ramp: Vec<u8> = (0..w * h).map(|i| (150 + (i / w) * 70 / h) as u8).collect();
         assert_eq!(run(&ramp, w, h, 180.0).count(), 0);
+    }
+
+    /// Text-like pages: a crease that crosses lines of text must still be found.
+    fn text_page(w: usize, h: usize, crease_at: usize, horizontal: bool) -> Vec<u8> {
+        let mut g = page(w, h, &[(crease_at, 25, 6)], !horizontal);
+        for line in 0..h / 24 {
+            for y in line * 24 + 6..line * 24 + 17 {
+                for x in 60..w - 60 {
+                    // Dense glyph-like ink: 70% coverage on a 3-px comb.
+                    if (x / 3) % 10 < 7 {
+                        g[y * w + x] = 40;
+                    }
+                }
+            }
+        }
+        g
+    }
+
+    fn run_with_ink(g: &[u8], w: usize, h: usize) -> Folds {
+        use crate::pixel::binarize::local::sauvola;
+        use crate::pixel::quality::blur::dilate;
+        let params = crate::params::Params::defaults().unwrap();
+        let ink = sauvola(g, w, h, &params.sauvola);
+        let near = dilate(&ink, w, h, 3);
+        let clear: Vec<u8> = near.iter().map(|&v| 1 - v).collect();
+        let grid = BlockGrid::new(g, &clear, w, h, params.quality.paper_block_px);
+        detect(&grid, 180.0, 72, &params.quality)
+    }
+
+    #[test]
+    fn a_crease_that_crosses_text_lines_is_still_found() {
+        let (w, h) = (600, 480);
+        // Inside a text band (row 6..17 of line 10 = 240 + 10) and in a gap between lines.
+        for at in [250usize, 262] {
+            let f = run_with_ink(&text_page(w, h, at, true), w, h);
+            assert_eq!(
+                (f.horizontal, f.vertical),
+                (1, 0),
+                "horizontal at {at}: {f:?}"
+            );
+        }
+        for at in [200usize, 307] {
+            let f = run_with_ink(&text_page(w, h, at, false), w, h);
+            assert_eq!(
+                (f.horizontal, f.vertical),
+                (0, 1),
+                "vertical at {at}: {f:?}"
+            );
+        }
     }
 
     #[test]

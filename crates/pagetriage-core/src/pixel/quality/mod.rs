@@ -213,7 +213,7 @@ pub fn assess(
         },
         p,
     );
-    let folds = folds::detect(&grid, tone.gap * 255.0, p);
+    let folds = folds::detect(&grid, tone.gap * 255.0, dpi, p);
 
     // Photocopy generation (experimental).
     let median_area = {
@@ -326,4 +326,53 @@ pub fn assess(
         grade: graded.grade.to_owned(),
     };
     Ok(QualityAssessment { quality, features })
+}
+
+/// Fold lines found on a page as `(horizontal, position in pixels, depth in gray levels)`: the
+/// row (for horizontal folds) or column (vertical) of the line. A diagnostic that repeats the front
+/// end of [`assess`]; the report itself only carries the count.
+pub fn fold_positions(
+    gray: &[u8],
+    width: usize,
+    height: usize,
+    dpi: u16,
+    params: &Params,
+) -> Result<Vec<(bool, usize, f64)>> {
+    if width == 0 || height == 0 || gray.len() != width * height {
+        return Err(Error::InvalidInput(format!(
+            "gray buffer of {} bytes does not match {width}x{height}",
+            gray.len()
+        )));
+    }
+    let p = &params.quality;
+    let ink = local::sauvola(gray, width, height, &params.sauvola);
+    let lab = components::label_8(&ink, width, height);
+    let text = text_mask(&lab, width, height, p);
+    let is_text_ink = |i: usize| {
+        let l = lab.labels[i];
+        l != 0 && text.is_text[(l - 1) as usize]
+    };
+    let dist = stroke::chamfer_distance(&ink, width, height);
+    let mut hist = [0u64; 256];
+    for y in 0..height {
+        for x in 0..width {
+            let i = y * width + x;
+            if is_text_ink(i) && stroke::is_ridge(&dist, width, height, x, y) {
+                hist[usize::from(dist[i]).min(255)] += 1;
+            }
+        }
+    }
+    let stroke_px = stroke::width_px(hist_median(&hist) as u16).max(1.0);
+    let exclude_px = p
+        .bleed_exclude_px
+        .max((p.bleed_exclude_stroke_mult * stroke_px).ceil() as usize);
+    let near_ink = blur::dilate(&ink, width, height, exclude_px);
+    let clear: Vec<u8> = near_ink.iter().map(|&v| 1 - v).collect();
+    let grid = paper::BlockGrid::new(gray, &clear, width, height, p.paper_block_px);
+    let tone = tone::measure(gray, &ink, &is_text_ink, p.ink_level_percentile);
+    let (lines, _) = folds::locate(&grid, tone.gap * 255.0, dpi, p);
+    Ok(lines
+        .into_iter()
+        .map(|(horizontal, j, depth, _)| (horizontal, j * grid.block + grid.block / 2, depth))
+        .collect())
 }

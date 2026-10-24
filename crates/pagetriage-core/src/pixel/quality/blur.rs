@@ -64,20 +64,58 @@ pub fn focus_stats(gray: &[u8], width: usize, height: usize, mask: &[u8]) -> Blu
     }
 }
 
-/// Mark every pixel within `radius` (Chebyshev distance) of a set pixel of `src`.
+/// Mark every pixel within `radius` (Chebyshev distance) of a set pixel of `src`. Two linear
+/// passes (rows, then columns) of "distance to the nearest set pixel", so the cost does not
+/// depend on the radius.
 pub fn dilate(src: &[u8], width: usize, height: usize, radius: usize) -> Vec<u8> {
+    if radius == 0 {
+        return src.iter().map(|&v| u8::from(v != 0)).collect();
+    }
+    // Horizontal: out[y][x] = 1 when some set pixel of row y lies within `radius` columns.
+    let mut rows = vec![0u8; src.len()];
+    for y in 0..height {
+        let row = &src[y * width..(y + 1) * width];
+        let out = &mut rows[y * width..(y + 1) * width];
+        let mut last: Option<usize> = None;
+        for (x, &v) in row.iter().enumerate() {
+            if v != 0 {
+                last = Some(x);
+            }
+            if last.is_some_and(|l| x - l <= radius) {
+                out[x] = 1;
+            }
+        }
+        let mut next: Option<usize> = None;
+        for x in (0..width).rev() {
+            if row[x] != 0 {
+                next = Some(x);
+            }
+            if next.is_some_and(|n| n - x <= radius) {
+                out[x] = 1;
+            }
+        }
+    }
+    // Vertical: the same on columns of `rows`.
     let mut out = vec![0u8; src.len()];
+    let mut last = vec![usize::MAX; width];
     for y in 0..height {
         for x in 0..width {
-            if src[y * width + x] == 0 {
-                continue;
+            if rows[y * width + x] != 0 {
+                last[x] = y;
             }
-            let (y0, y1) = (y.saturating_sub(radius), (y + radius).min(height - 1));
-            let (x0, x1) = (x.saturating_sub(radius), (x + radius).min(width - 1));
-            for yy in y0..=y1 {
-                for v in &mut out[yy * width + x0..=yy * width + x1] {
-                    *v = 1;
-                }
+            if last[x] != usize::MAX && y - last[x] <= radius {
+                out[y * width + x] = 1;
+            }
+        }
+    }
+    let mut next = vec![usize::MAX; width];
+    for y in (0..height).rev() {
+        for x in 0..width {
+            if rows[y * width + x] != 0 {
+                next[x] = y;
+            }
+            if next[x] != usize::MAX && next[x] - y <= radius {
+                out[y * width + x] = 1;
             }
         }
     }
@@ -150,6 +188,37 @@ mod tests {
         let sq = |v: f64| v * v;
         let expect = (sq(-400.0 - mean) + sq(100.0 - mean) + sq(0.0 - mean)) / 3.0;
         assert!((v - expect).abs() < 1e-9, "{v} vs {expect}");
+    }
+
+    #[test]
+    fn dilation_matches_a_brute_force_square_on_random_masks() {
+        let (w, h) = (23usize, 17usize);
+        let mut state = 7u32;
+        let mask: Vec<u8> = (0..w * h)
+            .map(|_| {
+                state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+                u8::from((state >> 16) % 29 == 0)
+            })
+            .collect();
+        for radius in [0usize, 1, 2, 4, 9] {
+            let fast = dilate(&mask, w, h, radius);
+            for y in 0..h {
+                for x in 0..w {
+                    let mut expect = 0u8;
+                    for yy in 0..h {
+                        for xx in 0..w {
+                            if mask[yy * w + xx] != 0
+                                && yy.abs_diff(y) <= radius
+                                && xx.abs_diff(x) <= radius
+                            {
+                                expect = 1;
+                            }
+                        }
+                    }
+                    assert_eq!(fast[y * w + x], expect, "r={radius} at ({x},{y})");
+                }
+            }
+        }
     }
 
     #[test]

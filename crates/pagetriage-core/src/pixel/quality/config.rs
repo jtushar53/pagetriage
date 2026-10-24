@@ -51,7 +51,9 @@ pub struct QualityParams {
     pub fold_min_valid_frac: f64,
     pub fold_min_depth_levels: f64,
     pub fold_max_depth_gap_frac: f64,
+    pub fold_min_length_in: f64,
     pub fold_min_coverage: f64,
+    pub fold_min_measurable: f64,
     pub fold_max_lines: usize,
     pub fold_min_narrowness: f64,
     pub fold_edge_margin_blocks: usize,
@@ -141,6 +143,7 @@ impl QualityParams {
             ("fold_min_depth_levels", self.fold_min_depth_levels),
             ("fold_max_depth_gap_frac", self.fold_max_depth_gap_frac),
             ("fold_min_coverage", self.fold_min_coverage),
+            ("fold_min_length_in", self.fold_min_length_in),
             ("skew_range_deg", self.skew_range_deg),
             ("skew_coarse_step_deg", self.skew_coarse_step_deg),
             ("skew_fine_step_deg", self.skew_fine_step_deg),
@@ -180,6 +183,8 @@ impl QualityParams {
             || self.fold_max_depth_gap_frac <= 0.0
             || !(self.fold_min_coverage > 0.0 && self.fold_min_coverage <= 1.0)
             || !(0.0..=1.0).contains(&self.fold_min_narrowness)
+            || !(0.0..=1.0).contains(&self.fold_min_measurable)
+            || self.fold_min_length_in < 0.0
             || !(0.0..0.5).contains(&self.fold_edge_margin_frac)
             || !(self.fold_min_shading >= 0.0 && self.fold_min_shading < self.fold_max_shading)
         {

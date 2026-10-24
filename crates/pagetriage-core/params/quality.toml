@@ -67,7 +67,7 @@ bleed_exclude_px = 2
 # A paper pixel is "faint ink" when it is at least this fraction of the ink/paper gap below the
 # local paper level, and at least `bleed_ghost_floor_levels` gray levels below it. Source:
 # placeholder; tuned on the tune sets of docs/detectors/quality.md.
-bleed_ghost_min_frac = 0.12
+bleed_ghost_min_frac = 0.06
 bleed_ghost_floor_levels = 6.0
 
 # The threshold is also at least this many robust standard deviations of the paper's own gray
@@ -77,23 +77,23 @@ bleed_noise_sigmas = 4.0
 
 # Faint pixels count as ghost strokes only in connected components of at least this many pixels.
 # Source: placeholder.
-bleed_ghost_min_area = 20
+bleed_ghost_min_area = 6
 
 # ... and only if their mean width (area over centre-line length) is at most this multiple of the
 # text's own median stroke width: faint blobs (stains, shadows) are not reverse-side strokes.
 # Source: placeholder; tuned on the tune sets.
-bleed_ghost_max_width_ratio = 2.5
+bleed_ghost_max_width_ratio = 2.0
 
 # The exclusion radius around front ink is at least this multiple of the median text stroke width
 # (thick strokes have wider anti-aliased and blurred halos). Source: placeholder.
-bleed_exclude_stroke_mult = 1.0
+bleed_exclude_stroke_mult = 2.0
 
 # Faint-pixel share of the paper pixels (`mid_mass`) that scores 1, and ghost-stroke ratio that
 # scores 1. The bleed-through score is a weighted mean of the two, weight below on `mid_mass`.
 # Source: placeholder; tuned on the tune sets.
-bleed_mid_mass_full = 0.05
-bleed_ghost_ratio_full = 0.5
-bleed_weight_mid = 0.5
+bleed_mid_mass_full = 0.03
+bleed_ghost_ratio_full = 0.25
+bleed_weight_mid = 0.25
 
 # ---- fold lines ------------------------------------------------------------------------------
 
@@ -104,7 +104,7 @@ fold_arm_blocks = 3
 # A block needs this many clear-paper pixels to have a value, and a line of blocks this fraction
 # of valid blocks to enter the profile. Source: placeholder.
 fold_min_block_pixels = 4
-fold_min_valid_frac = 0.5
+fold_min_valid_frac = 0.2
 
 # Valley depth range in gray levels: at least this (shallower is paper texture), and at most this
 # fraction of the ink/paper gap ("low contrast": anything darker is ink or a ruling).
@@ -112,9 +112,17 @@ fold_min_valid_frac = 0.5
 fold_min_depth_levels = 5.0
 fold_max_depth_gap_frac = 0.35
 
-# Fraction of ALL columns (rows) that must show at least half the valley, allowing one block of
-# tilt: "near full width". Columns without usable paper count as misses. Source: placeholder.
-fold_min_coverage = 0.7
+# A fold is long: a line shorter than this many inches (at the page's dpi) is not searched, so
+# crops and strips are not mistaken for pages. Source: placeholder; DIBCO crops are mostly shorter.
+fold_min_length_in = 3.0
+
+# Of the columns (rows) where the valley can be measured at all, this fraction must show at least
+# half of it, allowing one block of tilt: "near full width". Source: placeholder.
+fold_min_coverage = 0.8
+
+# At least this fraction of all columns (rows) must be measurable (text and stamps hide the paper
+# in the others), so a short valley between two text lines does not pass. Source: placeholder.
+fold_min_measurable = 0.25
 
 # A crease is narrow: the valley depth two blocks out must be at least this fraction of the depth
 # at the full arm. Source: placeholder.
@@ -263,4 +271,4 @@ skew_min_points = 200
 
 # More ink points than this are thinned by a fixed stride (every k-th in raster order) so the cost
 # stays bounded. Source: placeholder; chosen for the 100 ms budget at 150 dpi A4.
-skew_max_points = 150000
+skew_max_points = 60000
