@@ -10,6 +10,11 @@ rust-version.workspace = true
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[features]
+default = []
+# PDF structural layer (modules M1, M2, M12). Off by default: the pixel-only build stays small.
+pdf = ["pagetriage-core/pdf"]
+
 [dependencies]
 pagetriage-core.workspace = true
 # Pinned exactly: the wasm-bindgen CLI that post-processes the .wasm must be the same version.

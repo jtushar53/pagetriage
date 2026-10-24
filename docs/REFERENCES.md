@@ -87,6 +87,16 @@ hand-set rules and a few frozen logistic coefficients, so expect lower numbers t
 | G. Nagy, S. Seth, "Hierarchical representation of optically scanned documents" | ICPR 1984, pp. 347–349 | — | Recursive XY-cut |
 | L. O'Gorman, "The document spectrum for page layout analysis" | IEEE TPAMI 15(11), 1993 | — | Docstrum, for skewed text |
 
+## PDF structure (M1, M2, M12)
+
+| Source | Venue | Link | Used for |
+|---|---|---|---|
+| ISO 32000-1:2008 (PDF 1.7) and ISO 32000-2:2020 | ISO | — | Content-stream operators, text render modes, `ToUnicode` CMaps, cross-reference tables and streams, incremental updates (*unverified*: section numbers are not cited because they were recalled, not re-read) |
+| ITU-T T.81 / ISO/IEC 10918-1, "Digital compression and coding of continuous-tone still images" | 1992 | — | JPEG marker segments and the Annex K example quantisation tables |
+| Independent JPEG Group, libjpeg `jpeg_set_quality` / `jpeg_quality_scaling` | IJG libjpeg 6b and later | — | The quality-to-quantisation-table scaling that the quality estimate inverts. Checked against Pillow's (libjpeg) output for qualities 1 to 100 |
+| `lopdf` (J.-F. Liu et al.), MIT | crates.io 0.46 | [github.com/J-F-Liu/lopdf](https://github.com/J-F-Liu/lopdf) | PDF object parsing, stream decoding with a size cap; the only PDF parser dependency (behind the `pdf` feature) |
+| `pdf-inspector` (Firecrawl), MIT | crates.io 1.25.2 | [github.com/firecrawl/pdf-inspector](https://github.com/firecrawl/pdf-inspector) | Evaluated and **not** used in the core; compared in `bench/compare_pdf_inspector.py`. See `detectors/text_layer.md` |
+
 ## Provenance (M12)
 
 | Paper | Venue | Link | Used for |

@@ -58,6 +58,23 @@ pub fn binarize(
     .map_err(|e| JsError::new(&e.to_string()))
 }
 
+/// Structure of a PDF (modules M1, M2, M12): the canonical JSON of a `StructureReport`, identical
+/// bytes to the native and Python builds. Only present when built with the `pdf` feature. Throws an
+/// `Error` for input that is not a PDF, is over the size limits, or cannot be parsed.
+#[cfg(feature = "pdf")]
+#[wasm_bindgen]
+pub fn analyse_pdf_structure(bytes: &[u8], opts_json: Option<String>) -> Result<String, JsError> {
+    pagetriage_core::structural::analyse_pdf_structure(bytes, opts_json.as_deref().unwrap_or("{}"))
+        .map_err(|e| JsError::new(&e.to_string()))
+}
+
+/// JSON Schema of the structure report, for validation on the JS side.
+#[cfg(feature = "pdf")]
+#[wasm_bindgen]
+pub fn structure_schema_json() -> String {
+    pagetriage_core::schema::structure_schema_json()
+}
+
 /// JSON Schema of the report, for validation on the JS side.
 #[wasm_bindgen]
 pub fn schema_json() -> String {

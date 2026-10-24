@@ -19,6 +19,9 @@ The plumbing is built and tested; the detectors are not. Today it can do this:
 
 - **Analyse a page image** (PNG, JPEG, TIFF, PNM, BMP) and print a JSON report that validates
   against a checked-in JSON Schema (`schema/pagetriage-0.1.schema.json`).
+- **Read a PDF's structure** (`pagetriage structure FILE.pdf`, cargo feature `pdf`): per-page
+  text-layer state, script and legacy-font flag, producer, incremental updates and JPEG tables, with
+  no rendering. See [`docs/detectors/text_layer.md`](docs/detectors/text_layer.md).
 - **Produce byte-identical reports on native, Python and WASM**, checked against golden snapshots on
   every CI run (`scripts/determinism.sh`). The WASM build is about 150 KB gzipped.
 - **One placeholder detector**, `blank_page`, which exists to exercise the whole path (pixels,
@@ -28,7 +31,7 @@ The plumbing is built and tested; the detectors are not. Today it can do this:
 - A benchmark harness (`bench/`) that downloads and verifies the DIBCO datasets and runs the
   analyser over them.
 
-Not done yet: PDF input, every real detector (script, handwriting, stamps, signatures, thumbprints,
+Not done yet: rasterising PDF pages, every real pixel detector (script, handwriting, stamps, signatures, thumbprints,
 Indian-deed specifics), calibration, and the npm package. See [`docs/modules.md`](docs/modules.md)
 for the module list and the phase each one lands in.
 
@@ -37,6 +40,7 @@ for the module list and the phase each one lands in.
 ```sh
 cargo run -p pagetriage-cli -- analyse page.png --pretty
 cargo run -p pagetriage-cli -- analyse page.png --debug      # include raw detector features
+cargo run -p pagetriage-cli -- structure file.pdf --pretty    # text layer, script and provenance of a PDF
 cargo run -p pagetriage-cli -- schema                        # JSON Schema of the report
 cargo run -p pagetriage-cli -- params                        # embedded default thresholds, as TOML
 ```

@@ -114,6 +114,23 @@ def published(key: str, mode: str, method: str) -> float | None:
     return row[PUBLISHED_COLUMN[mode]]
 
 
+def with_howe_mode(overrides: str, mode: str) -> str:
+    """TOML overrides that certainly run Howe in `mode`. A `--params` string that already has a
+    `[howe]` table must not silently win over `--howe-mode` (it used to: the flag was dropped and the
+    embedded default mode ran instead), so the mode is written into that table, and a conflicting
+    `mode` key is an error."""
+    import re
+
+    given = re.search(r'^\s*mode\s*=\s*"([a-z_]+)"', overrides, flags=re.M)
+    if given:
+        if given.group(1) != mode:
+            raise SystemExit(f'--params sets mode = "{given.group(1)}" but --howe-mode is "{mode}"')
+        return overrides
+    if re.search(r"^\s*\[howe\]\s*$", overrides, flags=re.M):
+        return re.sub(r"^(\s*\[howe\]\s*)$", rf'\1\nmode = "{mode}"', overrides, count=1, flags=re.M)
+    return overrides + f'\n[howe]\nmode = "{mode}"\n'
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--sets", nargs="+", default=["dibco2009", "dibco2010", "dibco2011"], choices=["dibco2009", "dibco2010", "dibco2011"])
@@ -131,7 +148,7 @@ def main() -> int:
     if args.params_file:
         overrides += "\n" + Path(args.params_file).read_text()
     if args.method == "howe":
-        overrides += f'\n[howe]\nmode = "{args.howe_mode}"\n' if "[howe]" not in overrides else ""
+        overrides = with_howe_mode(overrides, args.howe_mode)
     manifest = _manifest()
     rows = []
     for name in args.sets:
