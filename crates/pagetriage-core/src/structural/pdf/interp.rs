@@ -152,6 +152,7 @@ struct Interp<'d, 'c> {
     aabbs: Vec<[f64; 4]>,
     glyphs_total: u64,
     glyphs_recorded: u64,
+    max_single_cover: f64,
     occlusion_scans: u32,
     inline_font_ids: BTreeMap<usize, u32>,
     fallback: Rc<FontModel>,
@@ -203,6 +204,7 @@ pub fn scan_page<'d>(
         aabbs: Vec::new(),
         glyphs_total: 0,
         glyphs_recorded: 0,
+        max_single_cover: 0.0,
         occlusion_scans: 0,
         inline_font_ids: BTreeMap::new(),
         fallback: Rc::new(FontModel::fallback()),
@@ -769,6 +771,7 @@ impl<'d> Interp<'d, '_> {
 
         let obs = &mut self.scan.obs;
         obs.image_count = obs.image_count.saturating_add(1);
+        self.max_single_cover = self.max_single_cover.max(cover);
         if self.aabbs.len() < MAX_AABBS {
             self.aabbs.push(aabb);
         }
@@ -836,7 +839,9 @@ impl<'d> Interp<'d, '_> {
             }
         }
         let obs = &mut self.scan.obs;
-        obs.image_cover = cells as f64 / (n * n) as f64;
+        // The grid underestimates small images by up to a cell; a single image's exact cover is a
+        // lower bound on the union, so take the larger of the two.
+        obs.image_cover = (cells as f64 / (n * n) as f64).max(self.max_single_cover);
 
         let (mut under, mut in_image) = (0u64, 0u64);
         for r in &self.records {
