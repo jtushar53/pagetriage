@@ -194,6 +194,8 @@ pub struct DocumentStructure {
     /// Page content, images or the page tree changed in a revision after a signature.
     pub tamper_signal: bool,
     pub tamper_reasons: Vec<String>,
+    /// Some update changed page content, an image or the page tree (signed or not).
+    pub content_changed_in_update: bool,
     /// Number of JPEG (`/DCTDecode`) images examined.
     pub jpeg_images: u32,
     /// Distinct quantisation-table hashes with the number of images using each.

@@ -40,38 +40,46 @@ pub struct NameHit {
     pub strength: Strength,
 }
 
-/// Strongest curated-list match for a font name, if any (strong beats weak, then list order).
-pub fn match_name(font_name: &[u8], p: &FontScriptParams) -> Option<NameHit> {
-    let norm = normalise_name(font_name);
-    if norm.is_empty() {
-        return None;
-    }
+/// Strongest curated-list match among the names a font goes by (strong beats weak, then list
+/// order, then the order of `names`).
+pub fn match_names(names: &[&[u8]], p: &FontScriptParams) -> Option<NameHit> {
     let mut best: Option<NameHit> = None;
-    for e in &p.legacy_font {
-        let hit = match e.matching {
-            NameMatch::Prefix => norm.starts_with(&e.name),
-            NameMatch::Contains => norm.contains(&e.name),
-        };
-        if !hit {
+    for raw in names {
+        let norm = normalise_name(raw);
+        if norm.is_empty() {
             continue;
         }
-        let Some(script) = Script::from_id(&e.script) else {
-            continue;
-        };
-        let candidate = NameHit {
-            entry: e.name.clone(),
-            script,
-            strength: e.strength,
-        };
-        let better = match &best {
-            None => true,
-            Some(b) => b.strength == Strength::Weak && candidate.strength == Strength::Strong,
-        };
-        if better {
-            best = Some(candidate);
+        for e in &p.legacy_font {
+            let hit = match e.matching {
+                NameMatch::Prefix => norm.starts_with(&e.name),
+                NameMatch::Contains => norm.contains(&e.name),
+            };
+            if !hit {
+                continue;
+            }
+            let Some(script) = Script::from_id(&e.script) else {
+                continue;
+            };
+            let candidate = NameHit {
+                entry: e.name.clone(),
+                script,
+                strength: e.strength,
+            };
+            let better = match &best {
+                None => true,
+                Some(b) => b.strength == Strength::Weak && candidate.strength == Strength::Strong,
+            };
+            if better {
+                best = Some(candidate);
+            }
         }
     }
     best
+}
+
+/// [`match_names`] for a single name.
+pub fn match_name(font_name: &[u8], p: &FontScriptParams) -> Option<NameHit> {
+    match_names(&[font_name], p)
 }
 
 /// Rates measured on a text sample.
@@ -201,12 +209,12 @@ pub struct FontVerdict {
 /// Decide whether one used font is legacy-encoded. `sample` is the text its codes decode to (empty
 /// when nothing decoded). `font_label` goes into evidence notes.
 pub fn judge_font(
-    font_name: &[u8],
+    font_names: &[&[u8]],
     font_label: &str,
     sample: &str,
     p: &FontScriptParams,
 ) -> Result<FontVerdict> {
-    let name_hit = match_name(font_name, p);
+    let name_hit = match_names(font_names, p);
     let mut evidence = Vec::new();
     let mut logit = p.prior_logit;
 
@@ -365,19 +373,19 @@ mod tests {
     #[test]
     fn name_alone_decides_a_strong_match_but_not_a_weak_one() {
         let p = params();
-        let v = judge_font(b"KrutiDev010", "F1", "", &p).unwrap();
+        let v = judge_font(&[b"KrutiDev010"], "F1", "", &p).unwrap();
         assert!(v.legacy && v.script == Some(Script::Devanagari));
-        let w = judge_font(b"Agra", "F1", "", &p).unwrap();
+        let w = judge_font(&[b"Agra"], "F1", "", &p).unwrap();
         assert!(!w.legacy);
-        let none = judge_font(b"Helvetica", "F1", "", &p).unwrap();
+        let none = judge_font(&[b"Helvetica"], "F1", "", &p).unwrap();
         assert!(!none.legacy && none.evidence.is_empty());
     }
 
     #[test]
     fn english_text_in_a_strongly_named_font_is_still_flagged_by_name_but_with_lower_confidence() {
         let p = params();
-        let by_name = judge_font(b"KrutiDev010", "F1", "", &p).unwrap();
-        let english = judge_font(b"KrutiDev010", "F1", ENGLISH, &p).unwrap();
+        let by_name = judge_font(&[b"KrutiDev010"], "F1", "", &p).unwrap();
+        let english = judge_font(&[b"KrutiDev010"], "F1", ENGLISH, &p).unwrap();
         assert!(english.confidence < by_name.confidence);
     }
 
@@ -387,16 +395,16 @@ mod tests {
         let text = KRUTI_LIKE.repeat(6)
             + &"lEifRr ds fy;s ;g foys[k Hkkjr ljdkj dk gS {ks=Qy fu\"iknu vk/kkj ¼[kjhnh½ "
                 .repeat(4);
-        let v = judge_font(b"CustomFont1", "F1", &text, &p).unwrap();
+        let v = judge_font(&[b"CustomFont1"], "F1", &text, &p).unwrap();
         assert!(v.legacy, "{v:?}");
-        let eng = judge_font(b"CustomFont1", "F1", &ENGLISH.repeat(3), &p).unwrap();
+        let eng = judge_font(&[b"CustomFont1"], "F1", &ENGLISH.repeat(3), &p).unwrap();
         assert!(!eng.legacy, "{eng:?}");
     }
 
     #[test]
     fn short_samples_carry_no_statistical_weight() {
         let p = params();
-        let v = judge_font(b"Unknown", "F1", "Hkkjr ljdkj", &p).unwrap();
+        let v = judge_font(&[b"Unknown"], "F1", "Hkkjr ljdkj", &p).unwrap();
         assert!(v.stats.is_none());
         assert!(!v.legacy);
     }
