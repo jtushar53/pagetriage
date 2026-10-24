@@ -197,7 +197,7 @@ mod tests {
         let mask: Vec<u8> = (0..w * h)
             .map(|_| {
                 state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
-                u8::from((state >> 16) % 29 == 0)
+                u8::from((state >> 16).is_multiple_of(29))
             })
             .collect();
         for radius in [0usize, 1, 2, 4, 9] {
