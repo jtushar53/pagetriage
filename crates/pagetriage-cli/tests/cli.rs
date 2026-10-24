@@ -194,3 +194,39 @@ fn params_subcommand_prints_parseable_toml_matching_the_defaults() {
     assert!(text.contains("[blank_page]") && text.contains("ink_delta"));
     assert!(pagetriage_core::Params::with_overrides(&text).is_ok());
 }
+
+#[test]
+fn duplicates_command_links_a_rescan_to_its_original() {
+    // Blocky page, a brightness-scaled copy, and an unrelated page.
+    let (w, h) = (96usize, 120usize);
+    let blocks = |seed: usize| -> Vec<u8> {
+        (0..w * h)
+            .map(|i| {
+                let (x, y) = (i % w, i / w);
+                let cell = (x / 12 + 8 * (y / 15)) * seed;
+                200 - ((cell * 37 + seed * 11) % 150) as u8
+            })
+            .collect()
+    };
+    let a = blocks(3);
+    let scaled: Vec<u8> = a.iter().map(|&v| (u32::from(v) * 9 / 10) as u8).collect();
+    let b = blocks(7);
+    let files = [
+        write_pgm("dup_a.pgm", w, h, &a),
+        write_pgm("dup_b.pgm", w, h, &b),
+        write_pgm("dup_a_scaled.pgm", w, h, &scaled),
+    ];
+    let out = bin().arg("duplicates").args(&files).output().unwrap();
+    let pages = stdout_json(&out);
+    let pages = pages.as_array().unwrap();
+    assert_eq!(pages.len(), 3);
+    assert_eq!(pages[0]["near_duplicate_of"], serde_json::Value::Null);
+    assert_eq!(pages[2]["near_duplicate_of"], 0, "{pages:?}");
+    assert_eq!(pages[0]["phash"].as_str().unwrap().len(), 16);
+}
+
+#[test]
+fn duplicates_command_needs_at_least_one_file() {
+    let out = bin().arg("duplicates").output().unwrap();
+    assert!(!out.status.success());
+}
