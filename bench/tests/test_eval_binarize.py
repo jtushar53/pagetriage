@@ -54,6 +54,29 @@ class PublishedTables(unittest.TestCase):
                 self.assertTrue(all(0 < v <= 100 for v in row), key)
 
 
+class HoweModeOverride(unittest.TestCase):
+    def test_mode_is_written_into_an_existing_howe_table(self):
+        out = eb.with_howe_mode("[howe]\nt_lo = 0.15\n", "tune_c")
+        self.assertEqual(out.count("[howe]"), 1)
+        self.assertIn('mode = "tune_c"', out)
+
+    def test_mode_is_added_when_no_howe_table_is_given(self):
+        self.assertIn('[howe]\nmode = "static"', eb.with_howe_mode("", "static"))
+        self.assertIn('mode = "dual"', eb.with_howe_mode("[blank_page]\nink_delta = 30\n", "dual"))
+
+    def test_a_conflicting_mode_is_an_error_and_a_matching_one_is_kept(self):
+        with self.assertRaises(SystemExit):
+            eb.with_howe_mode('[howe]\nmode = "static"\n', "dual")
+        self.assertEqual(eb.with_howe_mode('[howe]\nmode = "dual"\n', "dual"), '[howe]\nmode = "dual"\n')
+
+    def test_result_is_valid_toml_with_the_requested_mode(self):
+        import tomllib
+
+        for text in ("", "[howe]\nt_lo = 0.2\n", "[howe]\ncost_scale = 1.0\n[sauvola]\nk = 0.3\n"):
+            parsed = tomllib.loads(eb.with_howe_mode(text, "tune_c"))
+            self.assertEqual(parsed["howe"]["mode"], "tune_c", text)
+
+
 class Manifest(unittest.TestCase):
     def test_counts_and_unique_keys(self):
         manifest = eb._manifest()
