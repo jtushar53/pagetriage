@@ -177,21 +177,6 @@ pub fn assess(
         .count();
     let speckle_density = specks as f64 / page_px;
 
-    // Blur: Laplacian statistics on the text mask (text ink and a thin ring around it).
-    let text_pixels: Vec<u8> = (0..ink.len()).map(|i| u8::from(is_text_ink(i))).collect();
-    let text_mask_px = blur::dilate(&text_pixels, width, height, p.blur_dilate_px);
-    let focus = blur::focus_stats(gray, width, height, &text_mask_px);
-    // Blur radius implied by the edge sharpness (a Gaussian step edge has S = 1 / (sqrt 2 sigma)),
-    // in pixels, capped so a page with no gradient gives a finite value.
-    let blur_sigma_px = if focus.sharpness > 0.0 {
-        (1.0 / (std::f64::consts::SQRT_2 * focus.sharpness)).min(p.blur_sigma_cap_px)
-    } else if focus.pixels > 0 {
-        p.blur_sigma_cap_px
-    } else {
-        0.0
-    };
-    let blur_sigma_mm = blur_sigma_px * 25.4 / f64::from(dpi);
-
     // Paper level grid, bleed-through and folds.
     let exclude_px = p
         .bleed_exclude_px
@@ -199,17 +184,31 @@ pub fn assess(
     let near_ink = blur::dilate(&ink, width, height, exclude_px);
     let clear: Vec<u8> = near_ink.iter().map(|&v| 1 - v).collect();
     let grid = paper::BlockGrid::new(gray, &clear, width, height, p.paper_block_px);
+
+    // Blur: Laplacian statistics on the text mask (text ink and a thin ring around it), with the
+    // noise floor measured on clear paper.
+    let text_pixels: Vec<u8> = (0..ink.len()).map(|i| u8::from(is_text_ink(i))).collect();
+    let text_mask_px = blur::dilate(&text_pixels, width, height, p.blur_dilate_px);
+    let focus = blur::focus_stats(gray, width, height, &text_mask_px, &clear, p.blur_min_snr);
+    // Blur radius implied by the edge sharpness (a Gaussian step edge has S = 1 / (sqrt 2 sigma)),
+    // in pixels, capped so a page with no usable gradient gives a finite value.
+    let blur_sigma_px = match focus.sharpness {
+        Some(s) if s > 0.0 => (1.0 / (std::f64::consts::SQRT_2 * s)).min(p.blur_sigma_cap_px),
+        Some(_) => 0.0,
+        None => p.blur_sigma_cap_px,
+    };
+    let blur_sigma_mm = blur_sigma_px * 25.4 / f64::from(dpi);
+
     let bleed = bleed::measure(
         &bleed::BleedInput {
             gray,
-            near_ink: &near_ink,
             grid: &grid,
             width,
             height,
             paper_level: tone.paper_level,
             gap: tone.gap,
-            text_ink_pixels,
             text_stroke_px,
+            exclude_px,
         },
         p,
     );
@@ -273,7 +272,9 @@ pub fn assess(
     put("specks", specks as f64);
     put("speck_side_px", speck_side);
     put("blur_pixels", focus.pixels as f64);
-    put("blur_sharpness", focus.sharpness);
+    put("blur_sharpness_raw", focus.sharpness_raw);
+    put("blur_sharpness", focus.sharpness.unwrap_or(0.0));
+    put("blur_snr", focus.snr.min(1.0e6));
     put("blur_sigma_px", blur_sigma_px);
     put("blur_sigma_mm", blur_sigma_mm);
     put("bleed_mid_mass", bleed.mid_mass);
@@ -281,6 +282,8 @@ pub fn assess(
     put("bleed_faint_ink_ratio", bleed.faint_ink_ratio);
     put("bleed_ghost_pixels", bleed.ghost_pixels as f64);
     put("bleed_threshold_levels", bleed.threshold_levels);
+    put("bleed_strong_levels", bleed.strong_levels);
+    put("bleed_strong_pixels", bleed.strong_pixels as f64);
     put("fold_horizontal", f64::from(folds.horizontal));
     put("fold_vertical", f64::from(folds.vertical));
     put("fold_candidates", f64::from(folds.candidates));

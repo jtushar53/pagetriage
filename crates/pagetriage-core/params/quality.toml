@@ -48,6 +48,12 @@ blur_dilate_px = 1
 # Source: numerical guard, not a tuned value.
 blur_sigma_cap_px = 10.0
 
+# The text mask's Laplacian power above the paper's noise floor must be at least this multiple of
+# the floor, or the edges are no stronger than the noise and the page is read as "very blurred"
+# (blur_sigma_cap_px). Source: placeholder; chosen on the synthetic blur sweep of
+# bench/quality_synth_eval.py.
+blur_min_snr = 4.0
+
 # ---- paper level grid ------------------------------------------------------------------------
 
 # Paper (pixels that are neither ink nor next to ink) is averaged on a grid of blocks this many
@@ -64,10 +70,15 @@ bleed_bg_radius_blocks = 6
 # Source: placeholder.
 bleed_exclude_px = 2
 
+# "Strong" (front-side) ink is a pixel at least this fraction of the ink/paper gap below the local
+# paper level. Faint pixels are looked for only clear of it. Source: placeholder; tuned on the
+# synthetic show-through sweep of bench/quality_synth_eval.py and the tune sets.
+bleed_strong_frac = 0.5
+
 # A paper pixel is "faint ink" when it is at least this fraction of the ink/paper gap below the
 # local paper level, and at least `bleed_ghost_floor_levels` gray levels below it. Source:
 # placeholder; tuned on the tune sets of docs/detectors/quality.md.
-bleed_ghost_min_frac = 0.06
+bleed_ghost_min_frac = 0.1
 bleed_ghost_floor_levels = 6.0
 
 # The threshold is also at least this many robust standard deviations of the paper's own gray
@@ -92,8 +103,8 @@ bleed_exclude_stroke_mult = 2.0
 # scores 1. The bleed-through score is a weighted mean of the two, weight below on `mid_mass`.
 # Source: placeholder; tuned on the tune sets.
 bleed_mid_mass_full = 0.03
-bleed_ghost_ratio_full = 0.25
-bleed_weight_mid = 0.25
+bleed_ghost_ratio_full = 0.2
+bleed_weight_mid = 0.5
 
 # ---- fold lines ------------------------------------------------------------------------------
 
@@ -199,9 +210,11 @@ gen_w_gap = 1.0
 # Skew in degrees (|skew|). Small skews are harmless, so this also has a low weight.
 grade_skew_good = 0.5
 grade_skew_bad = 5.0
-# Blur radius in millimetres at the page's dpi (0.12 mm is 0.7 px at 150 dpi).
+# Blur index in millimetres at the page's dpi (0.12 mm is 0.7 px at 150 dpi): the edge-based radius
+# (see blur_sigma_px), which reads about 0.6 of a Gaussian blur's true radius on thin strokes.
+# Source: placeholder, set on the synthetic blur sweep of bench/quality_synth_eval.py.
 grade_blur_good = 0.12
-grade_blur_bad = 0.30
+grade_blur_bad = 0.22
 # Ink/paper gap, lower is worse.
 grade_gap_good = 0.5
 grade_gap_bad = 0.2
@@ -209,8 +222,8 @@ grade_gap_bad = 0.2
 grade_speckle_good = 0.0003
 grade_speckle_bad = 0.003
 # Bleed-through score.
-grade_bleed_good = 0.1
-grade_bleed_bad = 0.6
+grade_bleed_good = 0.3
+grade_bleed_bad = 0.9
 # Fold line count.
 grade_folds_good = 0.0
 grade_folds_bad = 3.0
@@ -228,7 +241,7 @@ grade_b_max = 0.35
 grade_c_max = 0.6
 
 # Recommend Howe instead of Sauvola when the bleed-through score is at least this ...
-howe_bleed_min = 0.4
+howe_bleed_min = 0.5
 # ... or the ink/paper gap is below this ...
 howe_gap_max = 0.25
 # ... but only when at least this fraction of the page is text ink (a blank page has nothing to

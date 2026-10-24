@@ -31,12 +31,14 @@ pub struct QualityParams {
     // --- blur ---
     pub blur_dilate_px: usize,
     pub blur_sigma_cap_px: f64,
+    pub blur_min_snr: f64,
     // --- paper level grid ---
     pub paper_block_px: usize,
     // --- bleed-through ---
     pub bleed_bg_radius_blocks: usize,
     pub bleed_exclude_px: usize,
     pub bleed_ghost_min_frac: f64,
+    pub bleed_strong_frac: f64,
     pub bleed_ghost_floor_levels: f64,
     pub bleed_noise_sigmas: f64,
     pub bleed_ghost_min_area: u32,
@@ -129,6 +131,7 @@ impl QualityParams {
             ("ink_level_percentile", self.ink_level_percentile),
             ("speck_xheight_frac", self.speck_xheight_frac),
             ("bleed_ghost_min_frac", self.bleed_ghost_min_frac),
+            ("bleed_strong_frac", self.bleed_strong_frac),
             ("bleed_ghost_floor_levels", self.bleed_ghost_floor_levels),
             ("bleed_noise_sigmas", self.bleed_noise_sigmas),
             (
@@ -167,6 +170,7 @@ impl QualityParams {
             return bad("paper_block_px must be in 1..=64 and bleed_bg_radius_blocks <= 64");
         }
         if !(self.bleed_ghost_min_frac > 0.0 && self.bleed_ghost_min_frac < 1.0)
+            || !(self.bleed_strong_frac > 0.0 && self.bleed_strong_frac <= 1.0)
             || self.bleed_ghost_floor_levels < 0.0
             || self.bleed_noise_sigmas < 0.0
             || self.bleed_ghost_max_width_ratio <= 0.0
@@ -243,6 +247,7 @@ impl QualityParams {
             self.gen_max_confidence,
             self.gen_fragment_area_frac,
             self.blur_sigma_cap_px,
+            self.blur_min_snr,
             self.grade_w_max,
             self.grade_a_max,
             self.grade_b_max,

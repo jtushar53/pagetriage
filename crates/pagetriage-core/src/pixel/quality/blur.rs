@@ -7,7 +7,43 @@
 //! target. The value depends on scan resolution and on contrast (it scales with contrast squared),
 //! so the grade uses a contrast-normalised form.
 
-/// Focus statistics over the interior pixels where a mask is set.
+/// Sums of the 4-neighbour Laplacian and of the squared central-difference gradient over the
+/// interior pixels where a mask is set. Exact integers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Moments {
+    pub pixels: u64,
+    pub lap_sum: i64,
+    pub lap_sq: u64,
+    /// Sum of `(E - W)^2 + (S - N)^2`, which is four times the squared gradient.
+    pub grad_sq4: u64,
+}
+
+pub fn moments(gray: &[u8], width: usize, height: usize, mask: &[u8]) -> Moments {
+    debug_assert_eq!(gray.len(), width * height);
+    let mut m = Moments::default();
+    if width < 3 || height < 3 {
+        return m;
+    }
+    for y in 1..height - 1 {
+        for x in 1..width - 1 {
+            let i = y * width + x;
+            if mask[i] == 0 {
+                continue;
+            }
+            let (w, e) = (i32::from(gray[i - 1]), i32::from(gray[i + 1]));
+            let (nn, ss) = (i32::from(gray[i - width]), i32::from(gray[i + width]));
+            let lap = i64::from(w + e + nn + ss - 4 * i32::from(gray[i]));
+            let (gx, gy) = (i64::from(e - w), i64::from(ss - nn));
+            m.pixels += 1;
+            m.lap_sum += lap;
+            m.lap_sq += (lap * lap) as u64;
+            m.grad_sq4 += (gx * gx + gy * gy) as u64;
+        }
+    }
+    m
+}
+
+/// Focus statistics of the text mask.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BlurStats {
     /// Pixels counted.
@@ -18,49 +54,79 @@ pub struct BlurStats {
     /// Laplacian to the gradient. For a step edge blurred by a Gaussian of standard deviation
     /// `s` pixels it equals `1 / (sqrt(2) s)`, and it does not depend on contrast or on how many
     /// edge pixels there are. 0 when there is no gradient at all.
-    pub sharpness: f64,
+    pub sharpness_raw: f64,
+    /// The same with the noise floor removed: the mean `L^2` and mean gradient power measured on
+    /// clear paper are subtracted from the text mask's before the ratio is taken. Sensor noise
+    /// otherwise makes every blurred page look sharp. `None` when the text's Laplacian power does
+    /// not exceed the noise power by at least `min_snr` times it (the edges are no stronger than
+    /// the noise), which is read as "very blurred".
+    pub sharpness: Option<f64>,
+    /// Text Laplacian power above the noise floor, over the noise floor (0 when there is none).
+    pub snr: f64,
 }
 
-/// Laplacian variance and edge sharpness over the interior pixels where `mask` is set.
-pub fn focus_stats(gray: &[u8], width: usize, height: usize, mask: &[u8]) -> BlurStats {
-    debug_assert_eq!(gray.len(), width * height);
-    let empty = BlurStats {
-        pixels: 0,
-        variance: 0.0,
-        sharpness: 0.0,
-    };
-    if width < 3 || height < 3 {
-        return empty;
+/// Laplacian variance and edge sharpness over the text mask, with the noise floor taken from the
+/// pixels of `paper_mask` (clear paper, away from any ink).
+pub fn focus_stats(
+    gray: &[u8],
+    width: usize,
+    height: usize,
+    mask: &[u8],
+    paper_mask: &[u8],
+    min_snr: f64,
+) -> BlurStats {
+    let t = moments(gray, width, height, mask);
+    if t.pixels == 0 {
+        return BlurStats {
+            pixels: 0,
+            variance: 0.0,
+            sharpness_raw: 0.0,
+            sharpness: Some(0.0),
+            snr: 0.0,
+        };
     }
-    let (mut n, mut sum, mut sq, mut grad_sq) = (0u64, 0i64, 0u64, 0u64);
-    for y in 1..height - 1 {
-        for x in 1..width - 1 {
-            let i = y * width + x;
-            if mask[i] == 0 {
-                continue;
-            }
-            let (w, e) = (i32::from(gray[i - 1]), i32::from(gray[i + 1]));
-            let (nn, ss) = (i32::from(gray[i - width]), i32::from(gray[i + width]));
-            let lap = w + e + nn + ss - 4 * i32::from(gray[i]);
-            n += 1;
-            sum += i64::from(lap);
-            sq += (i64::from(lap) * i64::from(lap)) as u64;
-            let (gx, gy) = (i64::from(e - w), i64::from(ss - nn));
-            grad_sq += (gx * gx + gy * gy) as u64;
-        }
-    }
-    if n == 0 {
-        return empty;
-    }
-    let numerator = i128::from(n) * i128::from(sq) - i128::from(sum) * i128::from(sum);
-    BlurStats {
-        pixels: n,
-        variance: numerator as f64 / (n as f64 * n as f64),
-        sharpness: if grad_sq == 0 {
-            0.0
+    let n = t.pixels as f64;
+    let numerator =
+        i128::from(t.pixels) * i128::from(t.lap_sq) - i128::from(t.lap_sum) * i128::from(t.lap_sum);
+    let variance = numerator as f64 / (n * n);
+    let ratio = |lap: f64, grad4: f64| {
+        if grad4 > 0.0 {
+            2.0 * (lap / grad4).sqrt()
         } else {
-            2.0 * (sq as f64 / grad_sq as f64).sqrt()
-        },
+            0.0
+        }
+    };
+    let sharpness_raw = ratio(t.lap_sq as f64, t.grad_sq4 as f64);
+
+    let q = moments(gray, width, height, paper_mask);
+    let (lap_t, grad_t) = (t.lap_sq as f64 / n, t.grad_sq4 as f64 / n);
+    let (lap_q, grad_q) = if q.pixels > 0 {
+        (
+            q.lap_sq as f64 / q.pixels as f64,
+            q.grad_sq4 as f64 / q.pixels as f64,
+        )
+    } else {
+        (0.0, 0.0)
+    };
+    let (lap, grad) = (lap_t - lap_q, grad_t - grad_q);
+    let snr = if lap_q > 0.0 {
+        (lap / lap_q).max(0.0)
+    } else if lap > 0.0 {
+        f64::MAX
+    } else {
+        0.0
+    };
+    let sharpness = if lap > 0.0 && grad > 0.0 && snr >= min_snr {
+        Some(ratio(lap, grad))
+    } else {
+        None
+    };
+    BlurStats {
+        pixels: t.pixels,
+        variance,
+        sharpness_raw,
+        sharpness,
+        snr,
     }
 }
 
@@ -150,23 +216,66 @@ mod tests {
     fn sharp_edge_scores_higher_than_a_blurred_one() {
         let (w, h) = (20, 10);
         let mask = vec![1u8; w * h];
-        let sharp = focus_stats(&step_image(w, h, false), w, h, &mask);
-        let soft = focus_stats(&step_image(w, h, true), w, h, &mask);
+        let sharp = focus_stats(
+            &step_image(w, h, false),
+            w,
+            h,
+            &mask,
+            &vec![0u8; w * h],
+            1.0,
+        );
+        let soft = focus_stats(&step_image(w, h, true), w, h, &mask, &vec![0u8; w * h], 1.0);
         assert!(
             sharp.variance > soft.variance * 2.0,
             "{sharp:?} vs {soft:?}"
         );
-        assert!(sharp.sharpness > soft.sharpness, "{sharp:?} vs {soft:?}");
+        assert!(
+            sharp.sharpness_raw > soft.sharpness_raw,
+            "{sharp:?} vs {soft:?}"
+        );
     }
 
     #[test]
     fn flat_and_empty_masks_give_zero() {
         let (w, h) = (8, 8);
         let flat = vec![99u8; w * h];
-        let on = focus_stats(&flat, w, h, &vec![1u8; w * h]);
-        assert_eq!((on.variance, on.pixels, on.sharpness), (0.0, 36, 0.0));
-        assert_eq!(focus_stats(&flat, w, h, &vec![0u8; w * h]).pixels, 0);
-        assert_eq!(focus_stats(&[1, 2, 3, 4], 2, 2, &[1, 1, 1, 1]).pixels, 0);
+        let none = vec![0u8; w * h];
+        let on = focus_stats(&flat, w, h, &vec![1u8; w * h], &none, 1.0);
+        assert_eq!((on.variance, on.pixels, on.sharpness_raw), (0.0, 36, 0.0));
+        assert_eq!(on.sharpness, None, "no gradient left after the noise floor");
+        assert_eq!(focus_stats(&flat, w, h, &none, &none, 1.0).pixels, 0);
+        assert_eq!(
+            focus_stats(&[1, 2, 3, 4], 2, 2, &[1, 1, 1, 1], &[0; 4], 1.0).pixels,
+            0
+        );
+    }
+
+    #[test]
+    fn sensor_noise_is_subtracted_from_the_sharpness() {
+        // A soft edge (sigma about 1.7 px) buried in white noise. Raw sharpness is dominated by the
+        // noise; with the noise floor taken from a clean-paper strip it recovers the softness.
+        let (w, h) = (80usize, 40usize);
+        let mut state = 99u32;
+        let mut noise = || {
+            state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            f64::from((state >> 16) % 3) - 1.0
+        };
+        let mut g = vec![0u8; w * h];
+        for y in 0..h {
+            for x in 0..w {
+                // Logistic ramp across x = 40 (20..39 is paper strip, 40..79 holds the edge).
+                let t = (x as f64 - 60.0) / 1.0;
+                let v = 60.0 + 140.0 / (1.0 + crate::math::exp(-t));
+                g[y * w + x] = (v + noise()).clamp(0.0, 255.0) as u8;
+            }
+        }
+        let mask: Vec<u8> = (0..w * h).map(|i| u8::from(i % w >= 50)).collect();
+        let paper: Vec<u8> = (0..w * h).map(|i| u8::from(i % w < 30)).collect();
+        let s = focus_stats(&g, w, h, &mask, &paper, 1.0);
+        let corrected = s.sharpness.expect("edge is stronger than the noise");
+        assert!(corrected < s.sharpness_raw, "{s:?}");
+        // The logistic with scale 1 has a Gaussian-equivalent sigma near 1.7 px: S about 0.4.
+        assert!(corrected > 0.2 && corrected < 0.8, "{s:?}");
     }
 
     #[test]
@@ -174,13 +283,13 @@ mod tests {
         // A single bright pixel in a 3x3 image: only the centre is interior, laplacian = -4 * 100.
         let mut g = vec![0u8; 9];
         g[4] = 100;
-        let one = focus_stats(&g, 3, 3, &[1u8; 9]);
+        let one = focus_stats(&g, 3, 3, &[1u8; 9], &[0u8; 9], 1.0);
         assert_eq!(one.pixels, 1);
         assert_eq!(one.variance, 0.0, "one sample has zero variance");
         // Two samples -400 and 0: mean -200, variance 40000.
         let mut g = vec![0u8; 5 * 3];
         g[5 + 1] = 100;
-        let two = focus_stats(&g, 5, 3, &[1u8; 15]);
+        let two = focus_stats(&g, 5, 3, &[1u8; 15], &[0u8; 15], 1.0);
         let (v, n) = (two.variance, two.pixels);
         assert_eq!(n, 3);
         // Laplacian: centre-left -400, its right neighbour +100, the far one 0.
