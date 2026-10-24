@@ -24,6 +24,18 @@ pub fn gaussian_kernel(sigma: f64) -> Vec<f64> {
     taps
 }
 
+/// Taps of the derivative of a Gaussian for offsets `-r..=r` (same `r` as [`gaussian_kernel`]):
+/// `x * g(x) / sigma^2` with `g` the normalised Gaussian. Used as a correlation kernel it returns
+/// the image gradient in the direction of increasing index, scaled so a unit ramp gives 1.
+pub fn gaussian_derivative_kernel(sigma: f64) -> Vec<f64> {
+    let taps = gaussian_kernel(sigma);
+    let r = taps.len() / 2;
+    taps.iter()
+        .enumerate()
+        .map(|(i, g)| (i as f64 - r as f64) * g / (sigma * sigma))
+        .collect()
+}
+
 /// What a filter sees beyond the image edge.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Border {
@@ -41,13 +53,26 @@ pub fn gaussian_blur(
     sigma: f64,
     border: Border,
 ) -> Vec<f64> {
-    debug_assert_eq!(src.len(), width * height);
     let taps = gaussian_kernel(sigma);
+    separable_filter(src, width, height, &taps, &taps, border)
+}
+
+/// Correlate the rows with `kx`, then the columns with `ky` (both odd length). With `kx` and `ky`
+/// Gaussian taps this is a blur; with one of them a derivative kernel it is a gradient.
+pub fn separable_filter(
+    src: &[f64],
+    width: usize,
+    height: usize,
+    kx: &[f64],
+    ky: &[f64],
+    border: Border,
+) -> Vec<f64> {
+    debug_assert_eq!(src.len(), width * height);
     let mut tmp = vec![0.0; src.len()];
     for y in 0..height {
         let row = &src[y * width..(y + 1) * width];
         let out = &mut tmp[y * width..(y + 1) * width];
-        convolve_line(row, out, &taps, border);
+        convolve_line(row, out, kx, border);
     }
     let mut out = vec![0.0; src.len()];
     let mut column = vec![0.0; height];
@@ -56,7 +81,7 @@ pub fn gaussian_blur(
         for y in 0..height {
             column[y] = tmp[y * width + x];
         }
-        convolve_line(&column, &mut filtered, &taps, border);
+        convolve_line(&column, &mut filtered, ky, border);
         for y in 0..height {
             out[y * width + x] = filtered[y];
         }

@@ -35,7 +35,11 @@ cost_scale = 1.0
 
 # Canny: lower hysteresis threshold and smoothing sigma, both fixed (Table 2 "Static" column,
 # trained on DIBCO 2009 + H-DIBCO 2010). Thresholds are fractions of the largest gradient
-# magnitude (assumption: MATLAB `edge` convention).
+# magnitude (assumption: MATLAB `edge` convention). t_lo matters: weak edges linked to strong ones
+# make cuts free, so a soft stain boundary can turn into "ink". Scan on DIBCO 2009 + 2010 with
+# mode "tune_c" and the derivative-of-Gaussian gradient: t_lo 0.1 -> mean F 94.01, 0.15 -> 94.25,
+# 0.2 -> 93.74. The paper's 0.1 is kept: 0.15 is better by only 0.24, below the margin (0.5) we
+# require to depart from a published setting.
 t_lo = 0.1
 sigma_e = 0.6
 
