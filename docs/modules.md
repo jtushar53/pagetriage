@@ -1,13 +1,13 @@
 # Modules
 
 The analyser is split into modules. Code that implements one cites its number (for example
-"module M10") in comments and in the `citation` field of evidence. Status is as of Phase 0.
+"module M10") in comments and in the `citation` field of evidence. Status is as of the end of Phase 1 work (2026-10-24).
 
 | Module | Name | What it decides | Phase | Status |
 |---|---|---|---|---|
 | M1 | `structural.text_layer` | Native text, raster only, invisible OCR layer under a scan, mixed, vector only, or empty | 1 | implemented: [`text_layer`](detectors/text_layer.md) (cargo feature `pdf`) |
 | M2 | `structural.font_script` | Script from PDF font internals, including legacy non-Unicode Devanagari fonts | 1 | implemented: [`font_script`](detectors/font_script.md) (cargo feature `pdf`) |
-| M3 | `pixel.quality` | Skew, blur, contrast, speckle, bleed-through, fold lines, photocopy generation; picks the binariser | 1 | implemented: [`quality`](detectors/quality.md) |
+| M3 | `pixel.quality` | Skew, blur, contrast, speckle, bleed-through, fold lines, photocopy generation; picks the binariser | 1 | implemented: [`quality`](detectors/quality.md); binarisers (Otsu, Sauvola, Wolf, Howe): [`binarize`](detectors/binarize.md) |
 | M4 | `pixel.script` | Script identification from pixels, without ML (headline, connected-component and texture tiers) | 2 | planned |
 | M5 | `pixel.handwriting` | Handwritten vs machine-printed text, including filled-in blanks on printed forms | 2 | planned |
 | M6 | `pixel.stamp_seal` | Rubber stamps and seals, by colour clustering and by shape | 3 | planned |
