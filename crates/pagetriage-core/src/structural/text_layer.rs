@@ -515,17 +515,27 @@ mod tests {
     }
 
     #[test]
-    fn small_photo_next_to_text_stays_native() {
-        let t = run(
+    fn tiny_image_next_to_text_stays_native_but_a_logo_makes_it_mixed() {
+        let tiny = run(
             PageObservation {
                 glyphs: 800,
-                image_cover: 0.1,
+                image_cover: 0.004,
                 image_count: 1,
                 ..base()
             },
             false,
         );
-        assert_eq!(t.state, TextLayerState::NativeText);
+        assert_eq!(tiny.state, TextLayerState::NativeText);
+        let logo = run(
+            PageObservation {
+                glyphs: 800,
+                image_cover: 0.02,
+                image_count: 1,
+                ..base()
+            },
+            false,
+        );
+        assert_eq!(logo.state, TextLayerState::Mixed);
     }
 
     #[test]

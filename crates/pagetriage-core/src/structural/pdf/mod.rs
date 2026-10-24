@@ -367,18 +367,18 @@ fn read_contents(
                 budget.content_bytes_left = budget.content_bytes_left.saturating_sub(data.len());
                 out.push(data);
             }
+            Err(lopdf::Error::Decompress(lopdf::DecompressError::MemoryLimitExceeded {
+                ..
+            })) => {
+                truncated = true;
+                notes.push("a content stream exceeds the decompression limit".into());
+            }
             Err(e) => {
-                let msg = e.to_string();
-                if msg.contains("limit") || msg.contains("Limit") {
-                    truncated = true;
-                    notes.push("a content stream exceeds the decompression limit".into());
-                } else {
-                    undecodable += 1;
-                    notes.push(format!(
-                        "a content stream could not be decoded: {}",
-                        msg.chars().take(80).collect::<String>()
-                    ));
-                }
+                undecodable += 1;
+                notes.push(format!(
+                    "a content stream could not be decoded: {}",
+                    e.to_string().chars().take(80).collect::<String>()
+                ));
             }
         }
     }
