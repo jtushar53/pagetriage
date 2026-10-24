@@ -83,6 +83,9 @@ hand-set rules and a few frozen logistic coefficients, so expect lower numbers t
 | Paper | Venue | Link | Used for |
 |---|---|---|---|
 | H. Farid, JPEG quantisation-table ballistics (Dartmouth technical reports) | 2006–2008 | — | Scanner and encoder family from JPEG tables (*unverified*: exact citation not recorded; confirm before quoting) |
+| C. Zauner, "Implementation and Benchmarking of Perceptual Image Hash Functions" | Master's thesis, Upper Austria University of Applied Sciences, Hagenberg, 2010 | — | The DCT perceptual hash (pHash) (*unverified*: recalled from memory, not re-checked) |
+| N. Krawetz, "Kind of Like That", The Hacker Factor Blog | 2013 | — | The difference hash (dHash) (*unverified*: recalled from memory, not re-checked) |
+| N. Ahmed, T. Natarajan, K. R. Rao, "Discrete cosine transform" | IEEE Trans. Computers C-23(1):90–93, 1974 | — | The DCT-II behind pHash (*unverified*: recalled from memory, not re-checked) |
 
 ## Synthetic degradation (test data)
 
