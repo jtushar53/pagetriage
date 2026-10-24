@@ -7,7 +7,9 @@
 
 use std::collections::BTreeMap;
 
-use schemars::JsonSchema;
+use schemars::generate::SchemaSettings;
+use schemars::transform::{Transform, transform_subschemas};
+use schemars::{JsonSchema, Schema};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
@@ -18,6 +20,7 @@ pub const SCHEMA_ID: &str = "pagetriage/0.1";
 
 /// One named measurement and its signed contribution to a finding's log-odds.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct Evidence {
     /// Dotted detector id, e.g. `stamp.color_cluster`.
     pub detector: String,
@@ -91,6 +94,7 @@ pub enum Kind {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct Finding {
     pub kind: Kind,
     /// Calibrated confidence in [0, 1].
@@ -103,6 +107,7 @@ pub struct Finding {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct DocumentInfo {
     pub sha256: String,
     pub pages: u32,
@@ -116,6 +121,7 @@ pub struct DocumentInfo {
 /// to run, and `std::time::Instant` is unavailable on `wasm32-unknown-unknown`. The core always
 /// leaves this `None`, which keeps the report byte-reproducible.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct Timings {
     pub structural: Option<f64>,
     pub pixel: Option<f64>,
@@ -135,6 +141,7 @@ pub enum TextLayerState {
 
 /// Structural text-layer verdict (module M1, Phase 1).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct TextLayer {
     pub state: TextLayerState,
     pub confidence: f64,
@@ -153,14 +160,16 @@ pub enum Binarizer {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GenerationEstimate {
     pub value: u32,
-    /// Capped at 0.6: the method is experimental (PLAN.md M3).
+    /// Capped at 0.6: the method is experimental (module M3).
     pub confidence: f64,
 }
 
 /// Degradation triage (module M3, Phase 1).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct Quality {
     pub skew_deg: f64,
     pub blur_laplacian_var: f64,
@@ -188,6 +197,7 @@ pub enum PageLabel {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct PageType {
     pub label: PageLabel,
     pub confidence: f64,
@@ -195,6 +205,7 @@ pub struct PageType {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct PageReport {
     pub index: u32,
     pub size_pt: [f64; 2],
@@ -212,6 +223,7 @@ pub struct PageReport {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct Report {
     /// Always [`SCHEMA_ID`].
     pub schema: String,
@@ -221,13 +233,48 @@ pub struct Report {
 
 impl Report {
     pub fn new(document: DocumentInfo, pages: Vec<PageReport>) -> Self {
-        Self { schema: SCHEMA_ID.to_owned(), document, pages }
+        Self {
+            schema: SCHEMA_ID.to_owned(),
+            document,
+            pages,
+        }
+    }
+}
+
+/// Our types never skip a field when serialising: an unset `Option` is an explicit `null`, so every
+/// declared property is always present. `schemars` would mark `Option` fields as not required;
+/// this transform tightens that so consumers can rely on the key being there. (The obvious
+/// `#[schemars(required)]` attribute is not an option: it also drops `null` from the field's type.)
+#[derive(Clone)]
+struct RequireAllProperties;
+
+impl Transform for RequireAllProperties {
+    fn transform(&mut self, schema: &mut Schema) {
+        transform_subschemas(self, schema);
+        let Some(object) = schema.as_object_mut() else {
+            return;
+        };
+        let names: Option<Vec<Value>> = match object.get("properties") {
+            Some(Value::Object(properties)) => Some(
+                properties
+                    .keys()
+                    .map(|k| Value::String(k.clone()))
+                    .collect(),
+            ),
+            _ => None,
+        };
+        if let Some(names) = names {
+            object.insert("required".into(), Value::Array(names));
+        }
     }
 }
 
 /// JSON Schema (draft 2020-12) for [`Report`], pretty-printed with a trailing newline.
 pub fn schema_json() -> String {
-    let schema = schemars::schema_for!(Report);
+    let schema = SchemaSettings::draft2020_12()
+        .with_transform(RequireAllProperties)
+        .into_generator()
+        .into_root_schema_for::<Report>();
     let mut s = serde_json::to_string_pretty(&schema).expect("a schema always serialises");
     s.push('\n');
     s
@@ -242,7 +289,8 @@ pub fn to_canonical_json<T: Serialize>(value: &T) -> Result<String> {
     canonicalise(&mut v)?;
     // `serde_json::Map` is a BTreeMap here (no `preserve_order`), so keys come out sorted;
     // `canonical_form_has_sorted_keys` guards against another crate turning that feature on.
-    serde_json::to_string(&v).map_err(|e| Error::InvalidInput(format!("report is not serialisable: {e}")))
+    serde_json::to_string(&v)
+        .map_err(|e| Error::InvalidInput(format!("report is not serialisable: {e}")))
 }
 
 fn canonicalise(v: &mut Value) -> Result<()> {
@@ -300,10 +348,24 @@ mod tests {
 
     #[test]
     fn kind_names_match_the_plan() {
-        let names: Vec<String> = [Kind::Barcode1d, Kind::EstampQr, Kind::BlankPage, Kind::RulingLines]
-            .iter()
-            .map(|k| serde_json::to_value(k).unwrap().as_str().unwrap().to_owned())
-            .collect();
-        assert_eq!(names, ["barcode_1d", "estamp_qr", "blank_page", "ruling_lines"]);
+        let names: Vec<String> = [
+            Kind::Barcode1d,
+            Kind::EstampQr,
+            Kind::BlankPage,
+            Kind::RulingLines,
+        ]
+        .iter()
+        .map(|k| {
+            serde_json::to_value(k)
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_owned()
+        })
+        .collect();
+        assert_eq!(
+            names,
+            ["barcode_1d", "estamp_qr", "blank_page", "ruling_lines"]
+        );
     }
 }

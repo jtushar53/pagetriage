@@ -51,7 +51,9 @@ impl Params {
 
     /// The embedded defaults as one TOML document (what `pagetriage params` prints).
     pub fn defaults_toml() -> String {
-        format!("# --- fusion ---\n[fusion]\n{FUSION_TOML}\n# --- blank_page ---\n[blank_page]\n{BLANK_PAGE_TOML}")
+        format!(
+            "# --- fusion ---\n[fusion]\n{FUSION_TOML}\n# --- blank_page ---\n[blank_page]\n{BLANK_PAGE_TOML}"
+        )
     }
 
     fn from_table(table: toml::Table) -> Result<Self> {
@@ -64,29 +66,47 @@ impl Params {
 
     fn validate(&self) -> Result<()> {
         let finite = [
-            ("fusion.emit_min_confidence", self.fusion.emit_min_confidence),
+            (
+                "fusion.emit_min_confidence",
+                self.fusion.emit_min_confidence,
+            ),
             ("fusion.llr_clip", self.fusion.llr_clip),
-            ("blank_page.blank_ink_fraction", self.blank_page.blank_ink_fraction),
+            (
+                "blank_page.blank_ink_fraction",
+                self.blank_page.blank_ink_fraction,
+            ),
             ("blank_page.coverage_floor", self.blank_page.coverage_floor),
-            ("blank_page.llr_per_ln_unit", self.blank_page.llr_per_ln_unit),
+            (
+                "blank_page.llr_per_ln_unit",
+                self.blank_page.llr_per_ln_unit,
+            ),
             ("blank_page.prior_logit", self.blank_page.prior_logit),
         ];
         for (name, v) in finite {
             if !v.is_finite() {
-                return Err(Error::InvalidParams(format!("{name} must be finite, got {v}")));
+                return Err(Error::InvalidParams(format!(
+                    "{name} must be finite, got {v}"
+                )));
             }
         }
         if !(0.0..=1.0).contains(&self.fusion.emit_min_confidence) {
-            return Err(Error::InvalidParams("fusion.emit_min_confidence must be in [0, 1]".into()));
+            return Err(Error::InvalidParams(
+                "fusion.emit_min_confidence must be in [0, 1]".into(),
+            ));
         }
         if self.fusion.llr_clip < 0.0 {
             return Err(Error::InvalidParams("fusion.llr_clip must be >= 0".into()));
         }
-        if !(self.blank_page.blank_ink_fraction > 0.0 && self.blank_page.blank_ink_fraction <= 1.0) {
-            return Err(Error::InvalidParams("blank_page.blank_ink_fraction must be in (0, 1]".into()));
+        if !(self.blank_page.blank_ink_fraction > 0.0 && self.blank_page.blank_ink_fraction <= 1.0)
+        {
+            return Err(Error::InvalidParams(
+                "blank_page.blank_ink_fraction must be in (0, 1]".into(),
+            ));
         }
         if self.blank_page.coverage_floor <= 0.0 {
-            return Err(Error::InvalidParams("blank_page.coverage_floor must be > 0".into()));
+            return Err(Error::InvalidParams(
+                "blank_page.coverage_floor must be > 0".into(),
+            ));
         }
         Ok(())
     }
@@ -131,7 +151,10 @@ mod tests {
     fn defaults_toml_round_trips_to_the_same_params() {
         let combined = Params::defaults_toml();
         let table: toml::Table = toml::from_str(&combined).unwrap();
-        assert_eq!(Params::from_table(table).unwrap(), Params::defaults().unwrap());
+        assert_eq!(
+            Params::from_table(table).unwrap(),
+            Params::defaults().unwrap()
+        );
     }
 
     #[test]

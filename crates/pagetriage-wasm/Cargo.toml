@@ -1,6 +1,17 @@
 [package]
 name = "pagetriage-wasm"
-version = "0.1.0"
-edition = "2024"
+description = "Browser/Node WASM bindings for pagetriage (wasm-bindgen)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+pagetriage-core.workspace = true
+# Pinned exactly: the wasm-bindgen CLI that post-processes the .wasm must be the same version.
+# `scripts/build-wasm.sh` and CI install `wasm-bindgen-cli` at the version in this line.
+wasm-bindgen = "=0.2.129"

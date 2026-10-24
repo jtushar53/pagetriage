@@ -1,0 +1,55 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    name: fmt, clippy, test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      # Default members: core + cli. Includes the golden snapshots and the schema drift test.
+      - run: cargo test
+
+  # The determinism gate: golden inputs must give byte-identical reports on native, Python and WASM,
+  # on both Linux and macOS, and the WASM build must stay inside its gzip size budget.
+  determinism:
+    name: determinism + bench tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install pinned wasm-bindgen CLI and wasm-opt
+        run: scripts/install-wasm-tools.sh
+      - name: Determinism gate (native, Python, WASM) and WASM size budget
+        run: scripts/determinism.sh
+      - name: Bench harness tests (offline; includes run.py against the golden reports)
+        run: |
+          .venv/bin/pip install --quiet -r bench/requirements.txt
+          .venv/bin/python -I -m unittest discover -s bench/tests -v

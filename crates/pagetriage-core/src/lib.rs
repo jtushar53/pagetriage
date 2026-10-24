@@ -3,11 +3,19 @@
 //! The same input gives the same output, byte for byte, on native, Python and WASM builds. See
 //! `CLAUDE.md` for the rules that keep it that way.
 
+pub mod analyse;
 pub mod error;
+pub mod fusion;
+pub mod hash;
 pub mod math;
 pub mod params;
+pub mod pixel;
+pub mod raster;
 pub mod schema;
 
+pub use analyse::{DETECTORS, Options, PageInput, analyse_page, analyse_page_report};
 pub use error::{Error, Result};
 pub use params::Params;
-pub use schema::{Evidence, Finding, Kind, PageReport, Report, SCHEMA_ID};
+pub use schema::{
+    Evidence, Finding, Kind, PageReport, Report, SCHEMA_ID, schema_json, to_canonical_json,
+};

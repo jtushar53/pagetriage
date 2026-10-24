@@ -1,0 +1,522 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Report",
+  "type": "object",
+  "properties": {
+    "document": {
+      "$ref": "#/$defs/DocumentInfo"
+    },
+    "pages": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/PageReport"
+      }
+    },
+    "schema": {
+      "description": "Always [`SCHEMA_ID`].",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "document",
+    "pages",
+    "schema"
+  ],
+  "$defs": {
+    "Binarizer": {
+      "type": "string",
+      "enum": [
+        "otsu",
+        "sauvola",
+        "wolf",
+        "howe"
+      ]
+    },
+    "DocumentInfo": {
+      "type": "object",
+      "properties": {
+        "incremental_updates": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "pages": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "producer": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sha256": {
+          "type": "string"
+        },
+        "source": {
+          "description": "`pdf`, `image` or `raw`.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "incremental_updates",
+        "pages",
+        "producer",
+        "sha256",
+        "source"
+      ]
+    },
+    "Evidence": {
+      "description": "One named measurement and its signed contribution to a finding's log-odds.",
+      "type": "object",
+      "properties": {
+        "citation": {
+          "description": "Source the feature or threshold comes from, or \"tuned on <set>\".",
+          "type": "string"
+        },
+        "detector": {
+          "description": "Dotted detector id, e.g. `stamp.color_cluster`.",
+          "type": "string"
+        },
+        "feature": {
+          "description": "Feature name, e.g. `hue_cluster_compactness`.",
+          "type": "string"
+        },
+        "llr": {
+          "description": "Signed log-likelihood-ratio contribution to the finding.",
+          "type": "number",
+          "format": "double"
+        },
+        "note": {
+          "type": "string"
+        },
+        "threshold": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "value": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "citation",
+        "detector",
+        "feature",
+        "llr",
+        "note",
+        "threshold",
+        "value"
+      ]
+    },
+    "Finding": {
+      "type": "object",
+      "properties": {
+        "attributes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "bbox": {
+          "description": "`[x0, y0, x1, y1]` in page pixel coordinates at the analysis DPI.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0
+          },
+          "maxItems": 4,
+          "minItems": 4
+        },
+        "confidence": {
+          "description": "Calibrated confidence in [0, 1].",
+          "type": "number",
+          "format": "double"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          }
+        },
+        "kind": {
+          "$ref": "#/$defs/Kind"
+        },
+        "polygon": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "maxItems": 2,
+            "minItems": 2
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "attributes",
+        "bbox",
+        "confidence",
+        "evidence",
+        "kind",
+        "polygon"
+      ]
+    },
+    "GenerationEstimate": {
+      "type": "object",
+      "properties": {
+        "confidence": {
+          "description": "Capped at 0.6: the method is experimental (module M3).",
+          "type": "number",
+          "format": "double"
+        },
+        "value": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "confidence",
+        "value"
+      ]
+    },
+    "Kind": {
+      "type": "string",
+      "enum": [
+        "text_layer",
+        "script",
+        "language_hint",
+        "printed_text",
+        "handwriting",
+        "signature",
+        "stamp",
+        "seal",
+        "embossed_seal",
+        "thumb_impression",
+        "barcode_1d",
+        "qr_code",
+        "estamp_qr",
+        "stamp_paper_header",
+        "registrar_endorsement",
+        "page_number_margin",
+        "table",
+        "ruling_lines",
+        "checkbox_grid",
+        "fold_line",
+        "photo",
+        "vector_graphic",
+        "redaction_box",
+        "blank_page"
+      ]
+    },
+    "PageLabel": {
+      "type": "string",
+      "enum": [
+        "text",
+        "text_with_annotations",
+        "form",
+        "table",
+        "photo",
+        "mixed",
+        "blank",
+        "cover_stamp_paper"
+      ]
+    },
+    "PageReport": {
+      "type": "object",
+      "properties": {
+        "analysis_dpi": {
+          "type": "integer",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "debug": {
+          "description": "Raw detector feature values, present only when `debug` is requested. Keyed\n`detector -> feature -> value`; this is what `bench/` uses to tune `params/*.toml`.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number",
+              "format": "double"
+            }
+          }
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Finding"
+          }
+        },
+        "index": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "near_duplicate_of": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "page_type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PageType"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "phash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "quality": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Quality"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "size_pt": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "format": "double"
+          },
+          "maxItems": 2,
+          "minItems": 2
+        },
+        "text_layer": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TextLayer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "timings_ms": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Timings"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "analysis_dpi",
+        "debug",
+        "findings",
+        "index",
+        "near_duplicate_of",
+        "page_type",
+        "phash",
+        "quality",
+        "size_pt",
+        "text_layer",
+        "timings_ms"
+      ]
+    },
+    "PageType": {
+      "type": "object",
+      "properties": {
+        "alternatives": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "confidence": {
+          "type": "number",
+          "format": "double"
+        },
+        "label": {
+          "$ref": "#/$defs/PageLabel"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "alternatives",
+        "confidence",
+        "label"
+      ]
+    },
+    "Quality": {
+      "description": "Degradation triage (module M3, Phase 1).",
+      "type": "object",
+      "properties": {
+        "bleed_through": {
+          "type": "number",
+          "format": "double"
+        },
+        "blur_laplacian_var": {
+          "type": "number",
+          "format": "double"
+        },
+        "contrast_rms": {
+          "type": "number",
+          "format": "double"
+        },
+        "fold_lines": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "grade": {
+          "description": "Letter grade; the scale is defined in Phase 1.",
+          "type": "string"
+        },
+        "photocopy_generation_est": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GenerationEstimate"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "recommended_binarizer": {
+          "$ref": "#/$defs/Binarizer"
+        },
+        "skew_deg": {
+          "type": "number",
+          "format": "double"
+        },
+        "speckle_density": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "bleed_through",
+        "blur_laplacian_var",
+        "contrast_rms",
+        "fold_lines",
+        "grade",
+        "photocopy_generation_est",
+        "recommended_binarizer",
+        "skew_deg",
+        "speckle_density"
+      ]
+    },
+    "TextLayer": {
+      "description": "Structural text-layer verdict (module M1, Phase 1).",
+      "type": "object",
+      "properties": {
+        "confidence": {
+          "type": "number",
+          "format": "double"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          }
+        },
+        "reliable": {
+          "description": "False when the layer is legacy-encoded or garbled (module M2).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "state": {
+          "$ref": "#/$defs/TextLayerState"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "confidence",
+        "evidence",
+        "reliable",
+        "state"
+      ]
+    },
+    "TextLayerState": {
+      "type": "string",
+      "enum": [
+        "native_text",
+        "raster_only",
+        "invisible_ocr_under_image",
+        "mixed",
+        "vector_only",
+        "empty"
+      ]
+    },
+    "Timings": {
+      "description": "Wall-clock timings are measured by the host (CLI, bindings), never by the core: they differ run\nto run, and `std::time::Instant` is unavailable on `wasm32-unknown-unknown`. The core always\nleaves this `None`, which keeps the report byte-reproducible.",
+      "type": "object",
+      "properties": {
+        "fusion": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "pixel": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "structural": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "fusion",
+        "pixel",
+        "structural"
+      ]
+    }
+  }
+}

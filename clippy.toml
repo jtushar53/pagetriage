@@ -1,8 +1,13 @@
-# Determinism rule (PLAN.md section d): native, Python and WASM builds must produce byte-identical
+# Determinism rule: native, Python and WASM builds must produce byte-identical
 # JSON. IEEE-754 +, -, *, / and sqrt are exactly specified, but the transcendental functions below
 # are delegated to the platform libm (glibc, Apple libm, wasm compiler-builtins) and can differ in
 # the last ulp. Call the `pagetriage_core::math` wrappers instead; they use the pure-Rust `libm`
 # crate on every target.
+disallowed-types = [
+    { path = "std::collections::HashMap", reason = "iteration order is randomised per process; use BTreeMap so output is reproducible" },
+    { path = "std::collections::HashSet", reason = "iteration order is randomised per process; use BTreeSet so output is reproducible" },
+]
+
 disallowed-methods = [
     { path = "f64::exp", reason = "use pagetriage_core::math::exp (platform libm is not bit-reproducible)" },
     { path = "f64::exp2", reason = "use pagetriage_core::math::exp (platform libm is not bit-reproducible)" },

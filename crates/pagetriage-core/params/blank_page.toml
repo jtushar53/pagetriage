@@ -1,4 +1,4 @@
-# Skeleton blank-page detector (PLAN.md M10 "blank"). Its job in Phase 0 is to exercise the full
+# Skeleton blank-page detector (module M10, "blank" label). Its job in Phase 0 is to exercise the full
 # pixel -> evidence -> fusion -> finding path end to end. Phase 1/2 replace it with the despeckled
 # version and tune these on DIBCO + Augraphy pages.
 
@@ -7,7 +7,7 @@
 ink_delta = 60
 
 # A page is blank when ink coverage is below this fraction of all pixels.
-# Source: PLAN.md M10 (blank = ink coverage < 0.2% after despeckle).
+# Source: module M10 definition (blank = ink coverage < 0.2% after despeckle).
 blank_ink_fraction = 0.002
 
 # Coverage is floored here before the log, so an all-white page gives a finite llr.

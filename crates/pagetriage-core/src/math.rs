@@ -7,8 +7,8 @@
 
 use crate::error::{Error, Result};
 
-/// Output precision: every float in a report is rounded to this many decimals (PLAN.md: round
-/// before thresholding/serialising, so a last-ulp difference cannot change the bytes).
+/// Output precision: every float in a report is rounded to this many decimals before it is
+/// serialised, so a last-ulp difference cannot change the bytes.
 pub const OUTPUT_DECIMALS: i32 = 6;
 const OUTPUT_SCALE: f64 = 1_000_000.0;
 
@@ -49,7 +49,7 @@ pub fn finite(x: f64, what: &str) -> Result<f64> {
     }
 }
 
-/// Pairwise summation in a fixed order (PLAN.md determinism rule: any `f64` sum over pixels uses
+/// Pairwise summation in a fixed order (determinism rule: any `f64` sum over pixels uses
 /// Kahan or pairwise summation, never an order that depends on the platform). Blocks of up to
 /// `BLOCK` values are summed left to right, then halves are combined recursively.
 pub fn pairwise_sum(values: &[f64]) -> f64 {

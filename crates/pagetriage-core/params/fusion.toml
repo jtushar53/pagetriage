@@ -1,9 +1,9 @@
 # Fusion layer (module M13). Every value names its source or the set it was tuned on.
 
 # Findings below this calibrated confidence are not emitted.
-# Source: PLAN.md M13 abstention rule (confidence <= 0.5 means "not established"). Phase 0 placeholder.
+# Source: module M13 abstention rule (confidence <= 0.5 means "not established"). Phase 0 placeholder.
 emit_min_confidence = 0.5
 
 # Per-evidence cap on |llr|, so one saturated feature cannot dominate the log-odds sum.
-# Source: PLAN.md M13 (correlated-evidence cap). Phase 0 placeholder; tuned on <none yet>.
+# Source: module M13 (correlated-evidence cap). Phase 0 placeholder; tuned on <none yet>.
 llr_clip = 8.0

@@ -26,7 +26,8 @@ pagetriage-core = { path = "crates/pagetriage-core", version = "0.1.0" }
 lto = "thin"
 codegen-units = 1
 
-# Browser build (PLAN.md performance and size targets). Used via `scripts/build-wasm.sh`.
+# Browser build, size-optimised (the budget is enforced by scripts/check-wasm-size.sh).
+# Used via `scripts/build-wasm.sh`.
 [profile.wasm]
 inherits = "release"
 opt-level = "z"
