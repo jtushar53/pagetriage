@@ -23,7 +23,7 @@ jobs:
           cp scripts/stats-snapshot.sh ../stats/
       - name: Append a snapshot
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.STATS_TOKEN || github.token }}
         run: cd ../stats && bash stats-snapshot.sh stats.csv
       - name: Commit
         run: |
