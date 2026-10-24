@@ -1,18 +1,15 @@
-"""Fonts, page-content builders and annotation helpers for the synthetic PDF corpus.
+"""Fonts, text layout and the page plan/result types for the synthetic PDF corpus.
 
-Each `build_*` function takes a `PdfFile`, a seeded `random.Random` and a page plan, adds the page's
-content, image and font objects to the file, and returns a `PageBuild`: the page-dictionary entries,
-the ground-truth label, and details (expected text, image encoding, ...) for the sidecar file.
+The per-kind builders in `pagekinds.py` take a `PdfFile`, a seeded `random.Random` and a `PagePlan`,
+add the page's content, image and font objects to the file, and return a `PageBuild`: the page
+dictionary entries, the ground-truth label, and details (expected text, image encoding, ...) for the
+sidecar file.
 """
 from __future__ import annotations
 
-import math
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
-import numpy as np
-
-import scanimg
 import synthtext as st
 from pdfio import PdfFile, fmt, hexstr, lit, name, stream_body
 
@@ -50,9 +47,6 @@ class SimpleFont:
 
     def width(self, text: str, fs: float) -> float:
         return len(text) * fs * self.avg
-
-
-CONSONANT_RE_SCRIPTS = set(st.BLOCK)
 
 
 class CidFont:
@@ -93,7 +87,7 @@ class CidFont:
         return hexstr(bytes(codes))
 
     def width(self, text: str, fs: float) -> float:
-        return sum(0.25 if ch == " " else 0.6 for ch in text) * fs
+        return len(text) * 0.6 * fs
 
     def finalize(self) -> None:
         f = self.f
@@ -115,10 +109,10 @@ class CidFont:
                            f"/ItalicAngle 0 /Ascent 900 /Descent -250 /CapHeight 700 /StemV 80 >>")
         f.set(self.o_cid, f"<< /Type /Font /Subtype /CIDFontType2 /BaseFont {bn} "
                           f"/CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> "
-                          f"/FontDescriptor {self.o_desc} 0 R /DW 600 /W [3 [250]] /CIDToGIDMap /Identity >>")
+                          f"/FontDescriptor {self.o_desc} 0 R /DW 600 /CIDToGIDMap /Identity >>")
         f.set(self.obj, f"<< /Type /Font /Subtype /Type0 /BaseFont {bn} /Encoding /Identity-H "
                         f"/DescendantFonts [{self.o_cid} 0 R] /ToUnicode {self.o_tu} 0 R >>")
-        # NB: /W maps CID 3 only; the corpus never lays out by glyph advance, so widths are nominal.
+        # Every glyph advances 600 units (/DW): the corpus never lays text out by real glyph widths.
 
 
 class GlyphlessFont:

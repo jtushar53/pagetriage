@@ -119,9 +119,9 @@ Label rules (decisions the schema leaves open):
 - `script` is the script of the page's *text layer*, or the script a legacy font stands for. Pages
   with no text layer (`raster_only`, `vector_only`, `empty`) are `none`, because a structural reader
   cannot know the script of pixels. The script of image content is in the sidecar.
-- `invisible_ocr_under_image` is a full-page image plus a text layer not meant to be seen. About 7 in 8
-  such pages use `3 Tr` (text after the image, or before it); the rest paint visible text (`0 Tr`) under
-  an opaque image (sidecar variant `occluded`). Filter those out for a pure render-mode-3 test.
+- `invisible_ocr_under_image` is a full-page image plus a text layer not meant to be seen. In the default
+  corpus 56 of 63 such pages use `3 Tr` (text after the image, or before it); the other 7 paint visible text
+  (`0 Tr`) under an opaque image (sidecar variant `occluded`). Filter those out for a pure render-mode-3 test.
 - `mixed` is visible native text with a partial-page image. A full-page scan with a visible text
   stamp is not generated, because its label would be a judgement call.
 - `legacy_font` pages use Latin code points under a font named like a pre-Unicode Indian font (Kruti Dev

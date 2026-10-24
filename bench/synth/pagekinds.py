@@ -18,7 +18,7 @@ from PIL import Image
 import pdfparts as pp
 import scanimg
 import synthtext as st
-from pdfio import PdfFile, fmt, lit, name
+from pdfio import PdfFile, fmt
 from pdfparts import (LABEL_OF, LATIN_FONTS, LEGACY_FONT_NAMES, FontPool, PageBuild, PagePlan, content_obj,
                       contents_entry, emit_lines, expected_from, flow_text, make_geo, resources)
 

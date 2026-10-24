@@ -66,7 +66,7 @@ import numpy as np  # noqa: E402
 
 import pdfparts as pp  # noqa: E402
 from pagekinds import Ctx, Style, build_page  # noqa: E402
-from pdfio import PdfFile, fmt, hexstr, lit, name, stream_body, text_string  # noqa: E402
+from pdfio import PdfFile, fmt, lit, text_string  # noqa: E402
 from pdfparts import PagePlan, FontPool  # noqa: E402
 
 GENERATOR_VERSION = 1
