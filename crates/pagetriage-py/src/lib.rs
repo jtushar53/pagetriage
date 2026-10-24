@@ -16,6 +16,60 @@ fn rgb_to_gray<'py>(py: Python<'py>, rgb: &[u8]) -> PyResult<Bound<'py, PyBytes>
     Ok(PyBytes::new(py, &gray))
 }
 
+/// Binarise a gray page: `width * height` bytes, `1` for ink and `0` for paper.
+///
+/// `method` is `otsu`, `sauvola`, `wolf` or `howe`; `params_toml` overrides the embedded defaults
+/// (for example `[howe]\nmode = "static"`). Releases the GIL, since Howe takes seconds per page.
+#[pyfunction]
+#[pyo3(signature = (gray, width, height, method = "sauvola", params_toml = None))]
+fn binarize<'py>(
+    py: Python<'py>,
+    gray: &[u8],
+    width: usize,
+    height: usize,
+    method: &str,
+    params_toml: Option<&str>,
+) -> PyResult<Bound<'py, PyBytes>> {
+    let params = match params_toml {
+        Some(t) => Params::with_overrides(t),
+        None => Params::defaults(),
+    }
+    .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let method = pagetriage_core::pixel::binarize::parse_method(method)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let ink = py
+        .detach(|| pagetriage_core::pixel::binarize::binarize(gray, width, height, method, &params))
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    Ok(PyBytes::new(py, &ink))
+}
+
+/// Howe binarisation with the parameters it settled on: `(ink bytes, c, t_hi)`.
+#[pyfunction]
+#[pyo3(signature = (gray, width, height, params_toml = None))]
+fn binarize_howe<'py>(
+    py: Python<'py>,
+    gray: &[u8],
+    width: usize,
+    height: usize,
+    params_toml: Option<&str>,
+) -> PyResult<(Bound<'py, PyBytes>, f64, f64)> {
+    let params = match params_toml {
+        Some(t) => Params::with_overrides(t),
+        None => Params::defaults(),
+    }
+    .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    if width == 0 || height == 0 || gray.len() != width * height {
+        return Err(PyValueError::new_err(format!(
+            "gray buffer of {} bytes does not match {width}x{height}",
+            gray.len()
+        )));
+    }
+    let result = py.detach(|| {
+        pagetriage_core::pixel::binarize::howe::binarize(gray, width, height, &params.howe)
+    });
+    Ok((PyBytes::new(py, &result.ink), result.c, result.t_hi))
+}
+
 /// Analyse one page and return the canonical JSON of its page report.
 ///
 /// `gray` is `width * height` bytes, row-major. `rgb`, if given, is `3 * width * height`
@@ -62,6 +116,8 @@ fn pagetriage_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(schema_json, m)?)?;
     m.add_function(wrap_pyfunction!(params_toml, m)?)?;
     m.add_function(wrap_pyfunction!(rgb_to_gray, m)?)?;
+    m.add_function(wrap_pyfunction!(binarize, m)?)?;
+    m.add_function(wrap_pyfunction!(binarize_howe, m)?)?;
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     Ok(())
 }
