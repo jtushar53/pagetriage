@@ -1,0 +1,15 @@
+# Standalone tool (not a workspace member): prints what firecrawl/pdf-inspector says about each PDF,
+# one JSON line per file, so bench/compare_pdf_inspector.py can set it beside our own M1 verdicts.
+# It exists to back the decision recorded in docs/detectors/text_layer.md; pdf-inspector is NOT a
+# dependency of pagetriage-core. Build: cargo build --release --manifest-path bench/tools/pdf_inspector_compare/Cargo.toml
+[package]
+name = "pdf-inspector-compare"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+pdf-inspector = "=1.25.2"
+serde_json = "1"

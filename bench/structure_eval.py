@@ -100,7 +100,8 @@ def main():
         inc_ok += report["document"]["incremental_updates"] == lab["incremental_updates"]
         if "producer" in lab:
             prod_total += 1
-            prod_ok += report["document"]["producer"] == lab["producer"]
+            # The corpus writes "no producer" as an empty string; the report says null.
+            prod_ok += (report["document"]["producer"] or "") == lab["producer"]
 
         if len(report["pages"]) != len(lab["pages"]):
             failures.append((name, f"{len(report['pages'])} pages reported, {len(lab['pages'])} labelled"))

@@ -61,7 +61,9 @@ max_cmap_entries = 100000
 # Rate A: share of adjacent letter pairs inside words that appear in the top English bigram list.
 # English prose scores high; text that is really Devanagari typed on Latin keys scores low.
 # Piecewise-linear llr: llr_at_lo at or below `lo`, llr_at_hi at or above `hi`, linear between.
-# lo/hi: tuned on <synthetic English sentences vs synthetic Kruti-Dev-style text, tuning split>.
+# lo/hi: hand-set from a dozen hand-written English and Kruti-Dev-style sentences; not tuned on a
+# dataset. Checked (not tuned) by bench/tools/legacy_probe.py: 24/24 approximate-Kruti-Dev sentences
+# flagged by statistics alone and 0/24 English or transliterated-English sentences.
 [bigram]
 lo = 0.30
 hi = 0.50
@@ -71,7 +73,7 @@ llr_at_hi = -3.0
 # Rate B: share of words (3+ letters) with a lowercase letter followed by a capital inside the word
 # (e.g. "lEifRr"). Rare in English prose, common in text typed in legacy Hindi fonts, which use
 # capitals as extra consonants. llr_at_lo applies at or below `lo`.
-# lo/hi: tuned on <synthetic tuning split>.
+# lo/hi: hand-set, as for [bigram]; not tuned on a dataset.
 [mid_caps]
 lo = 0.02
 hi = 0.15
@@ -82,7 +84,7 @@ llr_at_hi = 3.0
 # the middle of a word: brackets/braces/backslash/caret/tilde/vertical bar, a semicolon, angle
 # bracket, equals sign or similar flanked by letters, or an accented/symbol Latin-1 character
 # between ASCII letters. Legacy fonts use these code points for consonants and matras.
-# lo/hi: tuned on <synthetic tuning split>.
+# lo/hi: hand-set, as for [bigram]; not tuned on a dataset.
 [marker]
 lo = 0.02
 hi = 0.15

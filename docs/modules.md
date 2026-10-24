@@ -5,8 +5,8 @@ The analyser is split into modules. Code that implements one cites its number (f
 
 | Module | Name | What it decides | Phase | Status |
 |---|---|---|---|---|
-| M1 | `structural.text_layer` | Native text, raster only, invisible OCR layer under a scan, mixed, vector only, or empty | 1 | planned |
-| M2 | `structural.font_script` | Script from PDF font internals, including legacy non-Unicode Devanagari fonts | 1 | planned |
+| M1 | `structural.text_layer` | Native text, raster only, invisible OCR layer under a scan, mixed, vector only, or empty | 1 | implemented: [`text_layer`](detectors/text_layer.md) (cargo feature `pdf`) |
+| M2 | `structural.font_script` | Script from PDF font internals, including legacy non-Unicode Devanagari fonts | 1 | implemented: [`font_script`](detectors/font_script.md) (cargo feature `pdf`) |
 | M3 | `pixel.quality` | Skew, blur, contrast, speckle, bleed-through, fold lines, photocopy generation; picks the binariser | 1 | planned |
 | M4 | `pixel.script` | Script identification from pixels, without ML (headline, connected-component and texture tiers) | 2 | planned |
 | M5 | `pixel.handwriting` | Handwritten vs machine-printed text, including filled-in blanks on printed forms | 2 | planned |
@@ -16,7 +16,7 @@ The analyser is split into modules. Code that implements one cites its number (f
 | M9 | `pixel.rulings` | Rulings, tables, checkbox grids, and fold lines vs rules | 3 | planned |
 | M10 | `pixel.content_type` | Page and region typing (text, form, table, photo, blank, ...) | 0 (blank skeleton), later phases | skeleton: [`blank_page`](detectors/blank_page.md) |
 | M11 | `india.*` | Indian-deed detectors: stamp-paper header, e-stamp QR, registrar endorsement, embossed seal | 4 | planned |
-| M12 | `provenance.*` | JPEG tables, PDF producer, incremental updates, redaction boxes, near-duplicate pages | 1 and later | near-duplicate pages (perceptual hashes): [`phash`](detectors/phash.md); rest planned |
+| M12 | `provenance.*` | JPEG tables, PDF producer, incremental updates, redaction boxes, near-duplicate pages | 1 and later | near-duplicate pages (perceptual hashes): [`phash`](detectors/phash.md); PDF structure, incremental updates and JPEG tables: [`provenance`](detectors/provenance.md) (cargo feature `pdf`); redaction boxes planned |
 | M13 | `fusion` | Log-odds evidence sum, calibration, abstention and cross-detector consistency rules | 0 (sum only), 5 | skeleton |
 
 ## Phases
