@@ -1,0 +1,294 @@
+# Module M2 (structural.font_script): script of the text layer from PDF font internals, and the
+# legacy-encoded Indian font trap. Every value names its source or the set it was tuned on.
+#
+# The legacy-font decision is a small log-odds sum for each font actually used on a page:
+#   logit = prior_logit + name_llr + bigram_llr + mid_caps_llr + marker_llr
+# and the font is legacy-encoded when sigmoid(logit) >= emit_min_confidence. The feature terms are
+# monotone piecewise-linear in the feature (flat outside [lo, hi]), the style module M13 uses.
+
+# Prior log-odds that a font on a page is a legacy (non-Unicode) Indian font before any evidence.
+# Source: domain judgement, not measured (legacy fonts are a minority of fonts in deed PDFs).
+# Tuned on <none>; placeholder.
+prior_logit = -2.0
+
+# A font is called legacy-encoded when its confidence reaches this value.
+# Source: module M13 abstention rule (confidence <= 0.5 means "not established").
+emit_min_confidence = 0.5
+
+# llr when the used font name matches a "strong" entry of the curated list below.
+# Source: domain judgement. Tuned on <none>; placeholder.
+strong_name_llr = 5.0
+
+# llr when it matches a "weak" entry (a short or ambiguous family name, e.g. "agra").
+# Source: domain judgement. Tuned on <none>; placeholder.
+weak_name_llr = 1.5
+
+# The statistics below are computed on the characters a font's code bytes decode to (Latin for a
+# legacy font, because it puts Devanagari glyphs on Latin code points). Fewer letters than this
+# and the statistics carry no weight.
+# Source: numerical guard; below ~40 letters the rates are dominated by sampling noise.
+min_sample_letters = 40
+
+# Cap on the characters kept per font for the statistics (memory bound; the first N are used).
+# Source: engineering limit.
+max_sample_chars = 8000
+
+# A Tj/TJ number adjustment at or below this (thousandths of an em, i.e. a gap) is read as a word
+# space when building the sample.
+# Source: common text-extraction heuristic (about a fifth of an em); unverified here.
+tj_space_adjustment = -200.0
+
+# Share of the page's glyphs that must come from legacy-encoded fonts for the page's text layer to
+# be called unreliable. Below this the page still reports the legacy font but stays reliable.
+# Source: domain judgement. Tuned on <none>; placeholder.
+unreliable_glyph_share = 0.10
+
+# Script given to a legacy detection that has no font-name match (statistics only). Most legacy
+# Indian-language PDFs in the target collection are Hindi/Marathi, which are Devanagari.
+# Source: domain assumption stated in the module definition; unverified.
+default_legacy_script = "devanagari"
+
+# Share of undecodable glyphs (Identity-H/V font without ToUnicode, Type3 without a map, private-use
+# targets) above which the text layer is called unreliable.
+# Source: domain judgement. Tuned on <none>; placeholder.
+undecodable_unreliable_share = 0.30
+
+# Cap on ToUnicode CMap entries parsed per font (memory bound against hostile CMaps).
+# Source: engineering limit; large CJK CMaps have tens of thousands of entries.
+max_cmap_entries = 100000
+
+# --- statistics on the decoded Latin text -----------------------------------------------------
+# Rate A: share of adjacent letter pairs inside words that appear in the top English bigram list.
+# English prose scores high; text that is really Devanagari typed on Latin keys scores low.
+# Piecewise-linear llr: llr_at_lo at or below `lo`, llr_at_hi at or above `hi`, linear between.
+# lo/hi: tuned on <synthetic English sentences vs synthetic Kruti-Dev-style text, tuning split>.
+[bigram]
+lo = 0.30
+hi = 0.50
+llr_at_lo = 3.0
+llr_at_hi = -3.0
+
+# Rate B: share of words (3+ letters) with a lowercase letter followed by a capital inside the word
+# (e.g. "lEifRr"). Rare in English prose, common in text typed in legacy Hindi fonts, which use
+# capitals as extra consonants. llr_at_lo applies at or below `lo`.
+# lo/hi: tuned on <synthetic tuning split>.
+[mid_caps]
+lo = 0.02
+hi = 0.15
+llr_at_lo = -1.0
+llr_at_hi = 3.0
+
+# Rate C: share of words (2+ characters) containing a character that real prose does not put in
+# the middle of a word: brackets/braces/backslash/caret/tilde/vertical bar, a semicolon, angle
+# bracket, equals sign or similar flanked by letters, or an accented/symbol Latin-1 character
+# between ASCII letters. Legacy fonts use these code points for consonants and matras.
+# lo/hi: tuned on <synthetic tuning split>.
+[marker]
+lo = 0.02
+hi = 0.15
+llr_at_lo = -1.0
+llr_at_hi = 3.0
+
+# The most frequent English letter bigrams (lower case). Recalled from common English letter-pair
+# frequency tables, not computed from a corpus we can cite; approximate and unverified. It is a
+# list of 50 entries, which counts against the ~50-coefficient budget for this detector.
+[english]
+top_bigrams = [
+  "th", "he", "in", "er", "an", "re", "on", "at", "en", "nd",
+  "ti", "es", "or", "te", "of", "ed", "is", "it", "al", "ar",
+  "st", "to", "nt", "ng", "se", "ha", "as", "ou", "io", "le",
+  "ve", "co", "me", "de", "hi", "ri", "ro", "ic", "ne", "ea",
+  "ra", "ce", "li", "ch", "ll", "be", "ma", "si", "om", "ur",
+]
+
+# Curated legacy (non-Unicode) Indian font families. These fonts put Indic glyphs on Latin code
+# points, so the extracted text looks like Latin gibberish. DOMAIN KNOWLEDGE RECALLED FROM MEMORY:
+# not checked against any published list or against real files. Names are compared after dropping
+# a subset prefix ("ABCDEF+"), lower-casing, and removing everything that is not a letter or digit.
+# match = "prefix" or "contains"; strength = "strong" or "weak".
+
+[[legacy_font]]
+name = "krutidev"
+script = "devanagari"
+match = "contains"
+strength = "strong"
+
+[[legacy_font]]
+name = "kruti"
+script = "devanagari"
+match = "prefix"
+strength = "strong"
+
+[[legacy_font]]
+name = "dvttyogesh"
+script = "devanagari"
+match = "contains"
+strength = "strong"
+
+[[legacy_font]]
+name = "dvbttyogesh"
+script = "devanagari"
+match = "contains"
+strength = "strong"
+
+[[legacy_font]]
+name = "dvttsurekh"
+script = "devanagari"
+match = "contains"
+strength = "strong"
+
+[[legacy_font]]
+name = "dvtt"
+script = "devanagari"
+match = "prefix"
+strength = "strong"
+
+[[legacy_font]]
+name = "shreelipi"
+script = "devanagari"
+match = "contains"
+strength = "strong"
+
+[[legacy_font]]
+name = "shreedev"
+script = "devanagari"
+match = "contains"
+strength = "strong"
+
+[[legacy_font]]
+name = "chanakya"
+script = "devanagari"
+match = "contains"
+strength = "strong"
+
+[[legacy_font]]
+name = "walkmanchanakya"
+script = "devanagari"
+match = "contains"
+strength = "strong"
+
+[[legacy_font]]
+name = "apsdev"
+script = "devanagari"
+match = "contains"
+strength = "strong"
+
+[[legacy_font]]
+name = "devlys"
+script = "devanagari"
+match = "contains"
+strength = "strong"
+
+[[legacy_font]]
+name = "kundli"
+script = "devanagari"
+match = "prefix"
+strength = "strong"
+
+[[legacy_font]]
+name = "sushmaa"
+script = "devanagari"
+match = "prefix"
+strength = "strong"
+
+[[legacy_font]]
+name = "shusha"
+script = "devanagari"
+match = "prefix"
+strength = "strong"
+
+[[legacy_font]]
+name = "preeti"
+script = "devanagari"
+match = "prefix"
+strength = "strong"
+
+[[legacy_font]]
+name = "himalb"
+script = "devanagari"
+match = "prefix"
+strength = "strong"
+
+[[legacy_font]]
+name = "kantipur"
+script = "devanagari"
+match = "prefix"
+strength = "strong"
+
+[[legacy_font]]
+name = "agra"
+script = "devanagari"
+match = "prefix"
+strength = "weak"
+
+[[legacy_font]]
+name = "kiran"
+script = "devanagari"
+match = "prefix"
+strength = "weak"
+
+[[legacy_font]]
+name = "priyanka"
+script = "devanagari"
+match = "prefix"
+strength = "weak"
+
+[[legacy_font]]
+name = "sutonnymj"
+script = "bengali"
+match = "contains"
+strength = "strong"
+
+[[legacy_font]]
+name = "bijoy"
+script = "bengali"
+match = "contains"
+strength = "strong"
+
+[[legacy_font]]
+name = "anmollipi"
+script = "gurmukhi"
+match = "contains"
+strength = "strong"
+
+[[legacy_font]]
+name = "asees"
+script = "gurmukhi"
+match = "prefix"
+strength = "strong"
+
+[[legacy_font]]
+name = "satluj"
+script = "gurmukhi"
+match = "prefix"
+strength = "strong"
+
+[[legacy_font]]
+name = "terafont"
+script = "gujarati"
+match = "contains"
+strength = "strong"
+
+[[legacy_font]]
+name = "bamini"
+script = "tamil"
+match = "contains"
+strength = "strong"
+
+[[legacy_font]]
+name = "tscu"
+script = "tamil"
+match = "prefix"
+strength = "strong"
+
+[[legacy_font]]
+name = "nudi"
+script = "kannada"
+match = "prefix"
+strength = "weak"
+
+[[legacy_font]]
+name = "mlttrevathi"
+script = "malayalam"
+match = "contains"
+strength = "strong"

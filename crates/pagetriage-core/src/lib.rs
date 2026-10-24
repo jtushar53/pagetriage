@@ -12,6 +12,7 @@ pub mod params;
 pub mod pixel;
 pub mod raster;
 pub mod schema;
+pub mod structural;
 
 pub use analyse::{DETECTORS, Options, PageInput, analyse_page, analyse_page_report};
 pub use error::{Error, Result};

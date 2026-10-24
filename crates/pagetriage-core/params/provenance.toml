@@ -1,0 +1,170 @@
+# Module M12 (provenance.*), structure part: producer fingerprints, incremental-update diffing and
+# JPEG quantisation tables. Every value names its source or the set it was tuned on.
+
+# --- limits ------------------------------------------------------------------------------------
+# Revisions (the %%EOF-delimited prefixes of the file) that are parsed and diffed. Older ones are
+# not examined and `revisions_truncated` is reported. Source: engineering limit.
+max_revisions = 24
+
+# Cap on %%EOF markers collected from the raw bytes. Source: engineering limit.
+max_eof_markers = 4096
+
+# Cumulative bytes handed to the PDF parser for revision prefixes, so a file with many revisions
+# cannot cost more than this many bytes of parsing. Source: engineering limit.
+max_revision_parse_bytes = 268435456
+
+# JPEG images reported per document (the rest are only counted). Source: engineering limit.
+max_images_listed = 64
+
+# Bytes of a DCT stream scanned for quantisation tables; the tables sit before the scan data.
+# Source: JPEG file layout (DQT segments precede SOS); 64 KiB is generous.
+max_jpeg_header_bytes = 65536
+
+# Longest metadata string kept (Producer, Creator, XMP tool names). Source: engineering limit.
+max_meta_chars = 256
+
+# Largest XMP packet read for tool names. Source: engineering limit.
+max_xmp_bytes = 1048576
+
+# --- JPEG quantisation tables ------------------------------------------------------------------
+# A luminance table counts as "ijg_scaled" (the standard Annex K table scaled by the libjpeg
+# quality formula, which most encoders use) when its mean absolute difference per entry from the
+# best-fitting quality's table is at most this. A custom table (Photoshop, scanner firmware)
+# usually differs by more. Source: judgement. Tuned on <none>; placeholder.
+ijg_fit_mean_abs_error = 1.0
+
+# --- producer fingerprints ---------------------------------------------------------------------
+# Case-insensitive substrings of /Producer, /Creator and XMP tool names. `ocr = true` marks tools
+# that write a recognised-text layer. RECALLED FROM MEMORY, not checked against real files: the
+# strings OCRmyPDF, ABBYY, Adobe Paper Capture and Tesseract are named in the module definition;
+# the others are common tool names and carry no OCR claim.
+
+[[producer]]
+pattern = "ocrmypdf"
+family = "ocrmypdf"
+ocr = true
+
+[[producer]]
+pattern = "tesseract"
+family = "tesseract"
+ocr = true
+
+[[producer]]
+pattern = "abbyy"
+family = "abbyy"
+ocr = true
+
+[[producer]]
+pattern = "finereader"
+family = "abbyy"
+ocr = true
+
+[[producer]]
+pattern = "paper capture"
+family = "adobe_paper_capture"
+ocr = true
+
+[[producer]]
+pattern = "clearscan"
+family = "adobe_paper_capture"
+ocr = true
+
+[[producer]]
+pattern = "readiris"
+family = "readiris"
+ocr = true
+
+[[producer]]
+pattern = "omnipage"
+family = "omnipage"
+ocr = true
+
+[[producer]]
+pattern = "adobe scan"
+family = "adobe_scan"
+ocr = true
+
+[[producer]]
+pattern = "camscanner"
+family = "camscanner"
+ocr = false
+
+[[producer]]
+pattern = "img2pdf"
+family = "img2pdf"
+ocr = false
+
+[[producer]]
+pattern = "ghostscript"
+family = "ghostscript"
+ocr = false
+
+[[producer]]
+pattern = "pdftex"
+family = "latex"
+ocr = false
+
+[[producer]]
+pattern = "xetex"
+family = "latex"
+ocr = false
+
+[[producer]]
+pattern = "microsoft"
+family = "microsoft_office"
+ocr = false
+
+[[producer]]
+pattern = "libreoffice"
+family = "libreoffice"
+ocr = false
+
+[[producer]]
+pattern = "reportlab"
+family = "reportlab"
+ocr = false
+
+[[producer]]
+pattern = "itext"
+family = "itext"
+ocr = false
+
+[[producer]]
+pattern = "adobe pdf library"
+family = "adobe"
+ocr = false
+
+[[producer]]
+pattern = "acrobat"
+family = "adobe"
+ocr = false
+
+[[producer]]
+pattern = "canon"
+family = "scanner_mfp"
+ocr = false
+
+[[producer]]
+pattern = "xerox"
+family = "scanner_mfp"
+ocr = false
+
+[[producer]]
+pattern = "ricoh"
+family = "scanner_mfp"
+ocr = false
+
+[[producer]]
+pattern = "konica"
+family = "scanner_mfp"
+ocr = false
+
+[[producer]]
+pattern = "epson"
+family = "scanner_mfp"
+ocr = false
+
+[[producer]]
+pattern = "scansnap"
+family = "scanner_mfp"
+ocr = false
