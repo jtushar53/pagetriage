@@ -30,6 +30,34 @@ pub fn analyse_page(
         .map_err(|e| JsError::new(&e.to_string()))
 }
 
+/// Binarise a gray page: `width * height` bytes, `1` for ink and `0` for paper. `method` is
+/// `otsu`, `sauvola`, `wolf` or `howe`; `params_toml` overrides the embedded defaults. Identical
+/// bytes to the native and Python builds.
+#[wasm_bindgen]
+pub fn binarize(
+    gray: &[u8],
+    width: u32,
+    height: u32,
+    method: &str,
+    params_toml: Option<String>,
+) -> Result<Vec<u8>, JsError> {
+    let params = match params_toml.as_deref() {
+        Some(t) if !t.is_empty() => pagetriage_core::Params::with_overrides(t),
+        _ => pagetriage_core::Params::defaults(),
+    }
+    .map_err(|e| JsError::new(&e.to_string()))?;
+    let method = pagetriage_core::pixel::binarize::parse_method(method)
+        .map_err(|e| JsError::new(&e.to_string()))?;
+    pagetriage_core::pixel::binarize::binarize(
+        gray,
+        width as usize,
+        height as usize,
+        method,
+        &params,
+    )
+    .map_err(|e| JsError::new(&e.to_string()))
+}
+
 /// JSON Schema of the report, for validation on the JS side.
 #[wasm_bindgen]
 pub fn schema_json() -> String {

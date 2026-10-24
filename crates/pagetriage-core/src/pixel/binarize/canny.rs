@@ -4,11 +4,17 @@
 //!
 //! Source: J. Canny, "A computational approach to edge detection", IEEE TPAMI 8(6):679-698, 1986.
 //! Thresholds are fractions of the largest gradient magnitude on the page.
-//! Differences from MATLAB's `edge(..., 'canny')`, which Howe's code presumably used: the gradient
-//! is a central difference of the Gaussian-smoothed image, and the gradient direction is quantised
-//! to four sectors instead of interpolated. Both change edge positions by at most a pixel.
+//! The gradient is the derivative of a Gaussian of scale sigma (separable: smooth across, differentiate
+//! along). Difference from MATLAB's `edge(..., 'canny')`, which Howe's code presumably used: the
+//! gradient direction is quantised to four sectors instead of interpolated, which moves an edge by at
+//! most a pixel.
 
-use super::filters::{Border, gaussian_blur};
+use super::filters::{Border, gaussian_derivative_kernel, gaussian_kernel, separable_filter};
+
+/// A page whose strongest gradient is below this (gray levels per pixel) is flat: thresholds are
+/// relative to the strongest gradient, so without this guard rounding residue on a constant image
+/// would be scaled up to 1.0 and read as edges everywhere. Numerical guard, not a tuned value.
+const FLAT_GRADIENT: f64 = 1e-6;
 
 /// tan(22.5 degrees) = sqrt(2) - 1: the boundary between a horizontal and a diagonal gradient.
 const TAN_22_5: f64 = 0.414_213_562_373_095_05;
@@ -24,26 +30,30 @@ pub struct Nms {
 
 pub fn non_max_suppressed_gradient(gray: &[u8], width: usize, height: usize, sigma: f64) -> Nms {
     let image: Vec<f64> = gray.iter().map(|&g| f64::from(g)).collect();
-    let smooth = gaussian_blur(&image, width, height, sigma, Border::Replicate);
-    let at = |x: isize, y: isize| {
-        let xc = x.clamp(0, width as isize - 1) as usize;
-        let yc = y.clamp(0, height as isize - 1) as usize;
-        smooth[yc * width + xc]
-    };
-    let mut gx = vec![0.0; gray.len()];
-    let mut gy = vec![0.0; gray.len()];
-    let mut magnitude = vec![0.0; gray.len()];
-    for y in 0..height {
-        for x in 0..width {
-            let (xi, yi) = (x as isize, y as isize);
-            let dx = (at(xi + 1, yi) - at(xi - 1, yi)) / 2.0;
-            let dy = (at(xi, yi + 1) - at(xi, yi - 1)) / 2.0;
-            let i = y * width + x;
-            gx[i] = dx;
-            gy[i] = dy;
-            magnitude[i] = (dx * dx + dy * dy).sqrt();
-        }
-    }
+    // Gradient as the derivative of a Gaussian of scale sigma: smooth across, differentiate along.
+    let smooth_taps = gaussian_kernel(sigma);
+    let deriv_taps = gaussian_derivative_kernel(sigma);
+    let gx = separable_filter(
+        &image,
+        width,
+        height,
+        &deriv_taps,
+        &smooth_taps,
+        Border::Replicate,
+    );
+    let gy = separable_filter(
+        &image,
+        width,
+        height,
+        &smooth_taps,
+        &deriv_taps,
+        Border::Replicate,
+    );
+    let magnitude: Vec<f64> = gx
+        .iter()
+        .zip(&gy)
+        .map(|(dx, dy)| (dx * dx + dy * dy).sqrt())
+        .collect();
     let mag_at = |x: isize, y: isize| {
         if x < 0 || y < 0 || x >= width as isize || y >= height as isize {
             0.0
@@ -78,10 +88,12 @@ pub fn non_max_suppressed_gradient(gray: &[u8], width: usize, height: usize, sig
         }
     }
     let peak = kept.iter().copied().fold(0.0f64, f64::max);
-    if peak > 0.0 {
+    if peak > FLAT_GRADIENT {
         for v in &mut kept {
             *v /= peak;
         }
+    } else {
+        kept.fill(0.0);
     }
     Nms {
         width,

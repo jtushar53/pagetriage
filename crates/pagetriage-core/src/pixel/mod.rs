@@ -8,6 +8,7 @@ use crate::schema::Finding;
 pub mod binarize;
 pub mod components;
 pub mod content_type;
+pub mod phash;
 pub mod quality;
 
 #[derive(Debug, Default)]

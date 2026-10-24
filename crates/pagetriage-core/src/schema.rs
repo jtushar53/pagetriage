@@ -215,7 +215,14 @@ pub struct PageReport {
     pub quality: Option<Quality>,
     pub findings: Vec<Finding>,
     pub page_type: Option<PageType>,
+    /// 64-bit perceptual hash as 16 lowercase hex characters (module M12); all zeros for a page
+    /// with no structure to hash.
     pub phash: Option<String>,
+    /// 64-bit difference hash, same format as `phash`.
+    pub dhash: Option<String>,
+    /// `index` of the earliest earlier page whose hashes are within the near-duplicate distance.
+    /// One page cannot know its twins, so this is filled by the document-level step
+    /// (`pixel::phash::mark_near_duplicates`), not by `analyse_page`.
     pub near_duplicate_of: Option<u32>,
     /// Raw detector feature values, present only when `debug` is requested. Keyed
     /// `detector -> feature -> value`; this is what `bench/` uses to tune `params/*.toml`.

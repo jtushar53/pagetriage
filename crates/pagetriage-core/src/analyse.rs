@@ -7,11 +7,12 @@ use serde::Deserialize;
 use crate::error::{Error, Result};
 use crate::params::Params;
 use crate::pixel::content_type::{self, BLANK_PAGE};
+use crate::pixel::phash::{self, PHASH};
 use crate::pixel::quality;
 use crate::schema::{self, PageReport};
 
 /// Detectors that can be named in `Options::detectors`. Grows as phases land.
-pub const DETECTORS: &[&str] = &[BLANK_PAGE];
+pub const DETECTORS: &[&str] = &[BLANK_PAGE, PHASH];
 
 /// One rasterised page. `gray` is `width * height` bytes, row-major. `rgb`, when present, is
 /// `3 * width * height` interleaved bytes of the same page (colour detectors use it from Phase 3).
@@ -107,10 +108,21 @@ pub fn analyse_page_report(
 
     let mut findings = Vec::new();
     let mut debug: BTreeMap<String, BTreeMap<String, f64>> = BTreeMap::new();
+    let mut hashes = None;
     for name in selected {
         let detection = match name {
             BLANK_PAGE => {
                 content_type::detect_blank_page(input.gray, &params.blank_page, &params.fusion)?
+            }
+            PHASH => {
+                let (detection, page_hashes) = phash::detect(
+                    input.gray,
+                    input.width as usize,
+                    input.height as usize,
+                    &params.phash,
+                )?;
+                hashes = Some(page_hashes);
+                detection
             }
             other => unreachable!("detector {other:?} is in DETECTORS but not dispatched"),
         };
@@ -140,7 +152,8 @@ pub fn analyse_page_report(
         quality: Some(assessment.quality),
         findings,
         page_type: None,
-        phash: None,
+        phash: hashes.map(|h| h.phash_hex()),
+        dhash: hashes.map(|h| h.dhash_hex()),
         near_duplicate_of: None,
         debug: options.debug.then_some(debug),
     })

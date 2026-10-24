@@ -10,6 +10,7 @@ VENV=${VENV:-.venv}
 
 echo "== native"
 cargo test -p pagetriage-core --test golden --quiet
+cargo test -p pagetriage-core --test binarize_golden --quiet
 
 echo "== python"
 if [ ! -x "$VENV/bin/maturin" ]; then
@@ -20,10 +21,12 @@ export VIRTUAL_ENV="$PWD/$VENV"
 export PATH="$VIRTUAL_ENV/bin:$PATH"
 maturin develop --release --quiet --manifest-path crates/pagetriage-py/Cargo.toml
 python -I tests/determinism/run_python.py
+python -I tests/determinism/run_python_binarize.py
 
 echo "== wasm"
 scripts/build-wasm.sh
 scripts/check-wasm-size.sh
 node tests/determinism/run_wasm.mjs
+node tests/determinism/run_wasm_binarize.mjs
 
 echo "determinism: native, python and wasm all match the golden reports"

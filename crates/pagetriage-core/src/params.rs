@@ -11,6 +11,7 @@ const BLANK_PAGE_TOML: &str = include_str!("../params/blank_page.toml");
 const SAUVOLA_TOML: &str = include_str!("../params/sauvola.toml");
 const WOLF_TOML: &str = include_str!("../params/wolf.toml");
 const HOWE_TOML: &str = include_str!("../params/howe.toml");
+const PHASH_TOML: &str = include_str!("../params/phash.toml");
 const QUALITY_TOML: &str = include_str!("../params/quality.toml");
 
 /// Sauvola local threshold (see `params/sauvola.toml`).
@@ -60,6 +61,15 @@ pub struct HoweParams {
     pub curve_smoothing: Vec<f64>,
 }
 
+/// Perceptual hashing and near-duplicate pages (see `params/phash.toml`).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PhashParams {
+    pub max_hamming: u32,
+    pub dhash_max_hamming: u32,
+    pub flat_rms: f64,
+}
+
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FusionParams {
@@ -85,6 +95,7 @@ pub struct Params {
     pub sauvola: SauvolaParams,
     pub wolf: WolfParams,
     pub howe: HoweParams,
+    pub phash: PhashParams,
     pub quality: crate::pixel::quality::QualityParams,
 }
 
@@ -109,7 +120,8 @@ impl Params {
         format!(
             "# --- fusion ---\n[fusion]\n{FUSION_TOML}\n# --- blank_page ---\n[blank_page]\n{BLANK_PAGE_TOML}\n\
              # --- sauvola ---\n[sauvola]\n{SAUVOLA_TOML}\n# --- wolf ---\n[wolf]\n{WOLF_TOML}\n\
-             # --- howe ---\n[howe]\n{HOWE_TOML}\n# --- quality ---\n[quality]\n{QUALITY_TOML}"
+             # --- howe ---\n[howe]\n{HOWE_TOML}\n# --- phash ---\n[phash]\n{PHASH_TOML}\n\
+             # --- quality ---\n[quality]\n{QUALITY_TOML}"
         )
     }
 
@@ -166,7 +178,23 @@ impl Params {
             ));
         }
         self.quality.validate()?;
-        self.validate_binarizers()
+        self.validate_binarizers()?;
+        self.validate_phash()
+    }
+
+    fn validate_phash(&self) -> Result<()> {
+        let p = &self.phash;
+        if p.max_hamming > 64 || p.dhash_max_hamming > 64 {
+            return Err(Error::InvalidParams(
+                "phash.max_hamming and phash.dhash_max_hamming must be in 0..=64".into(),
+            ));
+        }
+        if !p.flat_rms.is_finite() || p.flat_rms < 0.0 {
+            return Err(Error::InvalidParams(
+                "phash.flat_rms must be finite and >= 0".into(),
+            ));
+        }
+        Ok(())
     }
 
     fn validate_binarizers(&self) -> Result<()> {
@@ -260,6 +288,7 @@ fn defaults_table() -> Result<toml::Table> {
     table.insert("sauvola".into(), parse("sauvola", SAUVOLA_TOML)?);
     table.insert("wolf".into(), parse("wolf", WOLF_TOML)?);
     table.insert("howe".into(), parse("howe", HOWE_TOML)?);
+    table.insert("phash".into(), parse("phash", PHASH_TOML)?);
     table.insert("quality".into(), parse("quality", QUALITY_TOML)?);
     Ok(table)
 }

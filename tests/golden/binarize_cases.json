@@ -1,0 +1,8 @@
+[
+  {"name": "otsu", "method": "otsu", "params": ""},
+  {"name": "sauvola", "method": "sauvola", "params": ""},
+  {"name": "wolf", "method": "wolf", "params": ""},
+  {"name": "howe_static", "method": "howe", "params": "[howe]\nmode = \"static\"\n"},
+  {"name": "howe_tune_c", "method": "howe", "params": "[howe]\nmode = \"tune_c\"\n"},
+  {"name": "howe_dual", "method": "howe", "params": "[howe]\nmode = \"dual\"\n"}
+]

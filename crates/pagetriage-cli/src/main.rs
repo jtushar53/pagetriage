@@ -31,6 +31,8 @@ struct Cli {
 enum Command {
     /// Analyse a page image and print the JSON report on stdout
     Analyse(AnalyseArgs),
+    /// Hash page images and report near-duplicates among them (pages in the order given)
+    Duplicates(DuplicatesArgs),
     /// Print the JSON Schema of the report
     Schema,
     /// Print the embedded default detector parameters as TOML
@@ -58,6 +60,16 @@ struct AnalyseArgs {
     detectors: Option<Vec<String>>,
 }
 
+#[derive(Args)]
+struct DuplicatesArgs {
+    /// Page images, in page order; a page is matched against the pages before it
+    #[arg(required = true)]
+    files: Vec<PathBuf>,
+    /// TOML file merged over the embedded default parameters (see `[phash]` in `params`)
+    #[arg(long, value_name = "FILE")]
+    params: Option<PathBuf>,
+}
+
 fn main() -> ExitCode {
     match run(Cli::parse()) {
         Ok(()) => ExitCode::SUCCESS,
@@ -71,6 +83,7 @@ fn main() -> ExitCode {
 fn run(cli: Cli) -> Result<(), String> {
     match cli.command {
         Command::Analyse(args) => analyse(&args),
+        Command::Duplicates(args) => duplicates(&args),
         Command::Schema => {
             print!("{}", schema_json());
             Ok(())
@@ -132,6 +145,61 @@ fn analyse(args: &AnalyseArgs) -> Result<(), String> {
     } else {
         println!("{canonical}");
     }
+    Ok(())
+}
+
+/// Hash every file with the `phash` detector and print one JSON object per page: its hashes and,
+/// when an earlier page is within the near-duplicate distance, that page's index.
+fn duplicates(args: &DuplicatesArgs) -> Result<(), String> {
+    let params_toml = match &args.params {
+        Some(path) => Some(
+            fs::read_to_string(path).map_err(|e| format!("cannot read {}: {e}", path.display()))?,
+        ),
+        None => None,
+    };
+    let params = match &params_toml {
+        Some(toml) => Params::with_overrides(toml),
+        None => Params::defaults(),
+    }
+    .map_err(|e| e.to_string())?;
+
+    let mut reports = Vec::new();
+    for (index, file) in args.files.iter().enumerate() {
+        let bytes = fs::read(file).map_err(|e| format!("cannot read {}: {e}", file.display()))?;
+        let page = load_page(&bytes).map_err(|e| format!("{}: {e}", file.display()))?;
+        let opts = serde_json::json!({
+            "detectors": ["phash"],
+            "page_index": index,
+            "params": params_toml,
+        })
+        .to_string();
+        let input = PageInput {
+            gray: &page.gray,
+            rgb: None,
+            width: page.width,
+            height: page.height,
+            dpi: 150,
+        };
+        reports.push(analyse_page_report(&input, None, &opts).map_err(|e| e.to_string())?);
+    }
+    pagetriage_core::pixel::phash::mark_near_duplicates(&mut reports, &params.phash)
+        .map_err(|e| e.to_string())?;
+
+    let pages: Vec<serde_json::Value> = args
+        .files
+        .iter()
+        .zip(&reports)
+        .map(|(file, r)| {
+            serde_json::json!({
+                "file": file.display().to_string(),
+                "index": r.index,
+                "phash": r.phash,
+                "dhash": r.dhash,
+                "near_duplicate_of": r.near_duplicate_of,
+            })
+        })
+        .collect();
+    println!("{}", serde_json::Value::Array(pages));
     Ok(())
 }
 
