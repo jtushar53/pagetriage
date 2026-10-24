@@ -83,7 +83,8 @@ or undecodable text, see [`font_script`](font_script.md).
 
 ## Decision: why not `pdf-inspector`
 
-The project rule is to depend on `pdf-inspector` upstream instead of forking it, and the module plan
+The original project rule was to depend on `pdf-inspector` upstream instead of forking it (the rule now
+names `lopdf`, decided 2026-10-24 on the evidence below), and the module plan
 called for building M1 on it. After trying it, `pagetriage-core` does **not** depend on it. It is
 not forked either: it is simply not used, and nothing was copied from it. What was measured
 (2026-10-24, `pdf-inspector` 1.25.2, `lopdf` 0.45/0.46, Apple-silicon macOS, Rust 1.98):

@@ -17,7 +17,10 @@ are defined in `docs/modules.md`; the papers behind them are in `docs/REFERENCES
    or "tuned on <set>". No magic numbers in detector code.
 4. Every new detector ships a docs page (`docs/detectors/<name>.md`, with a failure gallery), a
    golden test input and report in `tests/golden/`, and a benchmark line before it merges.
-5. Keep `pdf-inspector` as an upstream dependency and file issues or PRs rather than forking it.
+5. The PDF parser is `lopdf`, behind the non-default `pdf` cargo feature; the structural layer is
+   written on it directly. `pdf-inspector` was evaluated and not adopted (the measurements are in
+   `docs/detectors/text_layer.md`; `bench/compare_pdf_inspector.py` keeps the comparison). File
+   issues or PRs upstream for parser bugs rather than forking `lopdf`.
 6. No `unsafe` outside the FFT code and the FFI crates (`pagetriage-py`, `pagetriage-wasm`).
 7. The determinism gate (`scripts/determinism.sh`) runs in CI on every PR. Never weaken it to make
    a change pass: a golden diff is a behaviour change and must be reviewed as one.

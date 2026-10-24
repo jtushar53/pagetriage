@@ -355,7 +355,7 @@ fn read_contents(
         let room = l
             .max_content_bytes_per_page
             .saturating_sub(page_bytes)
-            .min(budget.content_bytes_left);
+            .min(usize::try_from(budget.content_bytes_left).unwrap_or(usize::MAX));
         if room == 0 {
             truncated = true;
             notes.push("content byte budget exhausted; page content cut short".into());
@@ -364,7 +364,8 @@ fn read_contents(
         match s.decompressed_content_with_limit(room.min(l.max_decompressed_bytes)) {
             Ok(data) => {
                 page_bytes += data.len();
-                budget.content_bytes_left = budget.content_bytes_left.saturating_sub(data.len());
+                budget.content_bytes_left =
+                    budget.content_bytes_left.saturating_sub(data.len() as u64);
                 out.push(data);
             }
             Err(lopdf::Error::Decompress(lopdf::DecompressError::MemoryLimitExceeded {

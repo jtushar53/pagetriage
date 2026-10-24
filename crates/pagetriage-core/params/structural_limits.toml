@@ -1,10 +1,12 @@
 # Resource limits of the PDF structural layer. The input is untrusted: a malformed, huge or hostile
 # file must end in an error or a degraded result, never a hang or an out-of-memory abort.
-# Every value is an engineering limit (not tuned on data) chosen to be far above real scanned
-# legal documents and far below what can exhaust a browser tab.
+# Every value is an engineering limit (not tuned on data). The size, page and total-content caps
+# were raised on 2026-10-24 so that a 13,000-page, 400 MB tender document (engineering drawings,
+# vector-heavy pages) is analysed whole by the native CLI; the browser demo applies its own smaller
+# caps before calling the library.
 
-# Largest PDF accepted, in bytes.
-max_input_bytes = 268435456
+# Largest PDF accepted, in bytes (1 GiB; memory use is about 2.8 times the file size).
+max_input_bytes = 1073741824
 
 # Largest size any one stream may decompress to (object streams, content streams, CMaps).
 max_decompressed_bytes = 67108864
@@ -13,7 +15,7 @@ max_decompressed_bytes = 67108864
 max_objects = 3000000
 
 # Pages analysed. Later pages are left out and a warning is added.
-max_pages = 5000
+max_pages = 100000
 
 # Depth of the page tree walked.
 max_page_tree_depth = 48
@@ -27,9 +29,10 @@ max_forms_per_page = 256
 # Decoded content bytes read for one page, forms included.
 max_content_bytes_per_page = 67108864
 
-# Decoded content bytes read across the whole document. When exhausted, the remaining pages are
-# reported without a text-layer verdict.
-max_content_bytes_total = 1073741824
+# Decoded content bytes read across the whole document (64 GiB: a work bound, not memory; pages
+# are decoded one at a time). When exhausted, the remaining pages are reported without a
+# text-layer verdict.
+max_content_bytes_total = 68719476736
 
 # Operators executed per page.
 max_ops_per_page = 4000000

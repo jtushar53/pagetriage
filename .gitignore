@@ -28,3 +28,6 @@ node_modules/
 /bench/results/
 
 .DS_Store
+
+# demo site: built WASM package (scripts/build-site.sh)
+/site/pkg/

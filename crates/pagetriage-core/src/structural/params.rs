@@ -163,7 +163,8 @@ pub struct LimitsParams {
     pub max_form_depth: usize,
     pub max_forms_per_page: usize,
     pub max_content_bytes_per_page: usize,
-    pub max_content_bytes_total: usize,
+    /// `u64`: on wasm32 `usize` is 32 bits and this budget is meant to exceed 4 GiB.
+    pub max_content_bytes_total: u64,
     pub max_ops_per_page: usize,
     pub max_operands: usize,
     pub max_q_depth: usize,

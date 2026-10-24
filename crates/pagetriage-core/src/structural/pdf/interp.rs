@@ -100,7 +100,7 @@ pub struct PageScan {
 
 /// Document-wide content budget shared by all pages.
 pub struct Budget {
-    pub content_bytes_left: usize,
+    pub content_bytes_left: u64,
 }
 
 #[derive(Clone)]
@@ -628,7 +628,7 @@ impl<'d> Interp<'d, '_> {
         let room = l
             .max_content_bytes_per_page
             .saturating_sub(self.content_bytes)
-            .min(self.budget.content_bytes_left);
+            .min(usize::try_from(self.budget.content_bytes_left).unwrap_or(usize::MAX));
         if room == 0 {
             self.truncate("content byte budget exhausted; page content cut short");
             return;
@@ -641,7 +641,10 @@ impl<'d> Interp<'d, '_> {
             return;
         };
         self.content_bytes = self.content_bytes.saturating_add(data.len());
-        self.budget.content_bytes_left = self.budget.content_bytes_left.saturating_sub(data.len());
+        self.budget.content_bytes_left = self
+            .budget
+            .content_bytes_left
+            .saturating_sub(data.len() as u64);
         self.forms_done += 1;
 
         let matrix = stream
