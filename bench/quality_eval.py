@@ -112,17 +112,17 @@ def main(argv=None) -> int:
                 fh.write(json.dumps(r, sort_keys=True) + "\n")
 
     if args.table:
-        print(f"{'page':<26} {'bleed':>6} {'mid':>7} {'ghost':>7} {'blur':>8} {'bnorm':>7} "
-              f"{'rms':>6} {'gap':>6} {'speck':>8} {'fold':>4} {'gen':>4} {'bin':>8} {'gr':>2} {'lab':>3}")
+        print(f"{'page':<26} {'skew':>6} {'pk':>5} {'bleed':>6} {'ghost':>6} {'sig_mm':>6} {'rms':>5} "
+              f"{'gap':>5} {'speck':>7} {'fold':>4} {'gen':>3} {'bin':>7} {'gr':>2} {'bad':>5} {'lab':>3}")
         for r in rows:
             q, f = r["quality"], r["features"]
             gen = q["photocopy_generation_est"]
-            print(f"{r['set'][5:] + '/' + r['page']:<26} {q['bleed_through']:6.3f} "
-                  f"{f['bleed_mid_mass']:7.4f} {f['bleed_ghost_stroke_ratio']:7.3f} "
-                  f"{q['blur_laplacian_var']:8.1f} {f['blur_norm']:7.4f} {q['contrast_rms']:6.3f} "
-                  f"{f['peak_gap']:6.3f} {q['speckle_density']:8.5f} {q['fold_lines']:4d} "
-                  f"{(gen['value'] if gen else -1):4d} {q['recommended_binarizer']:>8} {q['grade']:>2} "
-                  f"{'' if r['label_bleed'] is None else r['label_bleed']:>3}")
+            print(f"{r['set'][5:] + '/' + r['page']:<26} {q['skew_deg']:6.2f} {f['skew_peak_ratio']:5.2f} "
+                  f"{q['bleed_through']:6.3f} {f['bleed_ghost_stroke_ratio']:6.3f} "
+                  f"{f['blur_sigma_mm']:6.3f} {q['contrast_rms']:5.3f} {f['peak_gap']:5.2f} "
+                  f"{q['speckle_density']:7.5f} {q['fold_lines']:4d} "
+                  f"{(gen['value'] if gen else -1):3d} {q['recommended_binarizer']:>7} {q['grade']:>2} "
+                  f"{f['grade_badness']:5.2f} {'' if r['label_bleed'] is None else r['label_bleed']:>3}")
 
     def split_auc(name, subset, field):
         pos = [field(r) for r in subset if r["label_bleed"] == 1]

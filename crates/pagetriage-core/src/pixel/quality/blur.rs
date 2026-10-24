@@ -7,35 +7,61 @@
 //! target. The value depends on scan resolution and on contrast (it scales with contrast squared),
 //! so the grade uses a contrast-normalised form.
 
-/// Variance of the 4-neighbour Laplacian over the interior pixels where `mask` is set.
-/// Returns `(variance, pixels counted)`; `(0.0, 0)` when the mask is empty.
-pub fn laplacian_variance(gray: &[u8], width: usize, height: usize, mask: &[u8]) -> (f64, u64) {
+/// Focus statistics over the interior pixels where a mask is set.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct BlurStats {
+    /// Pixels counted.
+    pub pixels: u64,
+    /// Variance of the 4-neighbour Laplacian (0 for an empty mask).
+    pub variance: f64,
+    /// Edge sharpness in 1/pixel: `2 sqrt(sum L^2 / sum ((E-W)^2 + (S-N)^2))`, the ratio of the
+    /// Laplacian to the gradient. For a step edge blurred by a Gaussian of standard deviation
+    /// `s` pixels it equals `1 / (sqrt(2) s)`, and it does not depend on contrast or on how many
+    /// edge pixels there are. 0 when there is no gradient at all.
+    pub sharpness: f64,
+}
+
+/// Laplacian variance and edge sharpness over the interior pixels where `mask` is set.
+pub fn focus_stats(gray: &[u8], width: usize, height: usize, mask: &[u8]) -> BlurStats {
     debug_assert_eq!(gray.len(), width * height);
+    let empty = BlurStats {
+        pixels: 0,
+        variance: 0.0,
+        sharpness: 0.0,
+    };
     if width < 3 || height < 3 {
-        return (0.0, 0);
+        return empty;
     }
-    let (mut n, mut sum, mut sq) = (0u64, 0i64, 0u64);
+    let (mut n, mut sum, mut sq, mut grad_sq) = (0u64, 0i64, 0u64, 0u64);
     for y in 1..height - 1 {
         for x in 1..width - 1 {
             let i = y * width + x;
             if mask[i] == 0 {
                 continue;
             }
-            let lap = i32::from(gray[i - 1])
-                + i32::from(gray[i + 1])
-                + i32::from(gray[i - width])
-                + i32::from(gray[i + width])
-                - 4 * i32::from(gray[i]);
+            let (w, e) = (i32::from(gray[i - 1]), i32::from(gray[i + 1]));
+            let (nn, ss) = (i32::from(gray[i - width]), i32::from(gray[i + width]));
+            let lap = w + e + nn + ss - 4 * i32::from(gray[i]);
             n += 1;
             sum += i64::from(lap);
             sq += (i64::from(lap) * i64::from(lap)) as u64;
+            let (gx, gy) = (i64::from(e - w), i64::from(ss - nn));
+            grad_sq += (gx * gx + gy * gy) as u64;
         }
     }
     if n == 0 {
-        return (0.0, 0);
+        return empty;
     }
     let numerator = i128::from(n) * i128::from(sq) - i128::from(sum) * i128::from(sum);
-    (numerator as f64 / (n as f64 * n as f64), n)
+    BlurStats {
+        pixels: n,
+        variance: numerator as f64 / (n as f64 * n as f64),
+        sharpness: if grad_sq == 0 {
+            0.0
+        } else {
+            2.0 * (sq as f64 / grad_sq as f64).sqrt()
+        },
+    }
 }
 
 /// Mark every pixel within `radius` (Chebyshev distance) of a set pixel of `src`.
@@ -86,26 +112,23 @@ mod tests {
     fn sharp_edge_scores_higher_than_a_blurred_one() {
         let (w, h) = (20, 10);
         let mask = vec![1u8; w * h];
-        let (sharp, _) = laplacian_variance(&step_image(w, h, false), w, h, &mask);
-        let (soft, _) = laplacian_variance(&step_image(w, h, true), w, h, &mask);
-        assert!(sharp > soft * 2.0, "sharp {sharp} vs soft {soft}");
+        let sharp = focus_stats(&step_image(w, h, false), w, h, &mask);
+        let soft = focus_stats(&step_image(w, h, true), w, h, &mask);
+        assert!(
+            sharp.variance > soft.variance * 2.0,
+            "{sharp:?} vs {soft:?}"
+        );
+        assert!(sharp.sharpness > soft.sharpness, "{sharp:?} vs {soft:?}");
     }
 
     #[test]
     fn flat_and_empty_masks_give_zero() {
         let (w, h) = (8, 8);
-        assert_eq!(
-            laplacian_variance(&vec![99u8; w * h], w, h, &vec![1u8; w * h]),
-            (0.0, 36)
-        );
-        assert_eq!(
-            laplacian_variance(&vec![99u8; w * h], w, h, &vec![0u8; w * h]),
-            (0.0, 0)
-        );
-        assert_eq!(
-            laplacian_variance(&[1, 2, 3, 4], 2, 2, &[1, 1, 1, 1]),
-            (0.0, 0)
-        );
+        let flat = vec![99u8; w * h];
+        let on = focus_stats(&flat, w, h, &vec![1u8; w * h]);
+        assert_eq!((on.variance, on.pixels, on.sharpness), (0.0, 36, 0.0));
+        assert_eq!(focus_stats(&flat, w, h, &vec![0u8; w * h]).pixels, 0);
+        assert_eq!(focus_stats(&[1, 2, 3, 4], 2, 2, &[1, 1, 1, 1]).pixels, 0);
     }
 
     #[test]
@@ -113,13 +136,14 @@ mod tests {
         // A single bright pixel in a 3x3 image: only the centre is interior, laplacian = -4 * 100.
         let mut g = vec![0u8; 9];
         g[4] = 100;
-        let (v, n) = laplacian_variance(&g, 3, 3, &[1u8; 9]);
-        assert_eq!(n, 1);
-        assert_eq!(v, 0.0, "one sample has zero variance");
+        let one = focus_stats(&g, 3, 3, &[1u8; 9]);
+        assert_eq!(one.pixels, 1);
+        assert_eq!(one.variance, 0.0, "one sample has zero variance");
         // Two samples -400 and 0: mean -200, variance 40000.
         let mut g = vec![0u8; 5 * 3];
         g[5 + 1] = 100;
-        let (v, n) = laplacian_variance(&g, 5, 3, &[1u8; 15]);
+        let two = focus_stats(&g, 5, 3, &[1u8; 15]);
+        let (v, n) = (two.variance, two.pixels);
         assert_eq!(n, 3);
         // Laplacian: centre-left -400, its right neighbour +100, the far one 0.
         let mean = (-400.0 + 100.0 + 0.0) / 3.0;

@@ -43,11 +43,21 @@ speck_min_side_px = 2
 # them, so both sides of every edge are included. Source: placeholder.
 blur_dilate_px = 1
 
+# Edge sharpness is turned into a blur radius, 1 / (sqrt(2) * sharpness) pixels (a Gaussian step
+# edge). A page with a gradient-free text mask gets this value instead of infinity.
+# Source: numerical guard, not a tuned value.
+blur_sigma_cap_px = 10.0
+
+# ---- paper level grid ------------------------------------------------------------------------
+
+# Paper (pixels that are neither ink nor next to ink) is averaged on a grid of blocks this many
+# pixels wide. Used by the bleed-through and fold-line measures. Source: placeholder.
+paper_block_px = 4
+
 # ---- bleed-through ---------------------------------------------------------------------------
 
-# The local paper level is the mean gray of paper pixels on a grid of blocks this many pixels
-# wide, averaged over this many blocks in every direction. Source: placeholder.
-bleed_bg_block_px = 4
+# The local paper level is the paper mean averaged over this many blocks in every direction.
+# Source: placeholder.
 bleed_bg_radius_blocks = 6
 
 # Paper pixels within this many pixels of front ink are ignored (anti-aliased edges, halos).
@@ -69,12 +79,153 @@ bleed_noise_sigmas = 4.0
 # Source: placeholder.
 bleed_ghost_min_area = 20
 
+# ... and only if their mean width (area over centre-line length) is at most this multiple of the
+# text's own median stroke width: faint blobs (stains, shadows) are not reverse-side strokes.
+# Source: placeholder; tuned on the tune sets.
+bleed_ghost_max_width_ratio = 2.5
+
+# The exclusion radius around front ink is at least this multiple of the median text stroke width
+# (thick strokes have wider anti-aliased and blurred halos). Source: placeholder.
+bleed_exclude_stroke_mult = 1.0
+
 # Faint-pixel share of the paper pixels (`mid_mass`) that scores 1, and ghost-stroke ratio that
 # scores 1. The bleed-through score is a weighted mean of the two, weight below on `mid_mass`.
 # Source: placeholder; tuned on the tune sets.
 bleed_mid_mass_full = 0.05
 bleed_ghost_ratio_full = 0.5
 bleed_weight_mid = 0.5
+
+# ---- fold lines ------------------------------------------------------------------------------
+
+# A fold is a narrow valley in the paper shading: the block value is lower than the mean of the
+# two blocks this many blocks to either side. Source: placeholder (about 12 px at 150 dpi).
+fold_arm_blocks = 3
+
+# A block needs this many clear-paper pixels to have a value, and a line of blocks this fraction
+# of valid blocks to enter the profile. Source: placeholder.
+fold_min_block_pixels = 4
+fold_min_valid_frac = 0.5
+
+# Valley depth range in gray levels: at least this (shallower is paper texture), and at most this
+# fraction of the ink/paper gap ("low contrast": anything darker is ink or a ruling).
+# Source: placeholder.
+fold_min_depth_levels = 5.0
+fold_max_depth_gap_frac = 0.35
+
+# Fraction of ALL columns (rows) that must show at least half the valley, allowing one block of
+# tilt: "near full width". Columns without usable paper count as misses. Source: placeholder.
+fold_min_coverage = 0.7
+
+# A crease is narrow: the valley depth two blocks out must be at least this fraction of the depth
+# at the full arm. Source: placeholder.
+fold_min_narrowness = 0.6
+
+# Valleys closer than this many blocks to the page edge are ignored (scan edges, binding shadows;
+# 10 blocks is 40 px, 6.8 mm at 150 dpi). Source: placeholder.
+fold_edge_margin_blocks = 10
+
+# ... and, as a fraction of the page's extent across the fold, at least this far from either edge:
+# margin rules and scan borders sit there, creases usually do not (halves, thirds, quarters).
+# Source: placeholder, set after looking at DIBCO false alarms (tune sets).
+fold_edge_margin_frac = 0.1
+
+# One-sided shading: the difference between the mean paper level on the two sides of the valley
+# (over the arm), as a fraction of the valley depth, must lie in this range. Below the minimum is a
+# symmetric line (a printed or pencilled rule); above the maximum is the edge of a region (binding,
+# scanner bed). Source: placeholder, set after looking at DIBCO false alarms (tune sets).
+fold_min_shading = 0.15
+fold_max_shading = 1.0
+
+# More than this many valleys in one direction are rulings or ruled paper, not folds: a sheet has
+# a handful of creases at most (letter fold 2, quarter fold 3). Source: common sense.
+fold_max_lines = 4
+
+# ---- photocopy generation (experimental) -----------------------------------------------------
+# No published method found. Five measurements are each turned into a severity (0 at "good", 1 at
+# "bad"), averaged with the weights below, and scaled to 0..gen_max_generation. None of this has
+# been validated on real photocopies. Every value is a placeholder.
+
+# Fewer text components than this: no estimate (null).
+gen_min_components = 20
+
+# Confidence grows linearly with the number of text components up to this count ...
+gen_full_confidence_components = 300
+
+# ... and never exceeds this. Source: module M3 definition (experimental, capped at 0.6).
+gen_max_confidence = 0.6
+
+# The estimate is a whole number from 0 (looks like an original) to this.
+gen_max_generation = 5
+
+# A text component smaller than this fraction of the median text component is a fragment.
+gen_fragment_area_frac = 0.25
+
+# Coefficient of variation of stroke width (std / mean over stroke centre-line pixels).
+gen_cv_good = 0.25
+gen_cv_bad = 0.6
+# Mean stroke width over the text height; falls with each generation (module M3 definition).
+gen_width_good = 0.2
+gen_width_bad = 0.08
+# Share of text components that are fragments (broken characters).
+gen_fragment_good = 0.1
+gen_fragment_bad = 0.4
+# Speckle density, as for the grade.
+gen_speckle_good = 0.0003
+gen_speckle_bad = 0.003
+# Ink/paper gap, lower is worse.
+gen_gap_good = 0.7
+gen_gap_bad = 0.3
+
+gen_w_cv = 1.0
+gen_w_width = 1.0
+gen_w_fragment = 1.0
+gen_w_speckle = 1.0
+gen_w_gap = 1.0
+
+# ---- grade and binariser ---------------------------------------------------------------------
+# Each measure becomes a severity: 0 at "good", 1 at "bad", linear in between. badness =
+# grade_w_max * worst severity + (1 - grade_w_max) * weighted mean severity. The grade is A below
+# grade_a_max, B below grade_b_max, C below grade_c_max, D otherwise. All placeholders until tuned
+# against the benchmark sets.
+
+# Skew in degrees (|skew|). Small skews are harmless, so this also has a low weight.
+grade_skew_good = 0.5
+grade_skew_bad = 5.0
+# Blur radius in millimetres at the page's dpi (0.12 mm is 0.7 px at 150 dpi).
+grade_blur_good = 0.12
+grade_blur_bad = 0.30
+# Ink/paper gap, lower is worse.
+grade_gap_good = 0.5
+grade_gap_bad = 0.2
+# Speckles per page pixel.
+grade_speckle_good = 0.0003
+grade_speckle_bad = 0.003
+# Bleed-through score.
+grade_bleed_good = 0.1
+grade_bleed_bad = 0.6
+# Fold line count.
+grade_folds_good = 0.0
+grade_folds_bad = 3.0
+
+grade_w_skew = 0.5
+grade_w_blur = 1.0
+grade_w_gap = 1.0
+grade_w_speckle = 0.7
+grade_w_bleed = 1.0
+grade_w_folds = 0.5
+
+grade_w_max = 0.5
+grade_a_max = 0.15
+grade_b_max = 0.35
+grade_c_max = 0.6
+
+# Recommend Howe instead of Sauvola when the bleed-through score is at least this ...
+howe_bleed_min = 0.4
+# ... or the ink/paper gap is below this ...
+howe_gap_max = 0.25
+# ... but only when at least this fraction of the page is text ink (a blank page has nothing to
+# binarise). Source: module M3 definition for the rule; the numbers are placeholders.
+howe_min_ink_fraction = 0.002
 
 # ---- skew ------------------------------------------------------------------------------------
 

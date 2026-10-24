@@ -135,6 +135,7 @@ pub fn analyse_page_report(
         input.gray,
         input.width as usize,
         input.height as usize,
+        input.dpi,
         &params,
     )?;
     debug.insert("quality".to_owned(), assessment.features);
