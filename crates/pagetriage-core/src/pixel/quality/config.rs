@@ -58,6 +58,8 @@ pub struct QualityParams {
     pub fold_min_measurable: f64,
     pub fold_max_lines: usize,
     pub fold_min_narrowness: f64,
+    pub fold_narrow_arm_blocks: usize,
+    pub fold_column_depth_frac: f64,
     pub fold_edge_margin_blocks: usize,
     pub fold_edge_margin_frac: f64,
     pub fold_min_shading: f64,
@@ -187,6 +189,8 @@ impl QualityParams {
             || self.fold_max_depth_gap_frac <= 0.0
             || !(self.fold_min_coverage > 0.0 && self.fold_min_coverage <= 1.0)
             || !(0.0..=1.0).contains(&self.fold_min_narrowness)
+            || self.fold_narrow_arm_blocks == 0
+            || !(self.fold_column_depth_frac > 0.0 && self.fold_column_depth_frac <= 1.0)
             || !(0.0..=1.0).contains(&self.fold_min_measurable)
             || self.fold_min_length_in < 0.0
             || !(0.0..0.5).contains(&self.fold_edge_margin_frac)

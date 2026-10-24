@@ -123,7 +123,7 @@ fn search(
         }
         // A crease is narrow: the valley is already (almost) as deep two blocks out as at the full
         // arm. A broad shadow or a stain edge is not.
-        let narrow = dip(&series.value, j, 2.min(a)).unwrap_or(0.0);
+        let narrow = dip(&series.value, j, p.fold_narrow_arm_blocks.clamp(1, a)).unwrap_or(0.0);
         if narrow < p.fold_min_narrowness * d {
             continue;
         }
@@ -155,7 +155,7 @@ fn search(
             // A column counts when the valley's own block is measurable, or when a neighbouring
             // block (tilt) shows the valley anyway; a hidden centre with nothing visible beside it
             // says nothing either way.
-            let seen = best.is_some_and(|v| v >= 0.5 * d);
+            let seen = best.is_some_and(|v| v >= p.fold_column_depth_frac * d);
             if cell(j, i).is_some() || seen {
                 have += 1;
                 if seen {

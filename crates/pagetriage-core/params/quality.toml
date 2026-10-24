@@ -139,6 +139,13 @@ fold_min_measurable = 0.25
 # at the full arm. Source: placeholder.
 fold_min_narrowness = 0.6
 
+# ... measured with arms this many blocks out (at most fold_arm_blocks). Source: placeholder.
+fold_narrow_arm_blocks = 2
+
+# In a column (row), the valley counts as present when it is at least this fraction of the valley
+# depth found on the line's median profile. Source: placeholder.
+fold_column_depth_frac = 0.5
+
 # Valleys closer than this many blocks to the page edge are ignored (scan edges, binding shadows;
 # 10 blocks is 40 px, 6.8 mm at 150 dpi). Source: placeholder.
 fold_edge_margin_blocks = 10
