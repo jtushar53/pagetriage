@@ -650,8 +650,9 @@ mod tests {
     }
 
     #[test]
-    fn dhash_gate_is_applied_only_when_set() {
+    fn dhash_gate_is_applied_unless_set_to_64() {
         let mut p = params();
+        p.dhash_max_hamming = 64;
         let same_p = [
             PageHashes {
                 phash: 0xf0f0,
@@ -669,7 +670,8 @@ mod tests {
 
     #[test]
     fn hex_entry_point_checks_its_input() {
-        let p = params();
+        let mut p = params();
+        p.dhash_max_hamming = 64;
         let a = to_hex(0xf0f0_f0f0_f0f0_f0f0);
         assert_eq!(
             near_duplicates_hex(&[&a, &a], None, &p).unwrap(),
@@ -680,6 +682,8 @@ mod tests {
         let mut gated = p.clone();
         gated.dhash_max_hamming = 20;
         assert!(near_duplicates_hex(&[&a, &a], None, &gated).is_err());
+        // The shipped default consults the dHash, so it needs them too.
+        assert!(near_duplicates_hex(&[&a, &a], None, &params()).is_err());
         assert_eq!(
             near_duplicates_hex(&[&a, &a], Some(&[&a, &a]), &gated).unwrap(),
             [None, Some(0)]

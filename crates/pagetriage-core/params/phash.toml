@@ -8,10 +8,16 @@
 # distance distributions behind it are in docs/detectors/phash.md.
 max_hamming = 10
 
-# Optional second test: the dHashes must also differ in at most this many of 64 bits. 64 means the
-# dHash is not consulted. Source: tuned on the tuning split of the DIBCO page images (see
-# docs/detectors/phash.md); left at 64 (off) unless that split showed it removes false positives.
-dhash_max_hamming = 64
+# Second test: the dHashes must also differ in at most this many of 64 bits (64 would switch it off).
+# Source: tuned on the "tune" sets of the synthetic typed-page arm of bench/phash_eval.py (two
+# made-up page layouts, 100 pages each, plus perturbed copies). Rule fixed before looking at a
+# set that was not used for the choice: the smallest bound on the grid {10, 14, 18, 22, 26, 64} that
+# keeps recall of every perturbed-copy type within 2 points of having no dHash test, at pHash <=
+# max_hamming. That is 22. On a fresh "check" set generated afterwards it cut false positives from
+# 15.6% to 12.3% (dense layout) and from 8.6% to 3.6% (varied layout) with no recall change; on the
+# 136 DIBCO pages it lost 2 of 136 copies (3% shifts only) and false positives stayed at zero.
+# Details and caveats: docs/detectors/phash.md.
+dhash_max_hamming = 22
 
 # A page whose low-frequency content is this flat has no structure to hash, so both hashes are
 # reported as all zeros and the page is never matched as a duplicate. The value is the standard

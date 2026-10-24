@@ -70,12 +70,18 @@ fn document_level_near_duplicates_match_the_golden_file() {
         .iter()
         .map(|a| hashes.iter().map(|b| hamming(a.phash, b.phash)).collect())
         .collect();
+    let dhash_distances: Vec<Vec<u32>> = hashes
+        .iter()
+        .map(|a| hashes.iter().map(|b| hamming(a.dhash, b.dhash)).collect())
+        .collect();
     let value = json!({
         "max_hamming": params.max_hamming,
+        "dhash_max_hamming": params.dhash_max_hamming,
         "pages": names,
         "phash": hashes.iter().map(PageHashes::phash_hex).collect::<Vec<_>>(),
         "dhash": hashes.iter().map(PageHashes::dhash_hex).collect::<Vec<_>>(),
         "phash_hamming": distances,
+        "dhash_hamming": dhash_distances,
         "near_duplicate_of": near_duplicates(&hashes, &params),
     });
     let actual = format!("{}\n", serde_json::to_string_pretty(&value).unwrap());
