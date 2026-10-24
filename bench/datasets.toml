@@ -1,0 +1,207 @@
+# Benchmark datasets for bench/fetch.py.
+#
+# Fetched at runtime into bench/data/ (gitignored). None of these hosts states a licence, so the
+# data is NOT redistributed from this repository. Hashes pin what the official hosts served on
+# 2026-10-24; a mismatch means the host changed the file and needs a human look, not a retry.
+#
+# Fields per file: url (https only), size (bytes, checked), sha256 (checked; "" = not pinned yet,
+# fetch.py prints the hash so it can be pinned).
+
+[datasets.dibco2009]
+name = "DIBCO 2009 (handwritten + machine printed)"
+kind = "binarisation"
+homepage = "https://users.iit.demokritos.gr/~bgat/DIBCO2009/"
+license = "none stated by the organisers; public benchmark, do not redistribute"
+
+[[datasets.dibco2009.files]]
+url = "https://users.iit.demokritos.gr/~bgat/DIBCO2009/benchmark/DIBC02009_Test_images-handwritten.rar"
+size = 2270265
+sha256 = "d522e6e658e1aedb57c5cfdc1e4717a0e678568a73383f69321580245b5af39e"
+
+[[datasets.dibco2009.files]]
+url = "https://users.iit.demokritos.gr/~bgat/DIBCO2009/benchmark/DIBCO2009_Test_images-printed.rar"
+size = 3596348
+sha256 = "10c78a4beb71abe70ed7151d2e448fde01ed07bf0b17c17253c6256960c7ad53"
+
+[[datasets.dibco2009.files]]
+url = "https://users.iit.demokritos.gr/~bgat/DIBCO2009/benchmark/DIBCO2009-GT-Test-images_handwritten.rar"
+size = 41351
+sha256 = "afd07a6a6f2a89cbf114124054a48093e90576e81b27a05d64dc4093823d5468"
+
+[[datasets.dibco2009.files]]
+url = "https://users.iit.demokritos.gr/~bgat/DIBCO2009/benchmark/DIBCO2009-GT-Test-images_printed.rar"
+size = 42637
+sha256 = "bb598f4e380f6ac94dc51812c27a961fdb2738f3f541f7a203b4721e1bcad2da"
+
+[datasets.dibco2010]
+name = "H-DIBCO 2010 (handwritten)"
+kind = "binarisation"
+homepage = "https://users.iit.demokritos.gr/~bgat/H-DIBCO2010/"
+license = "none stated by the organisers; public benchmark, do not redistribute"
+
+[[datasets.dibco2010.files]]
+url = "https://users.iit.demokritos.gr/~bgat/H-DIBCO2010/benchmark/H_DIBCO2010_test_images.rar"
+size = 3945957
+sha256 = "3b559ef2d1fb282a79ec0ee243a24a299fe29125b9acbe854eb3c9f5930824df"
+
+[[datasets.dibco2010.files]]
+url = "https://users.iit.demokritos.gr/~bgat/H-DIBCO2010/benchmark/H_DIBCO2010_GT.rar"
+size = 192320
+sha256 = "a5e95070f413a481ff7870dec4697163aef707bba1f8e3fbee993369ca2e10ed"
+
+[datasets.dibco2011]
+name = "DIBCO 2011 (handwritten + machine printed)"
+kind = "binarisation"
+homepage = "https://utopia.duth.gr/~ipratika/DIBCO2011/"
+license = "none stated by the organisers; public benchmark, do not redistribute"
+
+[[datasets.dibco2011.files]]
+url = "https://utopia.duth.gr/~ipratika/DIBCO2011/benchmark/dataset/DIBCO11-handwritten.rar"
+size = 9513655
+sha256 = "61b17f866c4b089be87a4b24e17fbf6589abb90818cdec7ada78c56a1c272dc0"
+
+[[datasets.dibco2011.files]]
+url = "https://utopia.duth.gr/~ipratika/DIBCO2011/benchmark/dataset/DIBCO11-machine_printed.rar"
+size = 10145704
+sha256 = "038e33f228070d4669be08e145b15927ec5b8e503d0af1de8f74e40a79c77371"
+
+[datasets.dibco2012]
+name = "H-DIBCO 2012 (handwritten)"
+kind = "binarisation"
+homepage = "https://utopia.duth.gr/~ipratika/HDIBCO2012/"
+license = "none stated by the organisers; public benchmark, do not redistribute"
+
+[[datasets.dibco2012.files]]
+url = "https://utopia.duth.gr/~ipratika/HDIBCO2012/benchmark/dataset/H-DIBCO2012-dataset.rar"
+size = 24522318
+sha256 = "46b0f1ce6fede0058c850ebcf7c0d8f8c5fe40f1812759e5b645eb858d067c31"
+
+[datasets.dibco2013]
+name = "DIBCO 2013 (handwritten + machine printed)"
+kind = "binarisation"
+homepage = "https://utopia.duth.gr/~ipratika/DIBCO2013/"
+license = "none stated by the organisers; public benchmark, do not redistribute"
+
+[[datasets.dibco2013.files]]
+url = "https://utopia.duth.gr/~ipratika/DIBCO2013/benchmark/dataset/DIBCO2013-dataset.rar"
+size = 32236463
+sha256 = "ae9d94089d8ab4819c61242d6377f714aedc605b5040710902c47bc6bd8c309d"
+
+[datasets.dibco2014]
+name = "H-DIBCO 2014 (handwritten)"
+kind = "binarisation"
+homepage = "https://users.iit.demokritos.gr/~bgat/HDIBCO2014/"
+license = "none stated by the organisers; public benchmark, do not redistribute"
+
+[[datasets.dibco2014.files]]
+url = "https://users.iit.demokritos.gr/~bgat/HDIBCO2014/benchmark/dataset/original_images.rar"
+size = 12944577
+sha256 = "1f0bb430b9415083d79070f51eb0157aa158a32e448ad0aba6294cfec57f137d"
+
+[[datasets.dibco2014.files]]
+url = "https://users.iit.demokritos.gr/~bgat/HDIBCO2014/benchmark/dataset/GT.rar"
+size = 156196
+sha256 = "428ed06e282e2362989fa6507a24bb6aaf2d5f80f3eb6fd535811c16daf09be3"
+
+[datasets.dibco2016]
+name = "H-DIBCO 2016 (handwritten)"
+kind = "binarisation"
+homepage = "https://vc.ee.duth.gr/h-dibco2016/"
+license = "none stated by the organisers; public benchmark, do not redistribute"
+
+[[datasets.dibco2016.files]]
+url = "https://vc.ee.duth.gr/h-dibco2016/benchmark/DIBCO2016_dataset-original.zip"
+size = 8985981
+sha256 = "32d431e7754ab733b3680434891b9dedb4f933609bf42e0e0ddc93baf7b89f85"
+
+[[datasets.dibco2016.files]]
+url = "https://vc.ee.duth.gr/h-dibco2016/benchmark/DIBCO2016_dataset-GT.zip"
+size = 240396
+sha256 = "b1316c7714ddca384aed4a8634120a3279fe09340b1a2b46e2aa234c484c6763"
+
+[datasets.dibco2017]
+name = "DIBCO 2017 (handwritten + machine printed)"
+kind = "binarisation"
+homepage = "https://vc.ee.duth.gr/dibco2017/"
+license = "none stated by the organisers; public benchmark, do not redistribute"
+
+[[datasets.dibco2017.files]]
+url = "https://vc.ee.duth.gr/dibco2017/benchmark/DIBCO2017_Dataset.7z"
+size = 43868529
+sha256 = "eb0e76a590514fa5f4b46b9b7a70320b55d8232793da16372b8e9f4c4e960729"
+
+[[datasets.dibco2017.files]]
+url = "https://vc.ee.duth.gr/dibco2017/benchmark/DIBCO2017_GT.7z"
+size = 892437
+sha256 = "6b8fc6eadd6190e7185a0da56c9181ac35b64723a2ad4d6de709a391d6ebdf45"
+
+[datasets.dibco2018]
+name = "H-DIBCO 2018 (handwritten)"
+kind = "binarisation"
+homepage = "https://vc.ee.duth.gr/h-dibco2018/"
+license = "none stated by the organisers; public benchmark, do not redistribute"
+
+[[datasets.dibco2018.files]]
+url = "https://vc.ee.duth.gr/h-dibco2018/benchmark/dibco2018_Dataset.zip"
+size = 22311122
+sha256 = "5a4eba97a2ffc3e7ef9bb231b9d40937a3275ebd01106d477a16fc719ca21e33"
+
+[[datasets.dibco2018.files]]
+url = "https://vc.ee.duth.gr/h-dibco2018/benchmark/dibco2018-GT.zip"
+size = 3102047
+sha256 = "ed8d50e77ce4e08c690aa15cad2070172d67d4aa5a7a5f036edd8b47dca4d5f4"
+
+[datasets.dibco2019_track_a]
+name = "DIBCO 2019 track A (modern documents)"
+kind = "binarisation"
+homepage = "https://vc.ee.duth.gr/dibco2019/"
+license = "none stated by the organisers; public benchmark, do not redistribute"
+
+[[datasets.dibco2019_track_a.files]]
+url = "https://vc.ee.duth.gr/dibco2019/benchmark/dibco2019_dataset_trackA.zip"
+size = 5468256
+sha256 = "d2a9df56259a8337b43d6877d5fad2770bfa7791c25ff616add12274b64dd762"
+
+[[datasets.dibco2019_track_a.files]]
+url = "https://vc.ee.duth.gr/dibco2019/benchmark/dibco2019_gt_trackA.zip"
+size = 99778
+sha256 = "35fb4f89ffb85e0dc1d782b8c398c80893077cd23d9a6834799dd809b4f4472e"
+
+[datasets.dibco2019_track_b]
+name = "DIBCO 2019 track B (papyri)"
+kind = "binarisation"
+homepage = "https://vc.ee.duth.gr/dibco2019/"
+license = "none stated by the organisers; public benchmark, do not redistribute"
+
+[[datasets.dibco2019_track_b.files]]
+url = "https://vc.ee.duth.gr/dibco2019/benchmark/dibco2019_dataset_trackB.zip"
+size = 58563618
+sha256 = "9ddbd65cf7ecf61bd6ae312df1ad5e542b7124d7fed9ad2d72f36a0799049902"
+
+[[datasets.dibco2019_track_b.files]]
+url = "https://vc.ee.duth.gr/dibco2019/benchmark/dibco2019_GT_trackB.zip"
+size = 851685
+sha256 = "ec8f73deac6eb89db1af6707478126d29e2f42fdc317d82c2c753843f3fad7af"
+# Tobacco800 (TC11). UNVERIFIED: tc11.cvc.uab.es was unreachable (timeouts / connection refused)
+# when this entry was written, on 2026-10-24, so the live download, its size, its contents and
+# whether it needs a login are all unconfirmed. The URL and the "(33 MB)" figure come from a
+# Wayback Machine copy of the dataset page. The original UMD LAMP hosts no longer resolve, and
+# the Zenodo/Hugging Face copies are splits, redacted or derived, so they are not used.
+# fetch.py fails with a clear message if the host is down; check size, hash and tar contents on the
+# first successful fetch, then pin them here and set verified = true.
+[datasets.tobacco800]
+name = "Tobacco800 (signatures and logos, page level)"
+kind = "signatures"
+homepage = "https://tc11.cvc.uab.es/datasets/Tobacco800_1"
+license = "none stated; the host asks that the references in `citation` are included"
+verified = false
+citation = """
+Dataset: David Doermann, Tobacco 800 Dataset (Tobacco800), 1, ID: Tobacco800_1, URL: https://tc11.cvc.uab.es/datasets/Tobacco800_1
+Database: D. Lewis, G. Agam, S. Argamon, O. Frieder, D. Grossman, J. Heard, "Building a test collection for complex document information processing", Proc. 29th Annual Int. ACM SIGIR Conference (SIGIR 2006), pp. 665-666, 2006.
+Ground truth: Guangyu Zhu, Yefeng Zheng, David Doermann, Stefan Jaeger, "Multi-scale Structural Saliency for Signature Detection", Proc. IEEE CVPR 2007, pp. 1-8; Guangyu Zhu, David Doermann, "Automatic Document Logo Detection", Proc. ICDAR 2007, pp. 864-868.
+"""
+
+[[datasets.tobacco800.files]]
+url = "https://tc11.cvc.uab.es/index.php?com=upload&action=file_down&section=dataset&section_id=251&file=217"
+filename = "tobacco_data_zhugy.tar"
+sha256 = ""
