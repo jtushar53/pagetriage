@@ -1,0 +1,36 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/pagetriage-core",
+    "crates/pagetriage-cli",
+    "crates/pagetriage-py",
+    "crates/pagetriage-wasm",
+]
+# The PyO3 and wasm-bindgen crates need their own build drivers (maturin, wasm-bindgen CLI),
+# so a plain `cargo build` / `cargo test` only touches core + cli.
+default-members = ["crates/pagetriage-core", "crates/pagetriage-cli"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/jtushar53/pagetriage"
+rust-version = "1.98"
+
+[workspace.dependencies]
+pagetriage-core = { path = "crates/pagetriage-core", version = "0.1.0" }
+
+# Native release: speed matters, and PyO3 needs unwinding to turn a Rust panic into a Python
+# exception, so no `panic = "abort"` here.
+[profile.release]
+lto = "thin"
+codegen-units = 1
+
+# Browser build (PLAN.md performance and size targets). Used via `scripts/build-wasm.sh`.
+[profile.wasm]
+inherits = "release"
+opt-level = "z"
+lto = "fat"
+panic = "abort"
+codegen-units = 1
+strip = true

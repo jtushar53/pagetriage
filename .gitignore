@@ -1,0 +1,29 @@
+# project plan: kept locally, not published
+/PLAN.md
+
+# build output
+/target/
+**/*.rs.bk
+/dist/
+/pkg/
+
+# local scratch (installer logs etc.)
+/.scratch/
+
+# python
+.venv/
+__pycache__/
+*.egg-info/
+*.so
+*.pyd
+*.whl
+
+# node
+node_modules/
+
+# bench: datasets are fetched at runtime and must not be redistributed (PLAN.md section e);
+# real deed pages contain PII and must never be committed.
+/bench/data/
+/bench/results/
+
+.DS_Store

@@ -1,0 +1,309 @@
+//! Output schema `pagetriage/0.1`. These types are the contract: the JSON Schema in
+//! `schema/pagetriage-0.1.schema.json` is generated from them, and a test fails if the checked-in
+//! file drifts.
+//!
+//! Fields that later phases fill in (`text_layer`, `quality`, `page_type`, `phash`, ...) exist now
+//! so the schema does not break when they arrive; Phase 0 emits them as `null`.
+
+use std::collections::BTreeMap;
+
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
+
+use crate::error::{Error, Result};
+use crate::math;
+
+pub const SCHEMA_ID: &str = "pagetriage/0.1";
+
+/// One named measurement and its signed contribution to a finding's log-odds.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct Evidence {
+    /// Dotted detector id, e.g. `stamp.color_cluster`.
+    pub detector: String,
+    /// Feature name, e.g. `hue_cluster_compactness`.
+    pub feature: String,
+    pub value: f64,
+    pub threshold: Option<f64>,
+    /// Signed log-likelihood-ratio contribution to the finding.
+    pub llr: f64,
+    pub note: String,
+    /// Source the feature or threshold comes from, or "tuned on <set>".
+    pub citation: String,
+}
+
+impl Evidence {
+    /// Builds an evidence record, refusing non-finite numbers so they can never reach the JSON
+    /// (`serde_json` would silently turn them into `null`).
+    pub fn new(
+        detector: &str,
+        feature: &str,
+        value: f64,
+        threshold: Option<f64>,
+        llr: f64,
+        note: String,
+        citation: &str,
+    ) -> Result<Self> {
+        let what = |part: &str| format!("{detector}.{feature} {part}");
+        Ok(Self {
+            detector: detector.to_owned(),
+            feature: feature.to_owned(),
+            value: math::finite(value, &what("value"))?,
+            threshold: match threshold {
+                Some(t) => Some(math::finite(t, &what("threshold"))?),
+                None => None,
+            },
+            llr: math::finite(llr, &what("llr"))?,
+            note,
+            citation: citation.to_owned(),
+        })
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Kind {
+    TextLayer,
+    Script,
+    LanguageHint,
+    PrintedText,
+    Handwriting,
+    Signature,
+    Stamp,
+    Seal,
+    EmbossedSeal,
+    ThumbImpression,
+    #[serde(rename = "barcode_1d")]
+    Barcode1d,
+    QrCode,
+    EstampQr,
+    StampPaperHeader,
+    RegistrarEndorsement,
+    PageNumberMargin,
+    Table,
+    RulingLines,
+    CheckboxGrid,
+    FoldLine,
+    Photo,
+    VectorGraphic,
+    RedactionBox,
+    BlankPage,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct Finding {
+    pub kind: Kind,
+    /// Calibrated confidence in [0, 1].
+    pub confidence: f64,
+    /// `[x0, y0, x1, y1]` in page pixel coordinates at the analysis DPI.
+    pub bbox: Option<[u32; 4]>,
+    pub polygon: Option<Vec<[u32; 2]>>,
+    pub attributes: Map<String, Value>,
+    pub evidence: Vec<Evidence>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct DocumentInfo {
+    pub sha256: String,
+    pub pages: u32,
+    /// `pdf`, `image` or `raw`.
+    pub source: String,
+    pub producer: Option<String>,
+    pub incremental_updates: Option<u32>,
+}
+
+/// Wall-clock timings are measured by the host (CLI, bindings), never by the core: they differ run
+/// to run, and `std::time::Instant` is unavailable on `wasm32-unknown-unknown`. The core always
+/// leaves this `None`, which keeps the report byte-reproducible.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct Timings {
+    pub structural: Option<f64>,
+    pub pixel: Option<f64>,
+    pub fusion: Option<f64>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TextLayerState {
+    NativeText,
+    RasterOnly,
+    InvisibleOcrUnderImage,
+    Mixed,
+    VectorOnly,
+    Empty,
+}
+
+/// Structural text-layer verdict (module M1, Phase 1).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct TextLayer {
+    pub state: TextLayerState,
+    pub confidence: f64,
+    /// False when the layer is legacy-encoded or garbled (module M2).
+    pub reliable: Option<bool>,
+    pub evidence: Vec<Evidence>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Binarizer {
+    Otsu,
+    Sauvola,
+    Wolf,
+    Howe,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct GenerationEstimate {
+    pub value: u32,
+    /// Capped at 0.6: the method is experimental (PLAN.md M3).
+    pub confidence: f64,
+}
+
+/// Degradation triage (module M3, Phase 1).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct Quality {
+    pub skew_deg: f64,
+    pub blur_laplacian_var: f64,
+    pub contrast_rms: f64,
+    pub speckle_density: f64,
+    pub bleed_through: f64,
+    pub fold_lines: u32,
+    pub photocopy_generation_est: Option<GenerationEstimate>,
+    pub recommended_binarizer: Binarizer,
+    /// Letter grade; the scale is defined in Phase 1.
+    pub grade: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PageLabel {
+    Text,
+    TextWithAnnotations,
+    Form,
+    Table,
+    Photo,
+    Mixed,
+    Blank,
+    CoverStampPaper,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct PageType {
+    pub label: PageLabel,
+    pub confidence: f64,
+    pub alternatives: BTreeMap<String, f64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct PageReport {
+    pub index: u32,
+    pub size_pt: [f64; 2],
+    pub analysis_dpi: u16,
+    pub timings_ms: Option<Timings>,
+    pub text_layer: Option<TextLayer>,
+    pub quality: Option<Quality>,
+    pub findings: Vec<Finding>,
+    pub page_type: Option<PageType>,
+    pub phash: Option<String>,
+    pub near_duplicate_of: Option<u32>,
+    /// Raw detector feature values, present only when `debug` is requested. Keyed
+    /// `detector -> feature -> value`; this is what `bench/` uses to tune `params/*.toml`.
+    pub debug: Option<BTreeMap<String, BTreeMap<String, f64>>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct Report {
+    /// Always [`SCHEMA_ID`].
+    pub schema: String,
+    pub document: DocumentInfo,
+    pub pages: Vec<PageReport>,
+}
+
+impl Report {
+    pub fn new(document: DocumentInfo, pages: Vec<PageReport>) -> Self {
+        Self { schema: SCHEMA_ID.to_owned(), document, pages }
+    }
+}
+
+/// JSON Schema (draft 2020-12) for [`Report`], pretty-printed with a trailing newline.
+pub fn schema_json() -> String {
+    let schema = schemars::schema_for!(Report);
+    let mut s = serde_json::to_string_pretty(&schema).expect("a schema always serialises");
+    s.push('\n');
+    s
+}
+
+/// The canonical byte form of any report value: object keys sorted, every float rounded to
+/// [`math::OUTPUT_DECIMALS`] decimals, `-0.0` normalised, compact. This is what the determinism
+/// test compares across native, Python and WASM.
+pub fn to_canonical_json<T: Serialize>(value: &T) -> Result<String> {
+    let mut v = serde_json::to_value(value)
+        .map_err(|e| Error::InvalidInput(format!("report is not serialisable: {e}")))?;
+    canonicalise(&mut v)?;
+    // `serde_json::Map` is a BTreeMap here (no `preserve_order`), so keys come out sorted;
+    // `canonical_form_has_sorted_keys` guards against another crate turning that feature on.
+    serde_json::to_string(&v).map_err(|e| Error::InvalidInput(format!("report is not serialisable: {e}")))
+}
+
+fn canonicalise(v: &mut Value) -> Result<()> {
+    match v {
+        Value::Number(n) if n.is_f64() => {
+            let x = n.as_f64().expect("is_f64 checked");
+            let r = math::round_output(math::finite(x, "report number")?);
+            *v = Value::Number(
+                serde_json::Number::from_f64(r)
+                    .ok_or_else(|| Error::NonFinite(format!("report number {r}")))?,
+            );
+        }
+        Value::Array(items) => {
+            for item in items {
+                canonicalise(item)?;
+            }
+        }
+        Value::Object(map) => {
+            for item in map.values_mut() {
+                canonicalise(item)?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn canonical_form_has_sorted_keys() {
+        let mut m = Map::new();
+        m.insert("zeta".into(), Value::from(1));
+        m.insert("alpha".into(), Value::from(2));
+        let s = to_canonical_json(&Value::Object(m)).unwrap();
+        assert_eq!(s, r#"{"alpha":2,"zeta":1}"#);
+    }
+
+    #[test]
+    fn canonical_form_rounds_floats_but_not_integers() {
+        let v = serde_json::json!({"f": 0.123_456_789, "i": 12_345_678_901_u64, "neg0": -0.0});
+        let s = to_canonical_json(&v).unwrap();
+        assert_eq!(s, r#"{"f":0.123457,"i":12345678901,"neg0":0.0}"#);
+    }
+
+    #[test]
+    fn evidence_new_rejects_non_finite() {
+        let bad = Evidence::new("d", "f", f64::NAN, None, 0.0, String::new(), "c");
+        assert!(matches!(bad, Err(Error::NonFinite(_))));
+        let bad = Evidence::new("d", "f", 1.0, Some(f64::INFINITY), 0.0, String::new(), "c");
+        assert!(matches!(bad, Err(Error::NonFinite(_))));
+    }
+
+    #[test]
+    fn kind_names_match_the_plan() {
+        let names: Vec<String> = [Kind::Barcode1d, Kind::EstampQr, Kind::BlankPage, Kind::RulingLines]
+            .iter()
+            .map(|k| serde_json::to_value(k).unwrap().as_str().unwrap().to_owned())
+            .collect();
+        assert_eq!(names, ["barcode_1d", "estamp_qr", "blank_page", "ruling_lines"]);
+    }
+}

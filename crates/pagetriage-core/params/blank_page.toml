@@ -1,0 +1,23 @@
+# Skeleton blank-page detector (PLAN.md M10 "blank"). Its job in Phase 0 is to exercise the full
+# pixel -> evidence -> fusion -> finding path end to end. Phase 1/2 replace it with the despeckled
+# version and tune these on DIBCO + Augraphy pages.
+
+# A pixel counts as ink when it is darker than (paper level - ink_delta), 0..255 gray levels.
+# Source: tuned on <none yet>; placeholder.
+ink_delta = 60
+
+# A page is blank when ink coverage is below this fraction of all pixels.
+# Source: PLAN.md M10 (blank = ink coverage < 0.2% after despeckle).
+blank_ink_fraction = 0.002
+
+# Coverage is floored here before the log, so an all-white page gives a finite llr.
+# Source: numerical guard, not a tuned value.
+coverage_floor = 0.000001
+
+# llr = llr_per_ln_unit * ln(blank_ink_fraction / coverage). One frozen interpretable coefficient.
+# Source: tuned on <none yet>; placeholder.
+llr_per_ln_unit = 1.5
+
+# Prior log-odds that a page is blank before looking at the evidence.
+# Source: tuned on <none yet>; placeholder (0.0 = even odds).
+prior_logit = 0.0
