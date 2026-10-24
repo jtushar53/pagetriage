@@ -16,7 +16,7 @@ The analyser is split into modules. Code that implements one cites its number (f
 | M9 | `pixel.rulings` | Rulings, tables, checkbox grids, and fold lines vs rules | 3 | planned |
 | M10 | `pixel.content_type` | Page and region typing (text, form, table, photo, blank, ...) | 0 (blank skeleton), later phases | skeleton: [`blank_page`](detectors/blank_page.md) |
 | M11 | `india.*` | Indian-deed detectors: stamp-paper header, e-stamp QR, registrar endorsement, embossed seal | 4 | planned |
-| M12 | `provenance.*` | JPEG tables, PDF producer, incremental updates, redaction boxes, near-duplicate pages | 1 and later | planned |
+| M12 | `provenance.*` | JPEG tables, PDF producer, incremental updates, redaction boxes, near-duplicate pages | 1 and later | near-duplicate pages (perceptual hashes): [`phash`](detectors/phash.md); rest planned |
 | M13 | `fusion` | Log-odds evidence sum, calibration, abstention and cross-detector consistency rules | 0 (sum only), 5 | skeleton |
 
 ## Phases

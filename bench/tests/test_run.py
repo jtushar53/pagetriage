@@ -41,7 +41,9 @@ class RunTests(unittest.TestCase):
             name = Path(line["image"]).stem
             expected = json.loads((GOLDEN / "expected" / f"{name}.json").read_text())
             self.assertEqual(line["report"], expected, name)
-            self.assertEqual((line["width"], line["height"]), (64, 80))
+            # Size comes from the PGM header: most fixtures are 64 x 80, `text_like_cropped` is not.
+            header = (GOLDEN / "inputs" / f"{name}.pgm").read_bytes().split(maxsplit=3)
+            self.assertEqual((line["width"], line["height"]), (int(header[1]), int(header[2])))
 
     def test_colour_images_go_through_the_core_luma(self):
         from PIL import Image

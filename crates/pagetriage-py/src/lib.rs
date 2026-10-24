@@ -16,6 +16,60 @@ fn rgb_to_gray<'py>(py: Python<'py>, rgb: &[u8]) -> PyResult<Bound<'py, PyBytes>
     Ok(PyBytes::new(py, &gray))
 }
 
+/// Binarise a gray page: `width * height` bytes, `1` for ink and `0` for paper.
+///
+/// `method` is `otsu`, `sauvola`, `wolf` or `howe`; `params_toml` overrides the embedded defaults
+/// (for example `[howe]\nmode = "static"`). Releases the GIL, since Howe takes seconds per page.
+#[pyfunction]
+#[pyo3(signature = (gray, width, height, method = "sauvola", params_toml = None))]
+fn binarize<'py>(
+    py: Python<'py>,
+    gray: &[u8],
+    width: usize,
+    height: usize,
+    method: &str,
+    params_toml: Option<&str>,
+) -> PyResult<Bound<'py, PyBytes>> {
+    let params = match params_toml {
+        Some(t) => Params::with_overrides(t),
+        None => Params::defaults(),
+    }
+    .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let method = pagetriage_core::pixel::binarize::parse_method(method)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let ink = py
+        .detach(|| pagetriage_core::pixel::binarize::binarize(gray, width, height, method, &params))
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    Ok(PyBytes::new(py, &ink))
+}
+
+/// Howe binarisation with the parameters it settled on: `(ink bytes, c, t_hi)`.
+#[pyfunction]
+#[pyo3(signature = (gray, width, height, params_toml = None))]
+fn binarize_howe<'py>(
+    py: Python<'py>,
+    gray: &[u8],
+    width: usize,
+    height: usize,
+    params_toml: Option<&str>,
+) -> PyResult<(Bound<'py, PyBytes>, f64, f64)> {
+    let params = match params_toml {
+        Some(t) => Params::with_overrides(t),
+        None => Params::defaults(),
+    }
+    .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    if width == 0 || height == 0 || gray.len() != width * height {
+        return Err(PyValueError::new_err(format!(
+            "gray buffer of {} bytes does not match {width}x{height}",
+            gray.len()
+        )));
+    }
+    let result = py.detach(|| {
+        pagetriage_core::pixel::binarize::howe::binarize(gray, width, height, &params.howe)
+    });
+    Ok((PyBytes::new(py, &result.ink), result.c, result.t_hi))
+}
+
 /// Analyse one page and return the canonical JSON of its page report.
 ///
 /// `gray` is `width * height` bytes, row-major. `rgb`, if given, is `3 * width * height`
@@ -43,6 +97,35 @@ fn analyse_page(
         .map_err(|e| PyValueError::new_err(e.to_string()))
 }
 
+/// Document-level near-duplicate pages (module M12): for each page, the index of the earliest
+/// earlier page whose pHash is within `phash.max_hamming` bits, else `None`.
+///
+/// `phashes` and `dhashes` (one per page) are the 16-character hex strings from the page reports;
+/// `dhashes` may be omitted only if `params_toml` sets `phash.dhash_max_hamming = 64`, which turns
+/// the dHash test off (the default bound is below 64). `params_toml` overrides the defaults in
+/// the same layout as the analyser's `params` option, for example `"[phash]\nmax_hamming = 6"`.
+/// Pages whose hash is all zeros (no structure) are never matched. Raises `ValueError` for
+/// malformed hashes or lengths.
+#[pyfunction]
+#[pyo3(signature = (phashes, dhashes = None, params_toml = None))]
+fn near_duplicates(
+    phashes: Vec<String>,
+    dhashes: Option<Vec<String>>,
+    params_toml: Option<&str>,
+) -> PyResult<Vec<Option<usize>>> {
+    let params = match params_toml {
+        Some(toml) => Params::with_overrides(toml),
+        None => Params::defaults(),
+    }
+    .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let p: Vec<&str> = phashes.iter().map(String::as_str).collect();
+    let d: Option<Vec<&str>> = dhashes
+        .as_ref()
+        .map(|d| d.iter().map(String::as_str).collect());
+    pagetriage_core::pixel::phash::near_duplicates_hex(&p, d.as_deref(), &params.phash)
+        .map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
 /// JSON Schema of the report, as a string.
 #[pyfunction]
 fn schema_json() -> String {
@@ -59,9 +142,12 @@ fn params_toml() -> PyResult<String> {
 #[pymodule]
 fn pagetriage_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(analyse_page, m)?)?;
+    m.add_function(wrap_pyfunction!(near_duplicates, m)?)?;
     m.add_function(wrap_pyfunction!(schema_json, m)?)?;
     m.add_function(wrap_pyfunction!(params_toml, m)?)?;
     m.add_function(wrap_pyfunction!(rgb_to_gray, m)?)?;
+    m.add_function(wrap_pyfunction!(binarize, m)?)?;
+    m.add_function(wrap_pyfunction!(binarize_howe, m)?)?;
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     Ok(())
 }

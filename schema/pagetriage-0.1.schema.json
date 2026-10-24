@@ -266,6 +266,13 @@
             }
           }
         },
+        "dhash": {
+          "description": "64-bit difference hash, same format as `phash`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "findings": {
           "type": "array",
           "items": {
@@ -278,6 +285,7 @@
           "minimum": 0
         },
         "near_duplicate_of": {
+          "description": "`index` of the earliest earlier page whose hashes are within the near-duplicate distance.\nOne page cannot know its twins, so this is filled by the document-level step\n(`pixel::phash::mark_near_duplicates`), not by `analyse_page`.",
           "type": [
             "integer",
             "null"
@@ -296,6 +304,7 @@
           ]
         },
         "phash": {
+          "description": "64-bit perceptual hash as 16 lowercase hex characters (module M12); all zeros for a page\nwith no structure to hash.",
           "type": [
             "string",
             "null"
@@ -345,6 +354,7 @@
       "required": [
         "analysis_dpi",
         "debug",
+        "dhash",
         "findings",
         "index",
         "near_duplicate_of",

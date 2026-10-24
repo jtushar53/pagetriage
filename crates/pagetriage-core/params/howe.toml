@@ -23,15 +23,23 @@ outlier_sigmas = 2.0
 # to force background, so the ink cost is set to -phi here.
 phi = -500.0
 
-# Integer scale between the paper's cost units and the solver's. The solver works on the exact
-# integer 5-point Laplacian, which is 4x MATLAB's `del2`; c and phi are given in `del2` units and
-# multiplied by this. Source: assumption (the paper does not say which Laplacian it uses); chosen
-# on DIBCO 2009 + H-DIBCO 2010, never on 2011.
-cost_scale = 4.0
+# Solver cost units per unit of the paper's costs (c, phi and the Laplacian). The solver works on the
+# exact integer 5-point Laplacian S = N + S + E + W - 4 * centre. 1.0 reads the paper's Laplacian as
+# that plain sum; 4.0 would read it as MATLAB's `del2` (S / 4) and multiply c and phi by 4.
+# Source: assumption, the paper does not say which Laplacian it uses. Chosen on DIBCO 2009 +
+# H-DIBCO 2010 only (never 2011): with 1.0 the tuned binarisation (mode "tune_c") is sane on all 20
+# images (mean F 93.60, published 92.97 on the same images); with 4.0 tuning collapses to an
+# almost uniform page on 5 of 20 (F between 4 and 44) because the scan range then reaches the
+# regime where the output stops changing at all and the tuner mistakes that for the stable zone.
+cost_scale = 1.0
 
 # Canny: lower hysteresis threshold and smoothing sigma, both fixed (Table 2 "Static" column,
 # trained on DIBCO 2009 + H-DIBCO 2010). Thresholds are fractions of the largest gradient
-# magnitude (assumption: MATLAB `edge` convention).
+# magnitude (assumption: MATLAB `edge` convention). t_lo matters: weak edges linked to strong ones
+# make cuts free, so a soft stain boundary can turn into "ink". Scan on DIBCO 2009 + 2010 with
+# mode "tune_c" and the derivative-of-Gaussian gradient: t_lo 0.1 -> mean F 94.01, 0.15 -> 94.25,
+# 0.2 -> 93.74. The paper's 0.1 is kept: 0.15 is better by only 0.24, below the margin (0.5) we
+# require to depart from a published setting.
 t_lo = 0.1
 sigma_e = 0.6
 
