@@ -28,6 +28,10 @@ hand-set rules and a few frozen logistic coefficients, so expect lower numbers t
 | (secondary source for "1st in HDIBCO 2012, 2014, 2016"; *unverified*) | arXiv 1708.03276 | [arXiv:1708.03276](https://arxiv.org/abs/1708.03276) | Re-measure in our harness rather than trust |
 | B. B. Chaudhuri, U. Pal, "Skew angle detection of digitized Indian script documents" | IEEE TPAMI 19(2), 1997 | — | Headline-based skew estimation |
 | Pech-Pacheco et al., variance of the Laplacian as a focus measure | 2000 | — | Blur measure (*unverified*: full citation not recorded) |
+| W. Postl, "Detection of linear oblique structures and skew in digitized documents" | ICPR 1986 | — | Projection-profile variance as the skew criterion (*unverified*: recalled from memory, not checked) |
+| G. Borgefors, "Distance transformations in digital images" | Computer Vision, Graphics and Image Processing 34(3):344–371, 1986 | — | The 3-4 chamfer distance transform behind stroke widths and ridges (*unverified*: recalled from memory, not checked) |
+| A. Rosenfeld, J. L. Pfaltz, "Sequential operations in digital picture processing" | J. ACM 13(4):471–494, 1966 | — | Two-pass connected-component labelling (*unverified*: recalled from memory, not checked) |
+| E. Peli, "Contrast in complex images" | J. Optical Society of America A 7(10):2032–2040, 1990 | — | RMS contrast definition (*unverified*: recalled from memory, not checked) |
 | Y. Boykov, V. Kolmogorov, "An experimental comparison of min-cut/max-flow algorithms for energy minimization in vision" | IEEE TPAMI 26(9):1124–1137, 2004 | — | Max-flow for the Howe graph cut |
 
 ## Script identification (M4)

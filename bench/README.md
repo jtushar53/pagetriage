@@ -11,6 +11,9 @@ calls the Rust core through `pagetriage_py`, and scores the output.
 | `metrics.py` | F-measure, PSNR, F1, IoU, box matching, ECE, Brier. pFM and DRD are not implemented yet (Phase 1) |
 | `synth/make_pdf_corpus.py` | Synthetic PDF corpus with ground truth, for scoring the PDF structural layer (see below) |
 | `phash_eval.py` | Perceptual-hash evaluation: perturbed copies and distinct pairs of the 136 DIBCO pages, plus a synthetic typed-page arm. Writes `bench/results/phash_eval.json`; results in `docs/detectors/phash.md` |
+| `skew_eval.py` | Skew stress test (module M3): rotate every DIBCO page by 12 known angles and report `est(rotated) - est(original) - angle`, per set and overall, for a tuning split and a held-out split. Results in `docs/detectors/quality.md` |
+| `quality_eval.py` | Run the quality block over the DIBCO pages; per-page table and the bleed-through AUC against the author's own eyeball labels |
+| `quality_synth_eval.py` | Quality block against synthetic pages (from `synth/`) with known skew in three scripts, blur, speckle, show-through, creases and simulated copies; also times the pass |
 | `tests/` | Offline unit tests (`python -I -m unittest discover -s bench/tests`) |
 
 ## Setup

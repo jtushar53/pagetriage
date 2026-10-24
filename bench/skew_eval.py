@@ -40,6 +40,9 @@ Image.MAX_IMAGE_PIXELS = 400_000_000
 # Fixed, deterministic. Spread over [-10, 10] and deliberately off the 0.5-degree coarse grid.
 ANGLES = [-10.0, -8.3, -6.1, -4.4, -2.7, -1.2, 0.6, 2.2, 3.9, 5.8, 7.4, 10.0]
 
+# Augraphy's rotation (Geometric(rotate_range=...)) takes whole degrees only, so its variant uses these.
+ANGLES_AUGRAPHY = [-10, -8, -6, -4, -3, -2, 1, 2, 3, 5, 7, 10]
+
 # Folder layout is in bench/README.md (the organisers' folder names keep their typos).
 SETS = {
     "dibco2009": [
@@ -114,16 +117,16 @@ def estimate(gray: Image.Image, params: str | None) -> dict:
     return {"skew": q["skew_deg"], "ratio": feats.get("skew_peak_ratio", 0.0)}
 
 
-def augraphy_rotate(gray: Image.Image, angle: float):
-    """Rotate with Augraphy's Geometric augmentation instead of Pillow. Returns None if augraphy
-    is unavailable or does not accept a fixed angle."""
+def augraphy_rotate(gray: Image.Image, angle: int):
+    """Rotate with Augraphy's Geometric augmentation instead of Pillow (counter-clockwise for
+    positive angles, canvas enlarged, exposed corners black: OpenCV's default border). Whole
+    degrees only. Returns None if augraphy is not installed."""
     try:
         import numpy as np
         from augraphy import Geometric
     except Exception:
         return None
-    aug = Geometric(rotate_range=(angle, angle), p=1.0)
-    out = aug(np.asarray(gray))
+    out = Geometric(rotate_range=(angle, angle), p=1.0)(np.asarray(gray))
     return Image.fromarray(out).convert("L")
 
 
@@ -150,7 +153,8 @@ def main(argv=None) -> int:
     ap.add_argument("--fill", choices=["white", "paper"], default="white",
                     help="colour of the corners a rotation exposes (default white; paper = page median)")
     ap.add_argument("--params", help="TOML override for the analyser, e.g. '[quality]\\nskew_criterion=\"gradient\"'")
-    ap.add_argument("--augraphy", action="store_true", help="use augraphy's rotation instead of Pillow's")
+    ap.add_argument("--augraphy", action="store_true",
+                    help="use augraphy's rotation (whole degrees, black corners) instead of Pillow's")
     ap.add_argument("--out", type=Path, help="write one JSON line per measurement here")
     ap.add_argument("--limit", type=int, default=0, help="at most this many pages per set (smoke test)")
     ap.add_argument("--show-worst", type=int, default=8, help="list this many worst measurements")
@@ -181,7 +185,7 @@ def main(argv=None) -> int:
             base = estimate(gray, args.params)
             originals[f"{key}/{path.name}"] = base
             fill = 255 if args.fill == "white" else paper_level(gray)
-            for theta in ANGLES:
+            for theta in (ANGLES_AUGRAPHY if args.augraphy else ANGLES):
                 if args.augraphy:
                     rot = augraphy_rotate(gray, theta)
                     if rot is None:
@@ -213,8 +217,9 @@ def main(argv=None) -> int:
               f"{s['max_abs']:>8.2f} {s['median_signed']:>+8.3f} {s['over_tolerance']:>6} "
               f"{s['over_gross']:>6} {pages_failed:>9}")
 
-    print(f"\nfill={args.fill} rotation={'augraphy' if args.augraphy else 'pillow-bicubic'} "
-          f"angles={len(ANGLES)} tolerance={TOLERANCE_DEG} gross={GROSS_DEG}")
+    fill = "black (augraphy)" if args.augraphy else args.fill
+    print(f"\nfill={fill} rotation={'augraphy' if args.augraphy else 'pillow-bicubic'} "
+          f"angles={len(ANGLES_AUGRAPHY if args.augraphy else ANGLES)} tolerance={TOLERANCE_DEG} gross={GROSS_DEG}")
     print(f"{'set':<22} {'pages':>4} {'meas':>5} {'med|e|':>8} {'p90|e|':>8} {'max|e|':>8} "
           f"{'bias':>8} {'>0.3':>6} {'>1.0':>6} {'pg>1.0':>9}")
     for key in keys:

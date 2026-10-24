@@ -52,7 +52,7 @@ blur_sigma_cap_px = 10.0
 # the floor, or the edges are no stronger than the noise and the page is read as "very blurred"
 # (blur_sigma_cap_px). Source: placeholder; chosen on the synthetic blur sweep of
 # bench/quality_synth_eval.py.
-blur_min_snr = 4.0
+blur_min_snr = 2.0
 
 # ---- paper level grid ------------------------------------------------------------------------
 
@@ -222,8 +222,8 @@ grade_gap_bad = 0.2
 grade_speckle_good = 0.0003
 grade_speckle_bad = 0.003
 # Bleed-through score.
-grade_bleed_good = 0.3
-grade_bleed_bad = 0.9
+grade_bleed_good = 0.4
+grade_bleed_bad = 1.0
 # Fold line count.
 grade_folds_good = 0.0
 grade_folds_bad = 3.0
@@ -232,16 +232,16 @@ grade_w_skew = 0.5
 grade_w_blur = 1.0
 grade_w_gap = 1.0
 grade_w_speckle = 0.7
-grade_w_bleed = 1.0
+grade_w_bleed = 0.7
 grade_w_folds = 0.5
 
 grade_w_max = 0.5
-grade_a_max = 0.15
-grade_b_max = 0.35
+grade_a_max = 0.2
+grade_b_max = 0.4
 grade_c_max = 0.6
 
 # Recommend Howe instead of Sauvola when the bleed-through score is at least this ...
-howe_bleed_min = 0.5
+howe_bleed_min = 0.6
 # ... or the ink/paper gap is below this ...
 howe_gap_max = 0.25
 # ... but only when at least this fraction of the page is text ink (a blank page has nothing to

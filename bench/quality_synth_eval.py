@@ -55,8 +55,8 @@ def analyse(img, params=None):
 
 def sec_skew():
     print("== skew: known rotation, three scripts (error = estimate - truth, degrees)")
-    angles = [-9.0, -4.3, -1.1, 0.0, 0.7, 3.2, 8.6]
-    print(f"{'script':<11} " + " ".join(f"{a:>6}" for a in angles) + "   max|err|")
+    angles = [-9.07, -4.31, -1.13, 0.0, 0.67, 3.24, 8.58]  # off the 0.05-degree search grid
+    print(f"{'script':<11} " + " ".join(f"{a:>6.2f}" for a in angles) + "   max|err|")
     for script in ["latin", "devanagari", "bengali"]:
         errs = []
         for a in angles:

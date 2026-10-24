@@ -199,3 +199,18 @@ fn degenerate_pages_give_finite_sensible_values() {
     assert!(q.photocopy_generation_est.is_none());
     assert_eq!(q.recommended_binarizer, Binarizer::Sauvola);
 }
+
+/// Known weakness, pinned (docs/detectors/quality.md, failure gallery): a show-through that is
+/// dark enough for the binariser to call ink breaks into small components, which the speckle
+/// measure counts as specks. The clean page it was built from has none.
+#[test]
+fn known_weakness_show_through_fragments_count_as_speckle() {
+    let clean = fixture("quality_clean").quality.unwrap();
+    let bleed = fixture("quality_bleed").quality.unwrap();
+    assert_eq!(clean.speckle_density, 0.0);
+    assert!(
+        bleed.speckle_density > 0.001,
+        "if this fails the weakness was fixed: update the failure gallery ({})",
+        bleed.speckle_density
+    );
+}
