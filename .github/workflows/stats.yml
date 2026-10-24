@@ -1,0 +1,35 @@
+# Weekly snapshot of public usage counts into the `stats` branch (kept out of main so the history
+# does not clutter the code's log). See scripts/stats-snapshot.sh for what is recorded: counts only,
+# never identities. The traffic endpoints need push access, which the workflow token has here.
+name: stats
+
+on:
+  schedule:
+    - cron: "5 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch or create the stats branch
+        run: |
+          git fetch origin stats:stats 2>/dev/null || git branch stats
+          git worktree add ../stats stats
+          cp scripts/stats-snapshot.sh ../stats/
+      - name: Append a snapshot
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: cd ../stats && bash stats-snapshot.sh stats.csv
+      - name: Commit
+        run: |
+          cd ../stats
+          git config user.name "stats-bot"
+          git config user.email "stats-bot@users.noreply.github.com"
+          git add stats.csv
+          git commit -m "stats: $(date -u +%F)" || exit 0
+          git push origin stats
