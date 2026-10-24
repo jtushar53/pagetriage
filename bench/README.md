@@ -10,6 +10,7 @@ calls the Rust core through `pagetriage_py`, and scores the output.
 | `run.py` | Run the analyser over a folder of images, write one JSON line per image |
 | `metrics.py` | F-measure, PSNR, F1, IoU, box matching, ECE, Brier. pFM and DRD are not implemented yet (Phase 1) |
 | `synth/make_pdf_corpus.py` | Synthetic PDF corpus with ground truth, for scoring the PDF structural layer (see below) |
+| `phash_eval.py` | Perceptual-hash evaluation: perturbed copies and distinct pairs of the 136 DIBCO pages, plus a synthetic typed-page arm. Writes `bench/results/phash_eval.json`; results in `docs/detectors/phash.md` |
 | `tests/` | Offline unit tests (`python -I -m unittest discover -s bench/tests`) |
 
 ## Setup

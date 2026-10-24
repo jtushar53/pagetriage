@@ -97,6 +97,35 @@ fn analyse_page(
         .map_err(|e| PyValueError::new_err(e.to_string()))
 }
 
+/// Document-level near-duplicate pages (module M12): for each page, the index of the earliest
+/// earlier page whose pHash is within `phash.max_hamming` bits, else `None`.
+///
+/// `phashes` and `dhashes` (one per page) are the 16-character hex strings from the page reports;
+/// `dhashes` may be omitted only if `params_toml` sets `phash.dhash_max_hamming = 64`, which turns
+/// the dHash test off (the default bound is below 64). `params_toml` overrides the defaults in
+/// the same layout as the analyser's `params` option, for example `"[phash]\nmax_hamming = 6"`.
+/// Pages whose hash is all zeros (no structure) are never matched. Raises `ValueError` for
+/// malformed hashes or lengths.
+#[pyfunction]
+#[pyo3(signature = (phashes, dhashes = None, params_toml = None))]
+fn near_duplicates(
+    phashes: Vec<String>,
+    dhashes: Option<Vec<String>>,
+    params_toml: Option<&str>,
+) -> PyResult<Vec<Option<usize>>> {
+    let params = match params_toml {
+        Some(toml) => Params::with_overrides(toml),
+        None => Params::defaults(),
+    }
+    .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let p: Vec<&str> = phashes.iter().map(String::as_str).collect();
+    let d: Option<Vec<&str>> = dhashes
+        .as_ref()
+        .map(|d| d.iter().map(String::as_str).collect());
+    pagetriage_core::pixel::phash::near_duplicates_hex(&p, d.as_deref(), &params.phash)
+        .map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
 /// JSON Schema of the report, as a string.
 #[pyfunction]
 fn schema_json() -> String {
@@ -113,6 +142,7 @@ fn params_toml() -> PyResult<String> {
 #[pymodule]
 fn pagetriage_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(analyse_page, m)?)?;
+    m.add_function(wrap_pyfunction!(near_duplicates, m)?)?;
     m.add_function(wrap_pyfunction!(schema_json, m)?)?;
     m.add_function(wrap_pyfunction!(params_toml, m)?)?;
     m.add_function(wrap_pyfunction!(rgb_to_gray, m)?)?;

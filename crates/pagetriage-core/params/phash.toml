@@ -1,0 +1,27 @@
+# Perceptual hashing and near-duplicate pages (module M12). The hash itself has no tunable
+# threshold: 32x32 area-average resize, 2-D DCT-II, top-left 8x8 block, bit = coefficient above the
+# median of the 63 non-DC coefficients (pHash); 9x8 resize and horizontal-gradient sign (dHash).
+# The grid sizes are part of the hash definition, so they are constants in the code, not here.
+
+# Two pages are near-duplicates when their pHashes differ in at most this many of 64 bits.
+# Source: project plan, module M12 ("Hamming <= 10 counts as near-duplicate"). Not tuned by us; the
+# distance distributions behind it are in docs/detectors/phash.md.
+max_hamming = 10
+
+# Second test: the dHashes must also differ in at most this many of 64 bits (64 would switch it off).
+# Source: tuned on the "tune" sets of the synthetic typed-page arm of bench/phash_eval.py (two
+# made-up page layouts, 100 pages each, plus perturbed copies). Rule fixed before looking at a
+# set that was not used for the choice: the smallest bound on the grid {10, 14, 18, 22, 26, 64} that
+# keeps recall of every perturbed-copy type within 2 points of having no dHash test, at pHash <=
+# max_hamming. That is 22. On a fresh "check" set generated afterwards it cut false positives from
+# 15.6% to 12.3% (dense layout) and from 8.6% to 3.6% (varied layout) with no recall change; on the
+# 136 DIBCO pages it lost 2 of 136 copies (3% shifts only) and false positives stayed at zero.
+# Details and caveats: docs/detectors/phash.md.
+dhash_max_hamming = 22
+
+# A page whose low-frequency content is this flat has no structure to hash, so both hashes are
+# reported as all zeros and the page is never matched as a duplicate. The value is the standard
+# deviation, in gray levels, of the 32x32 downsampled page restricted to the 63 AC coefficients of
+# the 8x8 block (Parseval, orthonormal DCT). Source: stability guard, not tuned on a benchmark: one
+# gray level is the quantisation step of an 8-bit page, and 0.25 is well under it.
+flat_rms = 0.25

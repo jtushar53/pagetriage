@@ -88,13 +88,15 @@ fn analyser_output_validates_against_the_schema() {
 
 #[test]
 fn every_option_field_is_present_as_null_not_omitted() {
-    let page = analyse_to_value(&[250u8; 16], 4, 4, "{}");
+    // No detectors, so hash fields stay unset (`phash` and `dhash` are filled by the phash detector).
+    let page = analyse_to_value(&[250u8; 16], 4, 4, r#"{"detectors":[]}"#);
     for key in [
         "timings_ms",
         "text_layer",
         "quality",
         "page_type",
         "phash",
+        "dhash",
         "near_duplicate_of",
         "debug",
     ] {
@@ -163,6 +165,7 @@ fn a_fully_populated_report_validates_and_round_trips() {
             alternatives: BTreeMap::from([("form".into(), 0.15), ("mixed".into(), 0.08)]),
         }),
         phash: Some("c3a1".into()),
+        dhash: Some("9f2e".into()),
         near_duplicate_of: Some(1),
         debug: Some(BTreeMap::from([(
             "blank_page".into(),
