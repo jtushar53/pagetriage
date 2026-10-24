@@ -12,8 +12,20 @@ use crate::pixel::quality;
 use crate::schema::{self, Finding, Kind, PageReport};
 use crate::structural::PageStructure;
 
-/// Detectors that can be named in `Options::detectors`. Grows as phases land.
-pub const DETECTORS: &[&str] = &[BLANK_PAGE, PHASH];
+/// Detectors that can be named in `Options::detectors`. Grows as phases land. One name per line, in
+/// alphabetical order, so that branches adding detectors do not edit the same line.
+#[rustfmt::skip]
+pub const DETECTORS: &[&str] = &[
+    BLANK_PAGE,
+    PHASH,
+];
+
+/// Detectors in [`DETECTORS`] that run only when `Options::detectors` names them. A new detector
+/// starts here, so the default report (and every golden file) stays as it is until the detector has
+/// been reviewed; promoting it means deleting its line. Same layout rule as [`DETECTORS`].
+#[rustfmt::skip]
+pub const OPT_IN: &[&str] = &[
+];
 
 /// One rasterised page. `gray` is `width * height` bytes, row-major. `rgb`, when present, is
 /// `3 * width * height` interleaved bytes of the same page (colour detectors use it from Phase 3).
@@ -32,7 +44,7 @@ pub struct PageInput<'a> {
 pub struct Options {
     /// Include raw detector feature values in the report under `debug`.
     pub debug: bool,
-    /// Run only these detectors; `None` runs all of [`DETECTORS`].
+    /// Run only these detectors; `None` runs all of [`DETECTORS`] except those in [`OPT_IN`].
     pub detectors: Option<Vec<String>>,
     /// TOML merged over the embedded `params/*.toml` defaults.
     pub params: Option<String>,
@@ -83,7 +95,11 @@ pub fn analyse_page_report(
     };
 
     let selected: Vec<&str> = match &options.detectors {
-        None => DETECTORS.to_vec(),
+        None => DETECTORS
+            .iter()
+            .copied()
+            .filter(|d| !OPT_IN.contains(d))
+            .collect(),
         Some(names) => {
             for n in names {
                 if !DETECTORS.contains(&n.as_str()) {
@@ -315,6 +331,22 @@ mod tests {
             r#"{"params":"[blank_page]\nink_delat = 3"}"#,
         ] {
             assert!(analyse_page(&i, None, bad).is_err(), "should reject {bad}");
+        }
+    }
+
+    #[test]
+    fn opt_in_detectors_are_registered_and_listed_in_order() {
+        for name in OPT_IN {
+            assert!(
+                DETECTORS.contains(name),
+                "{name} is in OPT_IN but not in DETECTORS"
+            );
+        }
+        for list in [DETECTORS, OPT_IN] {
+            assert!(
+                list.windows(2).all(|w| w[0] < w[1]),
+                "keep {list:?} sorted, one name per line"
+            );
         }
     }
 
