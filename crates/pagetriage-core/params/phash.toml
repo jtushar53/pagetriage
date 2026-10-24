@@ -1,0 +1,21 @@
+# Perceptual hashing and near-duplicate pages (module M12). The hash itself has no tunable
+# threshold: 32x32 area-average resize, 2-D DCT-II, top-left 8x8 block, bit = coefficient above the
+# median of the 63 non-DC coefficients (pHash); 9x8 resize and horizontal-gradient sign (dHash).
+# The grid sizes are part of the hash definition, so they are constants in the code, not here.
+
+# Two pages are near-duplicates when their pHashes differ in at most this many of 64 bits.
+# Source: project plan, module M12 ("Hamming <= 10 counts as near-duplicate"). Not tuned by us; the
+# distance distributions behind it are in docs/detectors/phash.md.
+max_hamming = 10
+
+# Optional second test: the dHashes must also differ in at most this many of 64 bits. 64 means the
+# dHash is not consulted. Source: tuned on the tuning split of the DIBCO page images (see
+# docs/detectors/phash.md); left at 64 (off) unless that split showed it removes false positives.
+dhash_max_hamming = 64
+
+# A page whose low-frequency content is this flat has no structure to hash, so both hashes are
+# reported as all zeros and the page is never matched as a duplicate. The value is the standard
+# deviation, in gray levels, of the 32x32 downsampled page restricted to the 63 AC coefficients of
+# the 8x8 block (Parseval, orthonormal DCT). Source: stability guard, not tuned on a benchmark: one
+# gray level is the quantisation step of an 8-bit page, and 0.25 is well under it.
+flat_rms = 0.25
