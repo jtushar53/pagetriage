@@ -20,7 +20,11 @@ if [ "$PINNED" != "$INSTALLED" ]; then
 fi
 command -v wasm-opt >/dev/null || { echo "error: wasm-opt not found (brew install binaryen / apt install binaryen)" >&2; exit 1; }
 
-cargo build --profile wasm --target wasm32-unknown-unknown -p pagetriage-wasm
+# PAGETRIAGE_WASM_FEATURES=pdf builds the PDF structural layer in as well (default: pixel-only, the size-checked
+# artifact). WASM_OUT picks the output folder (default dist/wasm).
+FEATURE_ARGS=()
+if [ -n "${PAGETRIAGE_WASM_FEATURES:-}" ]; then FEATURE_ARGS=(--features "$PAGETRIAGE_WASM_FEATURES"); fi
+cargo build --profile wasm --target wasm32-unknown-unknown -p pagetriage-wasm ${FEATURE_ARGS[@]+"${FEATURE_ARGS[@]}"}
 RAW=target/wasm32-unknown-unknown/wasm/pagetriage_wasm.wasm
 
 # Post-link features rustc emits for wasm32-unknown-unknown. The profile strips the target_features
@@ -29,7 +33,7 @@ RAW=target/wasm32-unknown-unknown/wasm/pagetriage_wasm.wasm
 # saturating float-to-int (`as` casts; fully specified by WASM, so identical in every engine).
 WASM_FEATURES="--enable-bulk-memory-opt --enable-sign-ext --enable-mutable-globals --enable-nontrapping-float-to-int"
 
-OUT=dist/wasm
+OUT=${WASM_OUT:-dist/wasm}
 rm -rf "$OUT"
 for target in web nodejs; do
   wasm-bindgen --target "$target" --out-dir "$OUT/$target" --out-name pagetriage "$RAW"

@@ -12,6 +12,6 @@ name = "pagetriage_py"
 crate-type = ["cdylib"]
 
 [dependencies]
-pagetriage-core.workspace = true
+pagetriage-core = { workspace = true, features = ["pdf"] }
 # abi3: one wheel per platform that works on every CPython >= 3.9.
 pyo3 = { version = "0.30.1", features = ["abi3-py39"] }

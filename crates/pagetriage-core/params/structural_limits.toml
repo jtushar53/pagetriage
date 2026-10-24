@@ -1,0 +1,47 @@
+# Resource limits of the PDF structural layer. The input is untrusted: a malformed, huge or hostile
+# file must end in an error or a degraded result, never a hang or an out-of-memory abort.
+# Every value is an engineering limit (not tuned on data) chosen to be far above real scanned
+# legal documents and far below what can exhaust a browser tab.
+
+# Largest PDF accepted, in bytes.
+max_input_bytes = 268435456
+
+# Largest size any one stream may decompress to (object streams, content streams, CMaps).
+max_decompressed_bytes = 67108864
+
+# Objects in the document (after parsing). More is refused as too large.
+max_objects = 3000000
+
+# Pages analysed. Later pages are left out and a warning is added.
+max_pages = 5000
+
+# Depth of the page tree walked.
+max_page_tree_depth = 48
+
+# Form XObject nesting followed while reading a page's content.
+max_form_depth = 8
+
+# Form XObjects executed per page (each counted once per use).
+max_forms_per_page = 256
+
+# Decoded content bytes read for one page, forms included.
+max_content_bytes_per_page = 67108864
+
+# Decoded content bytes read across the whole document. When exhausted, the remaining pages are
+# reported without a text-layer verdict.
+max_content_bytes_total = 1073741824
+
+# Operators executed per page.
+max_ops_per_page = 4000000
+
+# Operands kept on the operand stack (older ones are dropped).
+max_operands = 64
+
+# Depth of the q/Q graphics-state stack.
+max_q_depth = 64
+
+# Distinct fonts examined per page.
+max_fonts_per_page = 128
+
+# Images listed per page.
+max_images_per_page = 64

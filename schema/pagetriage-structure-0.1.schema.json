@@ -1,0 +1,851 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StructureReport",
+  "description": "The result of `analyse_pdf_structure`.",
+  "type": "object",
+  "properties": {
+    "degraded": {
+      "description": "True when part of the analysis was skipped (limits, encryption, damaged pages).",
+      "type": "boolean"
+    },
+    "document": {
+      "description": "`source` is `pdf`; `producer` and `incremental_updates` are filled in.",
+      "$ref": "#/$defs/DocumentInfo"
+    },
+    "pages": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/PageStructure"
+      }
+    },
+    "schema": {
+      "description": "Always [`STRUCTURE_SCHEMA_ID`].",
+      "type": "string"
+    },
+    "structure": {
+      "$ref": "#/$defs/DocumentStructure"
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "degraded",
+    "document",
+    "pages",
+    "schema",
+    "structure",
+    "warnings"
+  ],
+  "$defs": {
+    "DocumentInfo": {
+      "type": "object",
+      "properties": {
+        "incremental_updates": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "pages": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "producer": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sha256": {
+          "type": "string"
+        },
+        "source": {
+          "description": "`pdf`, `image` or `raw`.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "incremental_updates",
+        "pages",
+        "producer",
+        "sha256",
+        "source"
+      ]
+    },
+    "DocumentStructure": {
+      "description": "Document-level provenance (module M12, structure part).",
+      "type": "object",
+      "properties": {
+        "content_changed_in_update": {
+          "description": "Some update changed page content, an image or the page tree (signed or not).",
+          "type": "boolean"
+        },
+        "creation_date": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "creator": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "encrypted": {
+          "type": "boolean"
+        },
+        "eof_markers": {
+          "description": "`%%EOF` markers found.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "jpeg_images": {
+          "description": "Number of JPEG (`/DCTDecode`) images examined.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "jpeg_table_hashes": {
+          "description": "Distinct quantisation-table hashes with the number of images using each.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0
+          }
+        },
+        "linearized": {
+          "type": "boolean"
+        },
+        "mod_date": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ocr_producer": {
+          "description": "The producer or creator names a text-layer (OCR) tool.",
+          "type": "boolean"
+        },
+        "page_states": {
+          "description": "Pages per text-layer state.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0
+          }
+        },
+        "pdf_version": {
+          "type": "string"
+        },
+        "producer_family": {
+          "description": "Family from the producer fingerprint list, e.g. `ocrmypdf`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "revisions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RevisionInfo"
+          }
+        },
+        "revisions_truncated": {
+          "description": "Older revisions were not examined (limit).",
+          "type": "boolean"
+        },
+        "signature_count": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "tamper_reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tamper_signal": {
+          "description": "Page content, images or the page tree changed in a revision after a signature.",
+          "type": "boolean"
+        },
+        "unreliable_pages": {
+          "description": "Pages whose text layer is unreliable (legacy-encoded or undecodable).",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "xmp_present": {
+          "type": "boolean"
+        },
+        "xmp_tool": {
+          "description": "`xmp:CreatorTool` / `pdf:Producer` from the XMP packet when present.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "xref_style": {
+          "description": "`classic`, `stream`, `hybrid` or `unknown`.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "content_changed_in_update",
+        "creation_date",
+        "creator",
+        "encrypted",
+        "eof_markers",
+        "jpeg_images",
+        "jpeg_table_hashes",
+        "linearized",
+        "mod_date",
+        "ocr_producer",
+        "page_states",
+        "pdf_version",
+        "producer_family",
+        "revisions",
+        "revisions_truncated",
+        "signature_count",
+        "tamper_reasons",
+        "tamper_signal",
+        "unreliable_pages",
+        "xmp_present",
+        "xmp_tool",
+        "xref_style"
+      ]
+    },
+    "Evidence": {
+      "description": "One named measurement and its signed contribution to a finding's log-odds.",
+      "type": "object",
+      "properties": {
+        "citation": {
+          "description": "Source the feature or threshold comes from, or \"tuned on <set>\".",
+          "type": "string"
+        },
+        "detector": {
+          "description": "Dotted detector id, e.g. `stamp.color_cluster`.",
+          "type": "string"
+        },
+        "feature": {
+          "description": "Feature name, e.g. `hue_cluster_compactness`.",
+          "type": "string"
+        },
+        "llr": {
+          "description": "Signed log-likelihood-ratio contribution to the finding.",
+          "type": "number",
+          "format": "double"
+        },
+        "note": {
+          "type": "string"
+        },
+        "threshold": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "value": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "citation",
+        "detector",
+        "feature",
+        "llr",
+        "note",
+        "threshold",
+        "value"
+      ]
+    },
+    "FontInfo": {
+      "description": "One font used on a page (module M2).",
+      "type": "object",
+      "properties": {
+        "embedded": {
+          "type": "boolean"
+        },
+        "encoding": {
+          "description": "Base encoding name, or `Identity-H`, a predefined CMap name, or `None` for absent.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "glyphs": {
+          "description": "Non-space glyphs shown with this font on the page.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "legacy_confidence": {
+          "description": "Confidence in [0, 1] that the font is legacy-encoded.",
+          "type": "number",
+          "format": "double"
+        },
+        "legacy_encoded": {
+          "type": "boolean"
+        },
+        "legacy_name_match": {
+          "description": "The curated list entry the name matched, if any.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "`/BaseFont` without the subset prefix, truncated.",
+          "type": "string"
+        },
+        "subtype": {
+          "description": "`Type1`, `TrueType`, `Type0`, `Type3`, ... as written in the file.",
+          "type": "string"
+        },
+        "to_unicode": {
+          "type": "boolean"
+        },
+        "undecodable_glyphs": {
+          "description": "Of those, glyphs that could not be mapped to Unicode.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "embedded",
+        "encoding",
+        "glyphs",
+        "legacy_confidence",
+        "legacy_encoded",
+        "legacy_name_match",
+        "name",
+        "subtype",
+        "to_unicode",
+        "undecodable_glyphs"
+      ]
+    },
+    "ImageInfo": {
+      "description": "One image drawn on a page.",
+      "type": "object",
+      "properties": {
+        "bits_per_component": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "color_space": {
+          "type": "string"
+        },
+        "cover_fraction": {
+          "description": "Fraction of the page box the image's drawn rectangle covers (clipped to the page).",
+          "type": "number",
+          "format": "double"
+        },
+        "dpi": {
+          "description": "Effective resolution along the image's width, from pixels over drawn inches.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "filter": {
+          "description": "Last filter of the stream (`DCTDecode`, `FlateDecode`, `CCITTFaxDecode`, ...) or `none`.",
+          "type": "string"
+        },
+        "has_mask": {
+          "description": "Has a soft mask or colour-key mask (may be transparent).",
+          "type": "boolean"
+        },
+        "height": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "is_mask": {
+          "type": "boolean"
+        },
+        "jpeg": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JpegInfo"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "object": {
+          "description": "Object number of the image XObject; `None` for inline images.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "width": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "bits_per_component",
+        "color_space",
+        "cover_fraction",
+        "dpi",
+        "filter",
+        "has_mask",
+        "height",
+        "is_mask",
+        "jpeg",
+        "object",
+        "width"
+      ]
+    },
+    "JpegInfo": {
+      "description": "JPEG quantisation tables and encoder fingerprint of one `/DCTDecode` image (module M12).",
+      "type": "object",
+      "properties": {
+        "app_markers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "chroma_quality": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "coding": {
+          "description": "`baseline`, `extended`, `progressive` or `other`.",
+          "type": "string"
+        },
+        "components": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "height": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "ijg_scaled": {
+          "description": "True when the luminance table is an IJG scaling of the Annex K table (fit error within\n`ijg_fit_mean_abs_error`); false for custom tables.",
+          "type": "boolean"
+        },
+        "luma_fit_error": {
+          "description": "Mean absolute difference per entry between that table and the fitted IJG table.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "luma_quality": {
+          "description": "Best-fitting IJG (libjpeg) quality of the luminance table.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "table_hash": {
+          "description": "First 16 bytes (hex) of SHA-256 over the tables in id order.",
+          "type": "string"
+        },
+        "tables": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "width": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "app_markers",
+        "chroma_quality",
+        "coding",
+        "components",
+        "height",
+        "ijg_scaled",
+        "luma_fit_error",
+        "luma_quality",
+        "table_hash",
+        "tables",
+        "width"
+      ]
+    },
+    "PageFeatures": {
+      "description": "Counts behind the text-layer verdict, for tuning and for the page-level fusion later on.",
+      "type": "object",
+      "properties": {
+        "glyphs": {
+          "description": "Non-space glyphs shown on the page, forms included.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "glyphs_in_image": {
+          "description": "Glyphs (any mode) whose text origin lies inside an image's box.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "glyphs_invisible_mode": {
+          "description": "Glyphs drawn with text render mode 3 (invisible) or 7 (clip only).",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "glyphs_under_image": {
+          "description": "Visible-mode glyphs that a later opaque page-covering image hides.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "image_count": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "image_cover": {
+          "description": "Union of the drawn images' boxes over the page box.",
+          "type": "number",
+          "format": "double"
+        },
+        "outlined_text_suspected": {
+          "type": "boolean"
+        },
+        "paint_ops": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "small_filled_paths": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "text_ops": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "truncated": {
+          "description": "Content was cut short by a limit; the numbers are lower bounds.",
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "glyphs",
+        "glyphs_in_image",
+        "glyphs_invisible_mode",
+        "glyphs_under_image",
+        "image_count",
+        "image_cover",
+        "outlined_text_suspected",
+        "paint_ops",
+        "small_filled_paths",
+        "text_ops",
+        "truncated"
+      ]
+    },
+    "PageStructure": {
+      "description": "The structural result for one page: what `analyse_page`'s `structural_json` accepts.",
+      "type": "object",
+      "properties": {
+        "conflicts": {
+          "description": "Inconsistencies between the page's own signals, e.g. `raster_only+legacy_devanagari`.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "features": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PageFeatures"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "images": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ImageInfo"
+          }
+        },
+        "index": {
+          "description": "0-based position in the document.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rotation": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "script": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ScriptInfo"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "size_pt": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "format": "double"
+          },
+          "maxItems": 2,
+          "minItems": 2
+        },
+        "text_layer": {
+          "description": "`None` when the page could not be analysed (see `notes`).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TextLayer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "conflicts",
+        "features",
+        "images",
+        "index",
+        "notes",
+        "rotation",
+        "script",
+        "size_pt",
+        "text_layer"
+      ]
+    },
+    "RevisionInfo": {
+      "description": "What a later revision changed relative to the one before it.",
+      "type": "object",
+      "properties": {
+        "content_changed_pages": {
+          "description": "0-based pages whose content stream or resources changed.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0
+          }
+        },
+        "end_offset": {
+          "description": "Byte offset just past this revision's `%%EOF`.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "index": {
+          "description": "1 for the first incremental update (revision 0 is the original file).",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "kinds": {
+          "description": "Sorted change kinds: `page_content_changed`, `image_changed`, `annotation_added`,\n`annotation_changed`, `form_field_changed`, `signature_added`, `page_tree_changed`,\n`metadata_changed`, `font_changed`, `other_changed`.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "objects_added": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "objects_changed": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "objects_freed": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "content_changed_pages",
+        "end_offset",
+        "index",
+        "kinds",
+        "objects_added",
+        "objects_changed",
+        "objects_freed"
+      ]
+    },
+    "ScriptInfo": {
+      "description": "Script shares and legacy-font verdict for one page (module M2).",
+      "type": "object",
+      "properties": {
+        "dominant": {
+          "description": "Machine id of the dominant script (`latin`, `devanagari`, ...), `none` when the page has no\ndecodable letters, or `unknown` when the text exists but cannot be decoded.",
+          "type": "string"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          }
+        },
+        "fonts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FontInfo"
+          }
+        },
+        "glyphs_undecodable": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "legacy_encoded": {
+          "type": "boolean"
+        },
+        "legacy_glyph_share": {
+          "description": "Share of the page's glyphs set in legacy-encoded fonts.",
+          "type": "number",
+          "format": "double"
+        },
+        "legacy_script": {
+          "description": "Script the legacy fonts write, when `legacy_encoded`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "letters": {
+          "description": "Decoded letters behind the shares.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "name": {
+          "description": "Display name; `Devanagari (legacy-encoded)` for the legacy case.",
+          "type": "string"
+        },
+        "shares": {
+          "description": "Share of decoded letters per script, summing to 1 (empty when there are no letters). For a\nlegacy-encoded page the legacy glyphs are counted under the script they really write.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "dominant",
+        "evidence",
+        "fonts",
+        "glyphs_undecodable",
+        "legacy_encoded",
+        "legacy_glyph_share",
+        "legacy_script",
+        "letters",
+        "name",
+        "shares"
+      ]
+    },
+    "TextLayer": {
+      "description": "Structural text-layer verdict (module M1, Phase 1).",
+      "type": "object",
+      "properties": {
+        "confidence": {
+          "type": "number",
+          "format": "double"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          }
+        },
+        "reliable": {
+          "description": "False when the layer is legacy-encoded or garbled (module M2).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "state": {
+          "$ref": "#/$defs/TextLayerState"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "confidence",
+        "evidence",
+        "reliable",
+        "state"
+      ]
+    },
+    "TextLayerState": {
+      "type": "string",
+      "enum": [
+        "native_text",
+        "raster_only",
+        "invisible_ocr_under_image",
+        "mixed",
+        "vector_only",
+        "empty"
+      ]
+    }
+  }
+}

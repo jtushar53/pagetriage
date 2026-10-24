@@ -1,0 +1,86 @@
+# Module M1 (structural.text_layer): per-page text-layer state from the PDF content stream.
+# Every value names its source or the set it was tuned on. The statistics are measured on the
+# page's content stream (and the Form XObjects it draws) with a small interpreter; see
+# docs/detectors/text_layer.md.
+
+# A page with fewer visible-or-hidden non-space glyphs than this has no text layer: a page number
+# or a stray stamp does not make a page "text". Smaller counts are kept as a note.
+# Source: pdf-inspector's default `min_text_ops_per_page = 3` (firecrawl/pdf-inspector 1.25); the
+# unit here is glyphs, not operators.
+min_glyphs = 3
+
+# A text layer is hidden (OCR layer) when at least this fraction of its glyphs are not visible:
+# drawn with text render mode 3 (invisible) or 7 (clip only), or drawn before an opaque image that
+# covers them. Source: module M1 definition ("3 Tr over >=90% of glyphs").
+hidden_glyph_fraction = 0.90
+
+# An image covers the page when the union of the drawn images' bounding boxes (after the CTM)
+# covers at least this fraction of the page box. Source: module M1 definition (">=85%").
+image_cover_fraction = 0.85
+
+# A single opaque image (no soft mask) covering at least this much of the page hides text drawn
+# before it ("text under image" OCR layers). Same value as image_cover_fraction.
+# Source: module M1 definition (">=85%").
+occluding_image_cover_fraction = 0.85
+
+# Fraction of the page's glyphs whose text origin lies inside an image's box needed for the
+# glyph/image overlap evidence to count. Source: module M1 definition ("glyph bbox overlapping
+# the image region"); the 0.9 value is a placeholder. Tuned on <none>.
+glyph_overlap_fraction = 0.90
+
+# Visible text together with image coverage at least this is "mixed" (a photo, a scan, a logo or a
+# template image next to real text). Kept low on purpose: any raster content on a text page can
+# hold a stamp, signature or photo that the text layer does not describe, so the pixel detectors
+# should look at it. Images under 1% of the page (bullets, spacers) do not count.
+# Tuned on the dev split (odd-numbered documents) of the synthetic corpus bench/synth, where the
+# smallest labelled "mixed" image (a logo) covers about 2% of the page. Initial placeholder: 0.25.
+mixed_image_cover_fraction = 0.01
+
+# A page with no text and image coverage at least this is "raster_only"; with less it is "empty"
+# (a lone logo). A scan placed inside margins can cover well below 85%.
+# Source: placeholder. Tuned on <none>.
+raster_min_cover_fraction = 0.30
+
+# A page with no text or image and at least this many path-painting operators is "vector_only";
+# with fewer it is "empty" (one or two painted paths are a border or a rule, not a drawing).
+# Tuned on the dev split (odd-numbered documents) of the synthetic corpus bench/synth: the smallest
+# vector page there paints 6 paths, the empty pages none. Initial placeholder: 8.
+vector_min_paint_ops = 3
+
+# Outlined-text guard: filled paths whose box is smaller than this fraction of the page's width
+# and height, with at least `small_path_min_segments` line/curve segments, look like glyph
+# outlines. Source: placeholder. Tuned on <none>.
+small_path_max_page_fraction = 0.04
+small_path_min_segments = 4
+
+# That many such paths on a page without text means outlined text is suspected.
+# Source: placeholder. Tuned on <none>.
+outlined_text_min_paths = 150
+
+# Occupancy grid used for image coverage and glyph overlap (cells per side).
+# Source: numerical resolution choice; 64x64 gives 1.6% steps.
+coverage_grid = 64
+
+# Average glyph advance, in em, used to move the text position after a string when real glyph
+# widths are not read. Only the glyph origin is tested against image boxes, so this affects the
+# overlap evidence only. Source: typical Latin average advance; unverified.
+approx_advance_em = 0.5
+
+# Cap on stored text-show records per page (positions for the occlusion and overlap tests).
+# Source: engineering limit.
+max_text_records = 100000
+
+# Log-odds weight of each piece of evidence (|llr|; the sign follows whether the check passed).
+# confidence = sigmoid(base_logit + sum of llr). Source: placeholder weights, one per evidence
+# kind. Tuned on <none>.
+[weights]
+base_logit = 0.0
+hidden_fraction = 2.5
+image_cover = 2.0
+glyph_overlap = 1.0
+glyph_count = 1.5
+producer_ocr = 1.0
+vector_density = 1.5
+no_image = 1.5
+paint_ops = 1.0
+mixed = 1.0

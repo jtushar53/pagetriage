@@ -126,6 +126,24 @@ fn near_duplicates(
         .map_err(|e| PyValueError::new_err(e.to_string()))
 }
 
+/// Structure of a PDF (modules M1, M2 and the structure part of M12): per-page text-layer state,
+/// script shares and legacy-font verdict, and document provenance. Returns the canonical JSON of a
+/// `StructureReport`. `opts_json` takes `params` (a TOML string merged over the defaults).
+/// Raises `ValueError` for input that is not a PDF, is over the size limits, or cannot be parsed.
+/// Releases the GIL.
+#[pyfunction]
+#[pyo3(signature = (data, opts_json = "{}"))]
+fn analyse_pdf_structure(py: Python<'_>, data: &[u8], opts_json: &str) -> PyResult<String> {
+    py.detach(|| pagetriage_core::structural::analyse_pdf_structure(data, opts_json))
+        .map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
+/// JSON Schema of the structure report, as a string.
+#[pyfunction]
+fn structure_schema_json() -> String {
+    pagetriage_core::schema::structure_schema_json()
+}
+
 /// JSON Schema of the report, as a string.
 #[pyfunction]
 fn schema_json() -> String {
@@ -144,6 +162,8 @@ fn pagetriage_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(analyse_page, m)?)?;
     m.add_function(wrap_pyfunction!(near_duplicates, m)?)?;
     m.add_function(wrap_pyfunction!(schema_json, m)?)?;
+    m.add_function(wrap_pyfunction!(analyse_pdf_structure, m)?)?;
+    m.add_function(wrap_pyfunction!(structure_schema_json, m)?)?;
     m.add_function(wrap_pyfunction!(params_toml, m)?)?;
     m.add_function(wrap_pyfunction!(rgb_to_gray, m)?)?;
     m.add_function(wrap_pyfunction!(binarize, m)?)?;

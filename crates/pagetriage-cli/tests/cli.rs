@@ -147,16 +147,92 @@ fn colour_images_are_accepted_and_reduced_to_gray() {
 }
 
 #[test]
-fn pdf_input_gets_a_clear_not_yet_message() {
+fn pdf_input_to_analyse_points_at_the_structure_subcommand() {
     let path = scratch("fake.pdf");
     fs::write(&path, b"%PDF-1.7\n%%EOF\n").unwrap();
     let out = bin().arg("analyse").arg(&path).output().unwrap();
     assert!(!out.status.success());
     let err = String::from_utf8_lossy(&out.stderr);
     assert!(
-        err.contains("PDF") && err.contains("Phase 1"),
+        err.contains("PDF") && err.contains("pagetriage structure"),
         "stderr: {err}"
     );
+}
+
+/// One page with visible text, built by hand: header, five objects, classic xref.
+fn tiny_pdf() -> Vec<u8> {
+    let content = b"BT /F1 12 Tf 72 700 Td (A short line of visible text) Tj ET";
+    let objs: Vec<Vec<u8>> = vec![
+        b"<< /Type /Catalog /Pages 2 0 R >>".to_vec(),
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>".to_vec(),
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>".to_vec(),
+        [
+            format!("<< /Length {} >>\nstream\n", content.len()).into_bytes(),
+            content.to_vec(),
+            b"\nendstream".to_vec(),
+        ]
+        .concat(),
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>".to_vec(),
+    ];
+    let mut out = b"%PDF-1.4\n".to_vec();
+    let mut offsets = Vec::new();
+    for (i, body) in objs.iter().enumerate() {
+        offsets.push(out.len());
+        out.extend_from_slice(format!("{} 0 obj\n", i + 1).as_bytes());
+        out.extend_from_slice(body);
+        out.extend_from_slice(b"\nendobj\n");
+    }
+    let xref_at = out.len();
+    out.extend_from_slice(format!("xref\n0 {}\n0000000000 65535 f \n", objs.len() + 1).as_bytes());
+    for o in offsets {
+        out.extend_from_slice(format!("{o:010} 00000 n \n").as_bytes());
+    }
+    out.extend_from_slice(
+        format!(
+            "trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{xref_at}\n%%EOF\n",
+            objs.len() + 1
+        )
+        .as_bytes(),
+    );
+    out
+}
+
+#[test]
+fn structure_subcommand_reports_the_text_layer_of_a_pdf() {
+    let path = scratch("tiny.pdf");
+    fs::write(&path, tiny_pdf()).unwrap();
+    let out = bin().arg("structure").arg(&path).output().unwrap();
+    let report = stdout_json(&out);
+    assert_eq!(report["schema"], "pagetriage-structure/0.1");
+    assert_eq!(report["document"]["source"], "pdf");
+    assert_eq!(report["document"]["pages"], 1);
+    assert_eq!(report["pages"][0]["text_layer"]["state"], "native_text");
+    assert_eq!(report["pages"][0]["script"]["dominant"], "latin");
+
+    let again = bin().arg("structure").arg(&path).output().unwrap();
+    assert_eq!(out.stdout, again.stdout, "canonical output is stable");
+    let pretty = bin()
+        .args(["structure", "--pretty"])
+        .arg(&path)
+        .output()
+        .unwrap();
+    assert!(String::from_utf8_lossy(&pretty.stdout).contains("\n  "));
+}
+
+#[test]
+fn structure_subcommand_rejects_non_pdf_and_missing_files() {
+    let junk = scratch("not-a.pdf");
+    fs::write(&junk, b"just some text").unwrap();
+    let out = bin().arg("structure").arg(&junk).output().unwrap();
+    assert!(!out.status.success());
+    assert!(String::from_utf8_lossy(&out.stderr).contains("not a PDF"));
+    let out = bin()
+        .arg("structure")
+        .arg(scratch("nope.pdf"))
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    assert!(String::from_utf8_lossy(&out.stderr).contains("cannot read"));
 }
 
 #[test]

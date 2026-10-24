@@ -1,7 +1,7 @@
 //! `pagetriage` command line: analyse a page image, print the schema, print default params.
 //!
-//! Phase 0 accepts raster images only (PNG, JPEG, TIFF, PNM, BMP). PDF input needs the structural
-//! layer, which arrives in Phase 1.
+//! `analyse` takes raster images (PNG, JPEG, TIFF, PNM, BMP). `structure` takes a PDF and reports
+//! the per-page text-layer state, script and provenance without rendering anything.
 
 use std::fs;
 use std::path::PathBuf;
@@ -31,6 +31,8 @@ struct Cli {
 enum Command {
     /// Analyse a page image and print the JSON report on stdout
     Analyse(AnalyseArgs),
+    /// Read a PDF and print its per-page text-layer state, script and provenance as JSON
+    Structure(StructureArgs),
     /// Hash page images and report near-duplicates among them (pages in the order given)
     Duplicates(DuplicatesArgs),
     /// Print the JSON Schema of the report
@@ -61,6 +63,19 @@ struct AnalyseArgs {
 }
 
 #[derive(Args)]
+struct StructureArgs {
+    /// PDF file
+    file: PathBuf,
+    /// Indent the output. The default compact form is the canonical, byte-reproducible one.
+    #[arg(long)]
+    pretty: bool,
+    /// TOML file merged over the embedded structural parameters (`[text_layer]`, `[font_script]`,
+    /// `[provenance]`, `[limits]`)
+    #[arg(long, value_name = "FILE")]
+    params: Option<PathBuf>,
+}
+
+#[derive(Args)]
 struct DuplicatesArgs {
     /// Page images, in page order; a page is matched against the pages before it
     #[arg(required = true)]
@@ -83,6 +98,7 @@ fn main() -> ExitCode {
 fn run(cli: Cli) -> Result<(), String> {
     match cli.command {
         Command::Analyse(args) => analyse(&args),
+        Command::Structure(args) => structure(&args),
         Command::Duplicates(args) => duplicates(&args),
         Command::Schema => {
             print!("{}", schema_json());
@@ -95,6 +111,31 @@ fn run(cli: Cli) -> Result<(), String> {
             Ok(())
         }
     }
+}
+
+fn structure(args: &StructureArgs) -> Result<(), String> {
+    let bytes =
+        fs::read(&args.file).map_err(|e| format!("cannot read {}: {e}", args.file.display()))?;
+    let params_toml = match &args.params {
+        Some(path) => Some(
+            fs::read_to_string(path).map_err(|e| format!("cannot read {}: {e}", path.display()))?,
+        ),
+        None => None,
+    };
+    let opts = serde_json::json!({ "params": params_toml }).to_string();
+    let canonical = pagetriage_core::structural::analyse_pdf_structure(&bytes, &opts)
+        .map_err(|e| e.to_string())?;
+    if args.pretty {
+        let value: serde_json::Value =
+            serde_json::from_str(&canonical).map_err(|e| e.to_string())?;
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&value).map_err(|e| e.to_string())?
+        );
+    } else {
+        println!("{canonical}");
+    }
+    Ok(())
 }
 
 fn analyse(args: &AnalyseArgs) -> Result<(), String> {
@@ -217,8 +258,8 @@ struct LoadedPage {
 fn load_page(bytes: &[u8]) -> Result<LoadedPage, String> {
     if bytes.starts_with(b"%PDF-") {
         return Err(
-            "PDF input is not supported yet: the structural layer arrives in Phase 1. \
-                    Rasterise the page and pass the image."
+            "`analyse` reads page images, not PDFs. Use `pagetriage structure FILE.pdf` for the \
+             PDF's text-layer, script and provenance report, or rasterise a page and pass the image."
                 .into(),
         );
     }
