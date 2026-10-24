@@ -46,7 +46,7 @@ def _manifest() -> dict[str, list[tuple[str, Path, Path]]]:
         out["dibco2009"].append((f"P2009-{n}", p09 / f"P0{n}.bmp", g09p / f"P0{n}.tiff"))
     for n in range(1, 11):
         stem = f"H{n:02d}"
-        image = next((d10 / "H_DIBCO2010_test_images").glob(stem + ".*"))
+        image = next((d10 / "H_DIBCO2010_test_images").glob(stem + ".*"), d10 / f"{stem}.missing")
         out["dibco2010"].append((f"H2010-{n}", image, d10 / "H_DIBCO2010_GT" / f"{stem}_estGT.tiff"))
     for n in range(1, 9):
         out["dibco2011"].append(

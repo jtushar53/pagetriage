@@ -15,7 +15,12 @@ hand-set rules and a few frozen logistic coefficients, so expect lower numbers t
 
 | Paper | Venue | Link | Used for |
 |---|---|---|---|
-| N. R. Howe, "Document binarization with automatic parameter tuning" | IJDAR 16:247–258, 2013 | [doi:10.1007/s10032-012-0192-x](https://doi.org/10.1007/s10032-012-0192-x) | Howe binarisation (graph cut), chosen when bleed-through or low contrast is flagged |
+| N. R. Howe, "Document binarization with automatic parameter tuning" | IJDAR 16:247–258, 2013 | [doi:10.1007/s10032-012-0192-x](https://doi.org/10.1007/s10032-012-0192-x); [author's manuscript](http://www.science.smith.edu/~nhowe/research/pubs/divseg-ijdar.pdf) (CC-BY) | Howe binarisation (graph cut), chosen when bleed-through or low contrast is flagged. Implemented from this text; Tables 1 and 3 are the published numbers our DIBCO evaluation is compared with |
+| N. R. Howe, "A Laplacian energy for document binarization" | ICDAR 2011, pp. 6–10 | — | The base method that the 2013 paper tunes |
+| N. Otsu, "A threshold selection method from gray-level histograms" | IEEE Trans. SMC 9(1):62–66, 1979 | — | Global threshold |
+| J. Sauvola, M. Pietikäinen, "Adaptive document image binarization" | Pattern Recognition 33(2):225–236, 2000 | — | Local threshold |
+| C. Wolf, J.-M. Jolion, "Extraction and recognition of artificial text in multimedia documents" | Formal Pattern Analysis & Applications 6(4):309–326, 2004 | — | Local threshold (*unverified*: citation and formula recalled, not re-checked) |
+| J. Canny, "A computational approach to edge detection" | IEEE TPAMI 8(6):679–698, 1986 | — | Edge map that places the Howe cut |
 | SauvolaNet: learning adaptive Sauvola network for degraded document binarization | arXiv 2105.05521 | [arXiv:2105.05521](https://arxiv.org/abs/2105.05521) | Secondary source for the Howe vs Sauvola DIBCO F-measure tables |
 | DeepOtsu: document enhancement and binarization using iterative deep learning | arXiv 1901.06081 | [arXiv:1901.06081](https://arxiv.org/abs/1901.06081) | Secondary comparison source for DIBCO results |
 | (secondary source for Howe's H-DIBCO 2012 score; *unverified*) | arXiv 1305.2949 | [arXiv:1305.2949](https://arxiv.org/abs/1305.2949) | Re-measure in our harness rather than trust |
@@ -23,7 +28,7 @@ hand-set rules and a few frozen logistic coefficients, so expect lower numbers t
 | (secondary source for "1st in HDIBCO 2012, 2014, 2016"; *unverified*) | arXiv 1708.03276 | [arXiv:1708.03276](https://arxiv.org/abs/1708.03276) | Re-measure in our harness rather than trust |
 | B. B. Chaudhuri, U. Pal, "Skew angle detection of digitized Indian script documents" | IEEE TPAMI 19(2), 1997 | — | Headline-based skew estimation |
 | Pech-Pacheco et al., variance of the Laplacian as a focus measure | 2000 | — | Blur measure (*unverified*: full citation not recorded) |
-| Boykov, Kolmogorov, "An experimental comparison of min-cut/max-flow algorithms for energy minimization in vision" | IEEE TPAMI 26(9), 2004 | — | Max-flow for the Howe graph cut |
+| Y. Boykov, V. Kolmogorov, "An experimental comparison of min-cut/max-flow algorithms for energy minimization in vision" | IEEE TPAMI 26(9):1124–1137, 2004 | — | Max-flow for the Howe graph cut |
 
 ## Script identification (M4)
 
