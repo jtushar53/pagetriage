@@ -1,0 +1,115 @@
+# Degradation triage (module M3): skew, blur, contrast, speckle, bleed-through, fold lines,
+# photocopy generation, binariser choice and grade. Every key says where it comes from. "placeholder"
+# means a first guess that has not been checked against data yet.
+
+# ---- text mask -------------------------------------------------------------------------------
+
+# A connected component counts as text (for skew, x-height and the stroke statistics) only if it
+# has at least this many ink pixels. Source: placeholder.
+text_min_area = 3
+
+# A component whose bounding box spans this fraction of the page width or height is not text: page
+# frames, table rules, fold shadows and the edge of a rotated scan. Source: placeholder.
+text_max_extent_frac = 0.4
+
+# Components with fewer pixels than this are ignored when estimating the text height, so that
+# specks cannot drag the median down. Source: placeholder.
+xheight_min_area = 6
+
+# Text height in pixels when no component is large enough to measure it (near-blank pages).
+# Source: placeholder (about a 10 pt x-height at 150 dpi).
+xheight_fallback_px = 10.0
+
+# ---- tone ------------------------------------------------------------------------------------
+
+# The ink level is this percentile of the gray of text ink pixels (0.1 = the darkest tenth), so a
+# few black specks cannot set it and anti-aliased grays do not dominate it. Source: placeholder.
+ink_level_percentile = 0.1
+
+# ---- speckle ---------------------------------------------------------------------------------
+
+# A component is a speck when its bounding box is at most this fraction of the text height on both
+# sides (module M3 definition: 0.15 x median x-height; the text height is a proxy for x-height, see
+# docs/detectors/quality.md) ...
+speck_xheight_frac = 0.15
+
+# ... but never less than this many pixels, so 1-2 px noise counts as speckle at any resolution.
+# Source: placeholder.
+speck_min_side_px = 2
+
+# ---- blur ------------------------------------------------------------------------------------
+
+# The Laplacian variance is taken over ink pixels of text components plus this many pixels around
+# them, so both sides of every edge are included. Source: placeholder.
+blur_dilate_px = 1
+
+# ---- bleed-through ---------------------------------------------------------------------------
+
+# The local paper level is the mean gray of paper pixels on a grid of blocks this many pixels
+# wide, averaged over this many blocks in every direction. Source: placeholder.
+bleed_bg_block_px = 4
+bleed_bg_radius_blocks = 6
+
+# Paper pixels within this many pixels of front ink are ignored (anti-aliased edges, halos).
+# Source: placeholder.
+bleed_exclude_px = 2
+
+# A paper pixel is "faint ink" when it is at least this fraction of the ink/paper gap below the
+# local paper level, and at least `bleed_ghost_floor_levels` gray levels below it. Source:
+# placeholder; tuned on the tune sets of docs/detectors/quality.md.
+bleed_ghost_min_frac = 0.12
+bleed_ghost_floor_levels = 6.0
+
+# The threshold is also at least this many robust standard deviations of the paper's own gray
+# noise (1.4826 x the median absolute deviation of the drops), so textured paper and sensor noise
+# are not called bleed-through. Source: placeholder; tuned on the tune sets.
+bleed_noise_sigmas = 4.0
+
+# Faint pixels count as ghost strokes only in connected components of at least this many pixels.
+# Source: placeholder.
+bleed_ghost_min_area = 20
+
+# Faint-pixel share of the paper pixels (`mid_mass`) that scores 1, and ghost-stroke ratio that
+# scores 1. The bleed-through score is a weighted mean of the two, weight below on `mid_mass`.
+# Source: placeholder; tuned on the tune sets.
+bleed_mid_mass_full = 0.05
+bleed_ghost_ratio_full = 0.5
+bleed_weight_mid = 0.5
+
+# ---- skew ------------------------------------------------------------------------------------
+
+# Search range in degrees either side of zero. Source: module M3 definition (+-15).
+skew_range_deg = 15.0
+
+# Coarse sweep step. Source: module M3 definition (0.5 degrees).
+skew_coarse_step_deg = 0.5
+
+# Fine sweep step. Source: module M3 definition (0.05 degrees).
+skew_fine_step_deg = 0.05
+
+# The fine sweep covers the coarse candidate +- this many degrees. Source: one coarse step, so the
+# true peak cannot hide between two coarse samples.
+skew_fine_halfwidth_deg = 0.5
+
+# How many of the best coarse local maxima get a fine sweep. Source: placeholder.
+skew_refine_candidates = 3
+
+# "variance" (sum of squared bin counts) or "gradient" (sum of squared adjacent differences).
+# Source: variance is the classic projection-profile criterion; tuned on <none yet>.
+skew_criterion = "variance"
+
+# Skew uses only the centre lines (ridges of the distance transform) of strokes. Ridges thicker
+# than this multiple of the page's median ridge value are dropped: they are blobs, stains, or the
+# dark band Sauvola leaves beside a scan edge, not text. Source: placeholder; tuned on the tune
+# sets of bench/skew_eval.py.
+skew_max_stroke_ratio = 10.0
+
+# Profile bins per pixel of perpendicular offset (1 = one bin per pixel). Source: placeholder.
+skew_bin_scale = 1.0
+
+# Fewer ink points than this: report 0 degrees. Source: placeholder.
+skew_min_points = 200
+
+# More ink points than this are thinned by a fixed stride (every k-th in raster order) so the cost
+# stays bounded. Source: placeholder; chosen for the 100 ms budget at 150 dpi A4.
+skew_max_points = 150000

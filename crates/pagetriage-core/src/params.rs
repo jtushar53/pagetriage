@@ -11,6 +11,7 @@ const BLANK_PAGE_TOML: &str = include_str!("../params/blank_page.toml");
 const SAUVOLA_TOML: &str = include_str!("../params/sauvola.toml");
 const WOLF_TOML: &str = include_str!("../params/wolf.toml");
 const HOWE_TOML: &str = include_str!("../params/howe.toml");
+const QUALITY_TOML: &str = include_str!("../params/quality.toml");
 
 /// Sauvola local threshold (see `params/sauvola.toml`).
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -84,6 +85,7 @@ pub struct Params {
     pub sauvola: SauvolaParams,
     pub wolf: WolfParams,
     pub howe: HoweParams,
+    pub quality: crate::pixel::quality::QualityParams,
 }
 
 impl Params {
@@ -107,7 +109,7 @@ impl Params {
         format!(
             "# --- fusion ---\n[fusion]\n{FUSION_TOML}\n# --- blank_page ---\n[blank_page]\n{BLANK_PAGE_TOML}\n\
              # --- sauvola ---\n[sauvola]\n{SAUVOLA_TOML}\n# --- wolf ---\n[wolf]\n{WOLF_TOML}\n\
-             # --- howe ---\n[howe]\n{HOWE_TOML}"
+             # --- howe ---\n[howe]\n{HOWE_TOML}\n# --- quality ---\n[quality]\n{QUALITY_TOML}"
         )
     }
 
@@ -163,6 +165,7 @@ impl Params {
                 "blank_page.coverage_floor must be > 0".into(),
             ));
         }
+        self.quality.validate()?;
         self.validate_binarizers()
     }
 
@@ -257,6 +260,7 @@ fn defaults_table() -> Result<toml::Table> {
     table.insert("sauvola".into(), parse("sauvola", SAUVOLA_TOML)?);
     table.insert("wolf".into(), parse("wolf", WOLF_TOML)?);
     table.insert("howe".into(), parse("howe", HOWE_TOML)?);
+    table.insert("quality".into(), parse("quality", QUALITY_TOML)?);
     Ok(table)
 }
 

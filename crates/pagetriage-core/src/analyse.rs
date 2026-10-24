@@ -7,6 +7,7 @@ use serde::Deserialize;
 use crate::error::{Error, Result};
 use crate::params::Params;
 use crate::pixel::content_type::{self, BLANK_PAGE};
+use crate::pixel::quality;
 use crate::schema::{self, PageReport};
 
 /// Detectors that can be named in `Options::detectors`. Grows as phases land.
@@ -117,6 +118,15 @@ pub fn analyse_page_report(
         debug.insert(name.to_owned(), detection.features);
     }
 
+    // Module M3: degradation triage. Always runs; it is not a finding.
+    let assessment = quality::assess(
+        input.gray,
+        input.width as usize,
+        input.height as usize,
+        &params,
+    )?;
+    debug.insert("quality".to_owned(), assessment.features);
+
     let dpi = f64::from(input.dpi);
     Ok(PageReport {
         index: options.page_index,
@@ -127,7 +137,7 @@ pub fn analyse_page_report(
         analysis_dpi: input.dpi,
         timings_ms: None,
         text_layer: None,
-        quality: None,
+        quality: Some(assessment.quality),
         findings,
         page_type: None,
         phash: None,
