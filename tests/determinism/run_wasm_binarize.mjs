@@ -42,6 +42,17 @@ if (inputs.length < 6) {
 }
 
 let failures = 0;
+
+// The browser demo turns canvas pixels into gray with this export, so pin it to the core's own test
+// vector (black, white, red, green, blue).
+const gray = Array.from(wasm.rgb_to_gray(new Uint8Array([0, 0, 0, 255, 255, 255, 255, 0, 0, 0, 255, 0, 0, 0, 255])));
+if (gray.join() !== "0,255,76,150,29") {
+  failures++;
+  console.log(`FAIL wasm   rgb_to_gray: got ${gray.join()}`);
+} else {
+  console.log("ok   wasm   rgb_to_gray");
+}
+
 for (const file of inputs) {
   const name = file.replace(/^.*\//, "").replace(/\.pgm$/, "");
   const { w, h, pixels } = readPgm(join(golden, file));

@@ -58,6 +58,14 @@ pub fn binarize(
     .map_err(|e| JsError::new(&e.to_string()))
 }
 
+/// Gray from interleaved RGB bytes using the core's fixed-point luma, so a page that decodes an
+/// image on a canvas gets the same gray as the native and Python builds. Throws if the length is
+/// not a multiple of 3.
+#[wasm_bindgen]
+pub fn rgb_to_gray(rgb: &[u8]) -> Result<Vec<u8>, JsError> {
+    pagetriage_core::raster::rgb_to_gray(rgb).map_err(|e| JsError::new(&e.to_string()))
+}
+
 /// Structure of a PDF (modules M1, M2, M12): the canonical JSON of a `StructureReport`, identical
 /// bytes to the native and Python builds. Only present when built with the `pdf` feature. Throws an
 /// `Error` for input that is not a PDF, is over the size limits, or cannot be parsed.

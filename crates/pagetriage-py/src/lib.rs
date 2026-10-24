@@ -74,10 +74,14 @@ fn binarize_howe<'py>(
 ///
 /// `gray` is `width * height` bytes, row-major. `rgb`, if given, is `3 * width * height`
 /// interleaved bytes. `opts_json` takes `debug`, `detectors`, `params` and `page_index`.
-/// Raises `ValueError` for inconsistent buffers, dimensions or options.
+/// Raises `ValueError` for inconsistent buffers, dimensions or options. Releases the GIL, so a
+/// thread pool can analyse pages in parallel (each call is independent and deterministic).
 #[pyfunction]
 #[pyo3(signature = (gray, width, height, dpi = 150, rgb = None, structural_json = None, opts_json = "{}"))]
+// `py` is PyO3's GIL token, not a Python argument: callers pass seven.
+#[allow(clippy::too_many_arguments)]
 fn analyse_page(
+    py: Python<'_>,
     gray: &[u8],
     width: u32,
     height: u32,
@@ -93,7 +97,7 @@ fn analyse_page(
         height,
         dpi,
     };
-    pagetriage_core::analyse_page(&input, structural_json, opts_json)
+    py.detach(|| pagetriage_core::analyse_page(&input, structural_json, opts_json))
         .map_err(|e| PyValueError::new_err(e.to_string()))
 }
 
