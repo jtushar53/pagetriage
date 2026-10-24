@@ -10,6 +10,9 @@ calls the Rust core through `pagetriage_py`, and scores the output.
 | `run.py` | Run the analyser over a folder of images, write one JSON line per image |
 | `metrics.py` | F-measure, PSNR, F1, IoU, box matching, ECE, Brier. pFM and DRD are not implemented yet (Phase 1) |
 | `synth/make_pdf_corpus.py` | Synthetic PDF corpus with ground truth, for scoring the PDF structural layer (see below) |
+| `structure_eval.py` | Scores the PDF structural layer (M1, M2, M12 structure) against the synthetic corpus: page-level text-layer accuracy and confusion matrix, script, legacy-font detection, incremental updates, producer, JPEG quality. `--split dev|heldout|all` by document number (see the protocol in `docs/detectors/text_layer.md`). Results in `docs/detectors/text_layer.md`, `font_script.md`, `provenance.md` |
+| `compare_pdf_inspector.py` | Sets `firecrawl/pdf-inspector`'s per-page verdicts beside ours on the corpus (needs `bench/tools/pdf_inspector_compare`, a standalone crate: `cargo build --release --manifest-path bench/tools/pdf_inspector_compare/Cargo.toml`) |
+| `tools/legacy_probe.py`, `tools/structure_gallery.py` | The legacy-font statistics on approximate Kruti Dev text, and the structural layer's known wrong answers, rebuilt on demand |
 | `phash_eval.py` | Perceptual-hash evaluation: perturbed copies and distinct pairs of the 136 DIBCO pages, plus a synthetic typed-page arm. Writes `bench/results/phash_eval.json`; results in `docs/detectors/phash.md` |
 | `tests/` | Offline unit tests (`python -I -m unittest discover -s bench/tests`) |
 
