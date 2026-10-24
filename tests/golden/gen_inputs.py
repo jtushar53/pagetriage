@@ -10,6 +10,9 @@ import pathlib
 
 W, H = 64, 80
 OUT = pathlib.Path(__file__).resolve().parent / "inputs"
+# Module M3 fixtures are bigger than the 64 x 80 pages above, so they live apart: the binariser
+# goldens (which run the slow Howe method on every page in inputs/) do not take them.
+QUALITY_OUT = pathlib.Path(__file__).resolve().parent / "quality_inputs"
 
 
 class Lcg:
@@ -23,10 +26,11 @@ class Lcg:
         return (self.state >> 16) % bound
 
 
-def write_pgm(name, pixels, w=W, h=H):
+def write_pgm(name, pixels, w=W, h=H, out=None):
     assert len(pixels) == w * h, name
-    OUT.mkdir(parents=True, exist_ok=True)
-    (OUT / f"{name}.pgm").write_bytes(f"P5\n{w} {h}\n255\n".encode() + bytes(pixels))
+    out = out or OUT
+    out.mkdir(parents=True, exist_ok=True)
+    (out / f"{name}.pgm").write_bytes(f"P5\n{w} {h}\n255\n".encode() + bytes(pixels))
 
 
 def blank_speckle():
@@ -152,6 +156,137 @@ def flat_blank():
     return [245 + rng.next(5) - 2 for _ in range(W * H)]
 
 
+# ---- quality fixtures (module M3) -------------------------------------------------------------
+# Pages with a known amount of one degradation each. Text is built from 2-px stems in 6-px cells
+# (8 px tall), so every page is "text-like" at the scale the binariser and the quality measures
+# expect. Integer arithmetic only: skew is a floor-division shear, blur an integer box filter.
+
+QW, QH = 200, 256  # a small page crop
+QFW = 460  # the fold page is wider: a fold must be at least 3 inches (450 px at 150 dpi) long
+
+
+def _quality_ink(seed, w, h, headline):
+    """Ink pixels of 14 lines of text-like words. With `headline`, every word gets a 2-px bar
+    along its top, as Devanagari, Bengali and Gurmukhi do (the shirorekha)."""
+    rng = Lcg(seed)
+    ink = set()
+    y = 22
+    while y + 10 < h - 16:
+        x = 14
+        while x < w - 20:
+            glyphs = 2 + rng.next(6)
+            start = x
+            for g in range(glyphs):
+                gx = x + g * 6
+                kind = rng.next(4)
+                for dy in range(8):
+                    ink.update({(gx, y + dy), (gx + 1, y + dy)})
+                if kind == 1:
+                    for dy in range(8):
+                        ink.update({(gx + 3, y + dy), (gx + 4, y + dy)})
+                elif kind == 2:
+                    for dx in range(5):
+                        ink.update({(gx + dx, y + 3), (gx + dx, y + 4)})
+                elif kind == 3:
+                    for dx in range(5):
+                        ink.update({(gx + dx, y + 6), (gx + dx, y + 7)})
+            end = x + glyphs * 6
+            if headline:
+                for dx in range(start, end):
+                    ink.update({(dx, y), (dx, y + 1)})
+            x = end + 6 + rng.next(4)
+        y += 17
+    return ink
+
+
+def _quality_page(seed, w, h, headline=False, shear=None, ghost=None, paper_seed=21):
+    """Paper (235 + noise) with the ink of `_quality_ink`, optionally sheared by `shear(x)` rows and
+    with a faint mirrored `ghost` layer (a set of ink coordinates) underneath."""
+    rng = Lcg(paper_seed)
+    px = [235 + rng.next(5) for _ in range(w * h)]
+    if ghost:
+        for x, y in sorted(ghost):
+            mx = w - 1 - x
+            yy = y + 8  # offset from the front lines, as a real verso's lines are
+            if 0 <= mx < w and 0 <= yy < h:
+                px[yy * w + mx] = 185 + rng.next(5)
+    for x, y in sorted(_quality_ink(seed, w, h, headline)):
+        yy = y + (shear(x) if shear else 0)
+        if 0 <= x < w and 0 <= yy < h:
+            px[yy * w + x] = 30 + rng.next(20)
+    return px
+
+
+def _box_blur(px, w, h):
+    """3x3 mean with edge replication, integer (rounded to nearest)."""
+    out = []
+    for y in range(h):
+        for x in range(w):
+            t = 0
+            for dy in (-1, 0, 1):
+                for dx in (-1, 0, 1):
+                    t += px[min(h - 1, max(0, y + dy)) * w + min(w - 1, max(0, x + dx))]
+            out.append((t + 4) // 9)
+    return out
+
+
+def quality_clean():
+    """Upright, clean text-like page: skew 0, no blur, no specks, no folds, grade A."""
+    return _quality_page(31, QW, QH)
+
+
+def quality_skew_p3():
+    """The same layout rotated counter-clockwise by atan(1/19) = 3.01 degrees (text rises to the
+    right): skew_deg should read +3.0."""
+    return _quality_page(31, QW, QH, shear=lambda x: ((QW // 2 - x) * 1) // 19)
+
+
+def quality_deva_skew_m2():
+    """Words with a headline bar, rotated clockwise by atan(1/29) = 1.98 degrees (text descends to
+    the right): skew_deg should read -2.0. The headline bars are the sharpest feature."""
+    return _quality_page(32, QW, QH, headline=True, shear=lambda x: -((QW // 2 - x) * 1) // 29)
+
+
+def quality_blurred():
+    """`quality_clean` through two 3x3 mean filters (about 1.1 px of Gaussian blur): the edge
+    sharpness drops and the blur index rises well above the clean page's."""
+    px = _quality_page(31, QW, QH)
+    return _box_blur(_box_blur(px, QW, QH), QW, QH)
+
+
+def quality_speckled():
+    """`quality_clean` plus 100 isolated dark specks (1 or 2 px wide) at LCG positions: a speckle
+    density of 100 / (200 * 256) = 0.00195."""
+    px = _quality_page(31, QW, QH)
+    rng = Lcg(41)
+    for i in range(100):
+        x, y = rng.next(QW - 2), rng.next(QH - 2)
+        px[y * QW + x] = 60
+        if i % 2:
+            px[y * QW + x + 1] = 60
+    return px
+
+
+def quality_bleed():
+    """`quality_clean` with a faint mirrored second set of lines underneath (gray 185 on paper 237:
+    about a quarter of the ink's contrast), as show-through from the other side looks."""
+    return _quality_page(31, QW, QH, ghost=_quality_ink(33, QW, QH, False))
+
+
+def quality_fold():
+    """A wide page with one horizontal crease across the middle, in the gap between two lines of
+    text: a 2-px valley 22 levels deep with 6 levels of shade on the 20 rows below it. fold_lines
+    should read 1. (A crease that crosses a line of text is harder: see the unit tests.)"""
+    px = _quality_page(31, QFW, QH)
+    k = QH // 2 + 8  # in the gap between two lines of text (rows 132-138)
+    for y in range(QH):
+        drop = 22 if y in (k, k + 1) else 6 if k + 1 < y < k + 22 else 0
+        if drop:
+            for x in range(QFW):
+                px[y * QFW + x] -= drop
+    return px
+
+
 if __name__ == "__main__":
     for fn in (blank_speckle, text_like, borderline, faint_strokes, dark_fill):
         write_pgm(fn.__name__, fn())
@@ -161,3 +296,9 @@ if __name__ == "__main__":
         print("wrote", fn.__name__)
     write_pgm("text_like_cropped", text_like_cropped(), CROP_W, CROP_H)
     print("wrote text_like_cropped")
+    for fn in (quality_clean, quality_skew_p3, quality_deva_skew_m2, quality_blurred,
+               quality_speckled, quality_bleed):
+        write_pgm(fn.__name__, fn(), QW, QH, QUALITY_OUT)
+        print("wrote", fn.__name__)
+    write_pgm("quality_fold", quality_fold(), QFW, QH, QUALITY_OUT)
+    print("wrote quality_fold")

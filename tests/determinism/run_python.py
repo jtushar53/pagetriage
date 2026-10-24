@@ -33,7 +33,7 @@ def read_pgm(path):
 
 
 def main():
-    inputs = sorted((GOLDEN / "inputs").glob("*.pgm"))
+    inputs = sorted([*(GOLDEN / "inputs").glob("*.pgm"), *(GOLDEN / "quality_inputs").glob("*.pgm")])
     if len(inputs) < 4:
         sys.exit(f"expected at least 4 golden inputs, found {len(inputs)}")
 

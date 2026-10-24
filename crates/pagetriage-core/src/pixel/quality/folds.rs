@@ -134,19 +134,31 @@ fn search(
         if !local_max {
             continue;
         }
-        // Coverage: of the columns where the valley can be measured at all (text and stamps hide
+        // Coverage: of the columns where the valley itself can be measured (text and stamps hide
         // the paper in others), the share that show at least half of it, allowing one block of
-        // tilt. Enough columns must be measurable, or a short valley between two text lines
-        // would pass.
+        // tilt. A column's arms may be hidden too (text lines are close together): there the
+        // line's typical value stands in. Enough columns must be measurable, or a short valley
+        // between two text lines would pass.
         let (mut have, mut hit) = (0usize, 0usize);
+        let arm = |l: Option<usize>, i: usize| -> Option<f64> {
+            let l = l?;
+            cell(l, i).or(series.value.get(l).copied().flatten())
+        };
         for i in 0..along {
-            let col: Vec<Option<f64>> = (0..lines).map(|l| cell(l, i)).collect();
             let best = (j.saturating_sub(1)..=(j + 1).min(lines - 1))
-                .filter_map(|k| dip(&col, k, a))
+                .filter_map(|k| {
+                    let centre = cell(k, i)?;
+                    let (lo, hi) = (arm(k.checked_sub(a), i)?, arm(Some(k + a), i)?);
+                    Some(0.5 * (lo + hi) - centre)
+                })
                 .fold(None, |m: Option<f64>, v| Some(m.map_or(v, |x| x.max(v))));
-            if let Some(v) = best {
+            // A column counts when the valley's own block is measurable, or when a neighbouring
+            // block (tilt) shows the valley anyway; a hidden centre with nothing visible beside it
+            // says nothing either way.
+            let seen = best.is_some_and(|v| v >= 0.5 * d);
+            if cell(j, i).is_some() || seen {
                 have += 1;
-                if v >= 0.5 * d {
+                if seen {
                     hit += 1;
                 }
             }
@@ -164,6 +176,7 @@ fn search(
             }
         }
     }
+
     Search { found, candidates }
 }
 

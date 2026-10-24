@@ -34,7 +34,9 @@ function readPgm(path) {
   return { w, h, pixels };
 }
 
-const inputs = readdirSync(join(golden, "inputs")).filter((f) => f.endsWith(".pgm")).sort();
+const inputs = ["inputs", "quality_inputs"]
+  .flatMap((sub) => readdirSync(join(golden, sub)).filter((f) => f.endsWith(".pgm")).map((f) => join(sub, f)))
+  .sort();
 if (inputs.length < 4) {
   console.error(`expected at least 4 golden inputs, found ${inputs.length}`);
   process.exit(1);
@@ -42,8 +44,8 @@ if (inputs.length < 4) {
 
 let failures = 0;
 for (const file of inputs) {
-  const name = file.replace(/\.pgm$/, "");
-  const { w, h, pixels } = readPgm(join(golden, "inputs", file));
+  const name = file.replace(/^.*\//, "").replace(/\.pgm$/, "");
+  const { w, h, pixels } = readPgm(join(golden, file));
   const actual = wasm.analyse_page(pixels, undefined, w, h, DPI, undefined, OPTS) + "\n";
   const expected = readFileSync(join(golden, "expected", `${name}.json`), "utf8");
   const digest = createHash("sha256").update(actual).digest("hex").slice(0, 16);

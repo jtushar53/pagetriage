@@ -42,9 +42,16 @@ fn parse_pgm(bytes: &[u8]) -> (u32, u32, Vec<u8>) {
     (w, h, pixels)
 }
 
+/// `inputs/` holds the small pages shared with the binariser and near-duplicate goldens;
+/// `quality_inputs/` holds the module M3 pages, which only this test and the Python and WASM
+/// runners use.
 fn fixtures() -> Vec<(String, PathBuf)> {
-    let mut found: Vec<(String, PathBuf)> = fs::read_dir(golden_dir().join("inputs"))
-        .expect("tests/golden/inputs exists")
+    let mut found: Vec<(String, PathBuf)> = ["inputs", "quality_inputs"]
+        .iter()
+        .flat_map(|sub| {
+            fs::read_dir(golden_dir().join(sub))
+                .unwrap_or_else(|e| panic!("tests/golden/{sub} exists: {e}"))
+        })
         .map(|e| e.unwrap().path())
         .filter(|p| p.extension().is_some_and(|x| x == "pgm"))
         .map(|p| (p.file_stem().unwrap().to_string_lossy().into_owned(), p))

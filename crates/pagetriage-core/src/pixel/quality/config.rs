@@ -313,3 +313,36 @@ pub(crate) fn test_params() -> QualityParams {
         .expect("embedded defaults parse")
         .quality
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::params::Params;
+
+    #[test]
+    fn defaults_validate_and_overrides_apply() {
+        let p = Params::with_overrides("[quality]\nskew_range_deg = 10.0\n").unwrap();
+        assert_eq!(p.quality.skew_range_deg, 10.0);
+        assert_eq!(p.quality.skew_coarse_step_deg, 0.5);
+    }
+
+    #[test]
+    fn bad_quality_values_and_unknown_keys_are_rejected() {
+        for bad in [
+            "[quality]\nskew_rnage_deg = 10.0\n",
+            "[quality]\nskew_range_deg = 0.0\n",
+            "[quality]\nskew_coarse_step_deg = 0.001\n",
+            "[quality]\nskew_fine_step_deg = 2.0\n",
+            "[quality]\ngrade_a_max = 0.9\n",
+            "[quality]\ngrade_skew_good = 5.0\ngrade_skew_bad = 5.0\n",
+            "[quality]\ngen_max_confidence = 1.5\n",
+            "[quality]\nfold_min_coverage = 0.0\n",
+            "[quality]\nskew_criterion = \"median\"\n",
+            "[quality]\ngrade_w_skew = 0.0\ngrade_w_blur = 0.0\ngrade_w_gap = 0.0\ngrade_w_speckle = 0.0\ngrade_w_bleed = 0.0\ngrade_w_folds = 0.0\n",
+        ] {
+            assert!(
+                Params::with_overrides(bad).is_err(),
+                "should reject {bad:?}"
+            );
+        }
+    }
+}
