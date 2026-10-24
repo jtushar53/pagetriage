@@ -24,6 +24,18 @@ pub fn pow(base: f64, exponent: f64) -> f64 {
     libm::pow(base, exponent)
 }
 
+pub fn sin(x: f64) -> f64 {
+    libm::sin(x)
+}
+
+pub fn cos(x: f64) -> f64 {
+    libm::cos(x)
+}
+
+pub fn atan2(y: f64, x: f64) -> f64 {
+    libm::atan2(y, x)
+}
+
 /// Logistic function, numerically safe for large |x|.
 pub fn sigmoid(x: f64) -> f64 {
     if x >= 0.0 {
@@ -112,5 +124,10 @@ mod tests {
         assert_eq!(ln(1.0), 0.0);
         assert!((exp(1.0) - std::f64::consts::E).abs() < 1e-15);
         assert!((pow(2.0, 10.0) - 1024.0).abs() < 1e-12);
+        assert_eq!(sin(0.0), 0.0);
+        assert_eq!(cos(0.0), 1.0);
+        assert!((sin(std::f64::consts::FRAC_PI_2) - 1.0).abs() < 1e-15);
+        assert!((cos(std::f64::consts::PI) + 1.0).abs() < 1e-15);
+        assert!((atan2(1.0, 1.0) - std::f64::consts::FRAC_PI_4).abs() < 1e-15);
     }
 }
