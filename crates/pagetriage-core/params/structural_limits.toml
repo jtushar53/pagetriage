@@ -5,7 +5,8 @@
 # vector-heavy pages) is analysed whole by the native CLI; the browser demo applies its own smaller
 # caps before calling the library.
 
-# Largest PDF accepted, in bytes (1 GiB; memory use is about 2.8 times the file size).
+# Largest PDF accepted, in bytes (1 GiB). Peak memory was about 2.6 times the file size on a
+# 651 MB, 13,000-page synthetic scan (1.68 GB); the ratio is higher for small files with many pages.
 max_input_bytes = 1073741824
 
 # Largest size any one stream may decompress to (object streams, content streams, CMaps).

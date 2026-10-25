@@ -1,0 +1,61 @@
+name: pages
+
+# Builds the demo site and deploys it to GitHub Pages. scripts/build-site.sh fails the run when the
+# WASM build does not reproduce the native report fingerprints committed in site/samples/samples.json,
+# so a broken determinism claim never reaches the public page.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "crates/**"
+      - "scripts/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: build site (WASM + sample check)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install pinned wasm-bindgen CLI and wasm-opt
+        run: scripts/install-wasm-tools.sh
+      - name: Build the WASM package and check it reproduces every native fingerprint
+        run: scripts/build-site.sh
+      - name: Assemble the site (site/ without tools/, scratch files and the manifest's generator)
+        run: |
+          rm -rf _site
+          rsync -a --exclude 'tools/' --exclude '.gitignore' --exclude '.DS_Store' --exclude '__pycache__/' site/ _site/
+          ls -la _site _site/pkg
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    name: deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

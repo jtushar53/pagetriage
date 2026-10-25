@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pagetriage: analyse scanned pages in your browser</title>
+<meta name="description" content="Deterministic scanned-page analyser. Measures tilt, blur and bleed-through, reads PDF text layers, flags legacy Hindi fonts. No model, no upload, same answer every time.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="pagetriage: analyse scanned pages in your browser">
+<meta property="og:description" content="Deterministic scanned-page analyser. Measures tilt, blur and bleed-through, reads PDF text layers, flags legacy Hindi fonts. No model, no upload, same answer every time.">
+<meta property="og:url" content="https://jtushar53.github.io/pagetriage/">
+<meta property="og:image" content="https://jtushar53.github.io/pagetriage/samples/ghosted.png">
+<meta property="og:image:alt" content="A synthetic scanned page with ink from the back of the sheet showing through.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#dde2ea" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1b2029" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 24'%3E%3Cpath d='M2 1h11l5 5v17H2z' fill='%23fdfdfb' stroke='%23171923' stroke-width='1.5'/%3E%3Cpath d='M13 1v5h5' fill='none' stroke='%23171923' stroke-width='1.5'/%3E%3Cpath d='M5 11h10M5 15h10M5 19h7' stroke='%234234a8' stroke-width='1.6'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#demo">Skip to the demo</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="pagetriage, top of page">
+      <svg viewBox="0 0 20 24" aria-hidden="true"><path d="M2 1h11l5 5v17H2z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M13 1v5h5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5 11h10M5 15h10M5 19h7" stroke="#4234a8" stroke-width="1.6"/></svg>
+      pagetriage
+    </a>
+    <nav aria-label="Sections">
+      <a href="#reads">What it reads</a>
+      <a href="#same">Same answer</a>
+      <a href="#results">Results</a>
+      <a href="#run">Run it</a>
+      <a class="gh" href="https://github.com/jtushar53/pagetriage">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <section class="stage" id="demo" aria-labelledby="h1">
+    <div class="wrap">
+      <div class="intro">
+        <h1 id="h1">Know what is on a scanned page before you run OCR on it.</h1>
+        <p class="lede">pagetriage measures tilt, blur, bleed-through and folds, tells a real text layer from a scan, and flags legacy Hindi fonts. It uses no model, so the same page gives the same answer every time. Try it below: it runs in this tab and nothing is uploaded.</p>
+      </div>
+
+      <div class="table">
+        <div class="bench">
+          <div class="modes" role="tablist" aria-label="What to analyse">
+            <button type="button" role="tab" id="tab-page" data-mode="page" aria-selected="true" aria-controls="panel-page">Page image</button>
+            <button type="button" role="tab" id="tab-pdf" data-mode="pdf" aria-selected="false" aria-controls="panel-pdf" tabindex="-1">PDF</button>
+          </div>
+
+          <div id="panel-page" role="tabpanel" aria-labelledby="tab-page">
+            <div class="sheet" id="sheet">
+              <canvas id="page-canvas" width="827" height="1170" role="img" aria-label="The page being analysed"></canvas>
+              <svg class="overlay" id="overlay" viewBox="0 0 827 1170" aria-hidden="true"></svg>
+              <div class="sweep" aria-hidden="true"></div>
+              <div class="drop-hint" aria-hidden="true">Drop to analyse</div>
+            </div>
+            <p class="viewing" id="viewing" aria-live="polite">The original scan</p>
+            <div class="picker" id="picker" role="group" aria-label="Sample pages"></div>
+            <div class="file-row">
+              <input type="file" id="file-page" class="visually-hidden" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,.png,.jpg,.jpeg,.webp,.gif,.bmp">
+              <label class="btn" for="file-page">Choose a page image</label>
+              <span>or drop one on the sheet. It stays in this tab.</span>
+            </div>
+          </div>
+
+          <div id="panel-pdf" role="tabpanel" aria-labelledby="tab-pdf" hidden>
+            <div class="pdfdrop" id="pdfdrop">
+              <p>Drop a PDF here</p>
+              <input type="file" id="file-pdf" class="visually-hidden" accept="application/pdf,.pdf">
+              <label class="btn" for="file-pdf">Choose a PDF</label>
+              <p class="pdfdrop__note">It stays in this tab. Files up to 256 MB.</p>
+              <div class="drop-hint" aria-hidden="true">Drop to analyse</div>
+            </div>
+            <ul class="pdflist" id="pdflist" aria-label="Sample PDFs"></ul>
+          </div>
+        </div>
+
+        <div class="slip" aria-labelledby="slip-h">
+          <h2 id="slip-h" class="visually-hidden">Readout</h2>
+          <p class="status" id="status" role="status" aria-live="polite"></p>
+          <div id="slip-body"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap">
+    <section class="section" id="reads" aria-labelledby="reads-h">
+      <h2 id="reads-h">What it reads today</h2>
+      <table class="grid-table">
+        <thead>
+          <tr><th scope="col">Question</th><th scope="col">How</th><th scope="col">Status</th><th scope="col">Details</th></tr>
+        </thead>
+        <tbody id="ledger-body">
+          <tr><td colspan="4">Loading the table.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section" id="same" aria-labelledby="same-h">
+      <h2 id="same-h">The same page gives the same answer, byte for byte</h2>
+      <div class="measure">
+        <p>One Rust core builds for the command line, for Python and for the browser. Every golden page in the repository runs through all three, on Linux and on macOS, in CI, and the report fingerprints have to match before anything merges.</p>
+        <p>That is harder than it sounds. The platform maths library (exp, sin, cos) differs in the last digit between glibc, Apple's libm and WebAssembly, and unordered maps iterate in a different order on every run. Both are banned from the core; sums over pixels happen in a fixed order, and the report writer rounds and sorts before anything is printed.</p>
+        <p>The proof is in the demo above: the fingerprint this tab computes is compared with the one the native build produced for the same sample. The guarantee covers the analyser given identical pixels. Image decoders are outside it, which is why a JPEG opened by two different decoders can differ.</p>
+      </div>
+    </section>
+
+    <section class="section" id="results" aria-labelledby="results-h">
+      <h2 id="results-h">How well it works</h2>
+      <p class="sub">Every number comes from this repository's own benchmark scripts. Where the evidence is weaker than the number looks, the last column says so.</p>
+      <table class="grid-table">
+        <thead>
+          <tr><th scope="col">Check</th><th scope="col">Result</th><th scope="col">How far to trust it</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td data-label="Check"><a href="https://github.com/jtushar53/pagetriage/blob/main/docs/detectors/text_layer.md#measured-results">Text layer</a>, 300 synthetic PDF pages</td>
+            <td data-label="Result">300 of 300 right</td>
+            <td data-label="How far to trust it" class="trust">Weak: we wrote the corpus. Two settings were tuned on half of it; the other half scored 159 of 159.</td>
+          </tr>
+          <tr>
+            <td data-label="Check"><a href="https://github.com/jtushar53/pagetriage/blob/main/docs/detectors/font_script.md#measured-results">Legacy Hindi fonts</a>, same corpus</td>
+            <td data-label="Result">17 of 17 found, none among the other 283 pages</td>
+            <td data-label="How far to trust it" class="trust">Weak: the font list was written from memory and no real deed was tested.</td>
+          </tr>
+          <tr>
+            <td data-label="Check"><a href="https://github.com/jtushar53/pagetriage/blob/main/docs/detectors/quality.md#results">Tilt</a>, 984 rotations of 82 DIBCO pages</td>
+            <td data-label="Result">median error 0.05 degrees</td>
+            <td data-label="How far to trust it" class="trust">Solid for the median; the tail is poor (90th percentile 0.75 degrees, worst 26.5 on papyri).</td>
+          </tr>
+          <tr>
+            <td data-label="Check"><a href="https://github.com/jtushar53/pagetriage/blob/main/docs/detectors/binarize.md#results">Howe black-and-white method</a>, DIBCO 2011 (held out)</td>
+            <td data-label="Result">F-measure 89.6, the paper reports 91.9</td>
+            <td data-label="How far to trust it" class="trust">Short of the target we set; three dark-background pages cause the gap.</td>
+          </tr>
+          <tr>
+            <td data-label="Check"><a href="https://github.com/jtushar53/pagetriage/blob/main/docs/detectors/binarize.md#results">Howe</a>, DIBCO 2009 and 2010 (tuned here)</td>
+            <td data-label="Result">F-measure 94.0, the paper reports 93.8</td>
+            <td data-label="How far to trust it" class="trust">Settings were chosen on these pages.</td>
+          </tr>
+          <tr>
+            <td data-label="Check"><a href="https://github.com/jtushar53/pagetriage/blob/main/docs/detectors/quality.md#cost">Speed</a></td>
+            <td data-label="Result">about 68 ms per A4 page at 150 dpi, one thread</td>
+            <td data-label="How far to trust it" class="trust">Measured on an Apple-silicon laptop, native; 142 pages per second on 12 threads.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section" id="run" aria-labelledby="run-h">
+      <h2 id="run-h">Run it yourself</h2>
+      <p class="sub">It is not yet on crates.io, PyPI or npm, so you build from source. <code>rust-toolchain.toml</code> selects Rust 1.98.</p>
+      <div class="code-cols">
+        <div>
+          <h3>Command line</h3>
+<pre><code>git clone https://github.com/jtushar53/pagetriage
+cd pagetriage
+cargo build --release -p pagetriage-cli
+
+target/release/pagetriage analyse page.png
+target/release/pagetriage structure file.pdf</code></pre>
+          <p class="code-note">Add <code>--pretty</code> to indent the JSON; the compact default is the byte-reproducible form.</p>
+        </div>
+        <div>
+          <h3>Python</h3>
+<pre><code>python3 -m venv .venv
+source .venv/bin/activate
+pip install maturin pillow
+maturin develop --release \
+  -m crates/pagetriage-py/Cargo.toml</code></pre>
+<pre><code>import json, pagetriage_py as pt
+from PIL import Image
+
+im = Image.open("page.png").convert("L")
+gray, (width, height) = im.tobytes(), im.size
+report = json.loads(pt.analyse_page(gray, width, height, 150))
+report["quality"]["skew_deg"]</code></pre>
+        </div>
+        <div>
+          <h3>Browser</h3>
+<pre><code>scripts/install-wasm-tools.sh
+PAGETRIAGE_WASM_FEATURES=pdf \
+  scripts/build-wasm.sh</code></pre>
+<pre><code>import init, { analyse_page, rgb_to_gray }
+  from "./pkg/pagetriage.js";
+await init();
+const gray = rgb_to_gray(rgbBytes);
+const report = JSON.parse(analyse_page(
+  gray, undefined, width, height, 150,
+  undefined, "{}"));</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="built" aria-labelledby="built-h">
+      <h2 id="built-h">Built on</h2>
+      <ul class="refs">
+        <li>N. R. Howe, "Document binarization with automatic parameter tuning", IJDAR 2013. <a href="https://doi.org/10.1007/s10032-012-0192-x">doi:10.1007/s10032-012-0192-x</a>; <a href="http://www.science.smith.edu/~nhowe/research/pubs/divseg-ijdar.pdf">author's manuscript</a>.</li>
+        <li>N. R. Howe, "A Laplacian energy for document binarization", ICDAR 2011.</li>
+        <li>N. Otsu, "A threshold selection method from gray-level histograms", 1979.</li>
+        <li>J. Sauvola and M. Pietikainen, "Adaptive document image binarization", 2000.</li>
+        <li>J. Canny, "A computational approach to edge detection", 1986.</li>
+        <li>Y. Boykov and V. Kolmogorov, "An experimental comparison of min-cut/max-flow algorithms for energy minimization in vision", 2004.</li>
+        <li>B. B. Chaudhuri and U. Pal, "Skew angle detection of digitized Indian script documents", 1997.</li>
+        <li>ISO 32000, the PDF specification.</li>
+      </ul>
+      <p class="measure">The full list, with what each paper is used for, is in <a href="https://github.com/jtushar53/pagetriage/blob/main/docs/REFERENCES.md">docs/REFERENCES.md</a>. A few entries there are marked unverified: a citation or formula recalled from memory and not yet checked against the paper.</p>
+    </section>
+  </div>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <p>pagetriage is free software under the MIT or Apache-2.0 licence, at your choice. Source, issues and the benchmark scripts are on <a href="https://github.com/jtushar53/pagetriage">GitHub</a>. Analyser version <span data-version>loading</span>.</p>
+    <p>The sample pages are synthetic. No real documents are used or uploaded.</p>
+    <p>Made by Tushar Patekar.</p>
+  </div>
+</footer>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

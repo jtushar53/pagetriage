@@ -1,0 +1,78 @@
+{
+  "note": "The 'What it reads today' table on the demo page. Edit statuses here, not in index.html. 'doc' is relative to docs_base.",
+  "docs_base": "https://github.com/jtushar53/pagetriage/blob/main/docs/",
+  "rows": [
+    {
+      "question": "Is this real text, a scan, or a scan with hidden OCR text?",
+      "how": "Reads the PDF's drawing instructions. Renders nothing.",
+      "status": "working",
+      "doc": "detectors/text_layer.md"
+    },
+    {
+      "question": "Which script is it in, and is the font a legacy one such as Kruti Dev?",
+      "how": "Font names and encodings inside the PDF. A legacy font looks like Hindi on screen and copies out as Latin letters.",
+      "status": "working",
+      "doc": "detectors/font_script.md"
+    },
+    {
+      "question": "Was it edited after the first save?",
+      "how": "Counts incremental updates and says what each one changed, including changes after a signature.",
+      "status": "working",
+      "doc": "detectors/provenance.md"
+    },
+    {
+      "question": "How good is this scan?",
+      "how": "Tilt, sharpness, contrast, bleed-through, specks, fold lines and a grade from A to D.",
+      "status": "working",
+      "doc": "detectors/quality.md"
+    },
+    {
+      "question": "How should I turn this page black and white?",
+      "how": "Otsu, Sauvola, Wolf and Howe, with a recommendation from the faults it found.",
+      "status": "working",
+      "doc": "detectors/binarize.md"
+    },
+    {
+      "question": "Have I seen this page before?",
+      "how": "Perceptual hashes, compared across the pages of a document.",
+      "status": "working",
+      "doc": "detectors/phash.md"
+    },
+    {
+      "question": "Which script, from the pixels alone?",
+      "how": "Headline, connected-component and texture features (module M4).",
+      "status": "planned",
+      "doc": "modules.md"
+    },
+    {
+      "question": "Handwritten or printed?",
+      "how": "Stroke and neighbourhood features, including filled-in blanks on forms (module M5).",
+      "status": "planned",
+      "doc": "modules.md"
+    },
+    {
+      "question": "Are there stamps, signatures or thumb impressions?",
+      "how": "Colour clusters and shape for stamps, stroke statistics for signatures, ridge frequency for prints (modules M6 to M8).",
+      "status": "planned",
+      "doc": "modules.md"
+    },
+    {
+      "question": "Are there rulings, tables or checkboxes?",
+      "how": "Line and grid detection, told apart from fold lines (module M9).",
+      "status": "planned",
+      "doc": "modules.md"
+    },
+    {
+      "question": "Is this an Indian deed, and which parts are which?",
+      "how": "Stamp-paper header, e-stamp QR, registrar endorsement (module M11).",
+      "status": "planned",
+      "doc": "modules.md"
+    },
+    {
+      "question": "Did my OCR miss anything?",
+      "how": "Ink on the page that the text layer does not account for.",
+      "status": "planned",
+      "doc": "modules.md"
+    }
+  ]
+}
