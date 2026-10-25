@@ -13,6 +13,7 @@ const WOLF_TOML: &str = include_str!("../params/wolf.toml");
 const HOWE_TOML: &str = include_str!("../params/howe.toml");
 const PHASH_TOML: &str = include_str!("../params/phash.toml");
 const QUALITY_TOML: &str = include_str!("../params/quality.toml");
+const LAYOUT_TOML: &str = include_str!("../params/layout.toml");
 
 /// Sauvola local threshold (see `params/sauvola.toml`).
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -97,6 +98,7 @@ pub struct Params {
     pub howe: HoweParams,
     pub phash: PhashParams,
     pub quality: crate::pixel::quality::QualityParams,
+    pub layout: crate::pixel::layout::LayoutParams,
 }
 
 impl Params {
@@ -121,7 +123,7 @@ impl Params {
             "# --- fusion ---\n[fusion]\n{FUSION_TOML}\n# --- blank_page ---\n[blank_page]\n{BLANK_PAGE_TOML}\n\
              # --- sauvola ---\n[sauvola]\n{SAUVOLA_TOML}\n# --- wolf ---\n[wolf]\n{WOLF_TOML}\n\
              # --- howe ---\n[howe]\n{HOWE_TOML}\n# --- phash ---\n[phash]\n{PHASH_TOML}\n\
-             # --- quality ---\n[quality]\n{QUALITY_TOML}"
+             # --- quality ---\n[quality]\n{QUALITY_TOML}\n# --- layout ---\n[layout]\n{LAYOUT_TOML}"
         )
     }
 
@@ -178,6 +180,7 @@ impl Params {
             ));
         }
         self.quality.validate()?;
+        self.layout.validate()?;
         self.validate_binarizers()?;
         self.validate_phash()
     }
@@ -290,6 +293,7 @@ fn defaults_table() -> Result<toml::Table> {
     table.insert("howe".into(), parse("howe", HOWE_TOML)?);
     table.insert("phash".into(), parse("phash", PHASH_TOML)?);
     table.insert("quality".into(), parse("quality", QUALITY_TOML)?);
+    table.insert("layout".into(), parse("layout", LAYOUT_TOML)?);
     Ok(table)
 }
 

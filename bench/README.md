@@ -17,6 +17,7 @@ calls the Rust core through `pagetriage_py`, and scores the output.
 | `skew_eval.py` | Skew stress test (module M3): rotate every DIBCO page by 12 known angles and report `est(rotated) - est(original) - angle`, per set and overall, for a tuning split and a held-out split. Results in `docs/detectors/quality.md` |
 | `quality_eval.py` | Run the quality block over the DIBCO pages; per-page table and the bleed-through AUC against the author's own eyeball labels |
 | `quality_synth_eval.py` | Quality block against synthetic pages (from `synth/`) with known skew in three scripts, blur, speckle, show-through, creases and simulated copies; also times the pass |
+| `layout_synth_eval.py` | Layout segmentation against synthetic pages with known lines, paragraphs and columns (Latin, Devanagari, Bengali; skew, speckle, blur, two columns); also times the pass. Results in `docs/detectors/layout.md` |
 | `tests/` | Offline unit tests (`python -I -m unittest discover -s bench/tests`) |
 
 ## Setup

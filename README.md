@@ -69,6 +69,7 @@ text.
 | M2 font script | Script of each page's text, and a flag for legacy non-Unicode Indian fonts (Kruti Dev and others) whose text extracts as gibberish | Built | [font_script](docs/detectors/font_script.md) |
 | M3 quality | Skew, blur, contrast, specks, bleed-through, fold lines, an overall grade, and which binariser to use | Built | [quality](docs/detectors/quality.md) |
 | Binarisers | Otsu, Sauvola, Wolf-Jolion, and the Howe graph-cut method with automatic parameter tuning | Built | [binarize](docs/detectors/binarize.md) |
+| Layout | Text lines, blocks and columns, with rulings and graphics set aside; groundwork for M4 and M5. Opt-in, checked on synthetic pages only | Built, opt-in | [layout](docs/detectors/layout.md) |
 | M12 provenance | PDF producer, edits after the first save (incremental updates), edits after a signature, JPEG encoder tables | Built | [provenance](docs/detectors/provenance.md) |
 | M12 near-duplicates | Perceptual hashes per page, and which pages repeat an earlier one | Built, with limits | [phash](docs/detectors/phash.md) |
 | M10 blank page | Blank-page finding | Skeleton, known wrong on faded scans | [blank_page](docs/detectors/blank_page.md) |

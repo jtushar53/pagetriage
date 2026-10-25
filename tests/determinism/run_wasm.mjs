@@ -13,6 +13,7 @@ const pkgDir = process.env.WASM_PKG ?? join(here, "..", "..", "dist", "wasm", "n
 const wasm = createRequire(import.meta.url)(join(pkgDir, "pagetriage.js"));
 
 const OPTS = '{"debug":true}';
+const LAYOUT_OPTS = '{"debug":true,"detectors":["layout"]}';
 const DPI = 150;
 
 function readPgm(path) {
@@ -58,6 +59,27 @@ for (const file of inputs) {
     console.log(`FAIL wasm   ${name}: first difference at byte ${at}`);
     console.log(`  actual  : ...${JSON.stringify(actual.slice(Math.max(0, at - 30), at + 40))}`);
     console.log(`  expected: ...${JSON.stringify(expected.slice(Math.max(0, at - 30), at + 40))}`);
+  }
+}
+
+// The opt-in layout detector, on the layout pages and the quality pages.
+const layoutInputs = ["layout_inputs", "quality_inputs"]
+  .flatMap((sub) => readdirSync(join(golden, sub)).filter((f) => f.endsWith(".pgm")).map((f) => join(sub, f)))
+  .sort();
+if (layoutInputs.length < 9) {
+  console.error(`expected at least 9 layout inputs, found ${layoutInputs.length}`);
+  process.exit(1);
+}
+for (const file of layoutInputs) {
+  const name = file.replace(/^.*\//, "").replace(/\.pgm$/, "");
+  const { w, h, pixels } = readPgm(join(golden, file));
+  const actual = wasm.analyse_page(pixels, undefined, w, h, DPI, undefined, LAYOUT_OPTS) + "\n";
+  const expected = readFileSync(join(golden, "layout_expected", `${name}.json`), "utf8");
+  if (actual === expected) {
+    console.log(`ok   wasm   layout ${name}`);
+  } else {
+    failures++;
+    console.log(`FAIL wasm   layout ${name}`);
   }
 }
 

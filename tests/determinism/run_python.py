@@ -11,6 +11,7 @@ import pagetriage_py
 
 GOLDEN = pathlib.Path(__file__).resolve().parents[1] / "golden"
 OPTS = '{"debug":true}'
+LAYOUT_OPTS = '{"debug":true,"detectors":["layout"]}'
 DPI = 150
 
 
@@ -51,6 +52,20 @@ def main():
             print(f"FAIL python {path.stem}: first difference at byte {at}")
             print(f"  actual  : ...{actual[max(0, at - 30) : at + 40]!r}")
             print(f"  expected: ...{expected[max(0, at - 30) : at + 40]!r}")
+
+    # The opt-in layout detector, on the layout pages and the quality pages.
+    layout_inputs = sorted([*(GOLDEN / "layout_inputs").glob("*.pgm"), *(GOLDEN / "quality_inputs").glob("*.pgm")])
+    if len(layout_inputs) < 9:
+        sys.exit(f"expected at least 9 layout inputs, found {len(layout_inputs)}")
+    for path in layout_inputs:
+        w, h, gray = read_pgm(path)
+        actual = pagetriage_py.analyse_page(gray, w, h, DPI, None, None, LAYOUT_OPTS) + "\n"
+        expected = (GOLDEN / "layout_expected" / f"{path.stem}.json").read_text(encoding="utf-8")
+        if actual == expected:
+            print(f"ok   python layout {path.stem}")
+        else:
+            failures += 1
+            print(f"FAIL python layout {path.stem}")
 
     try:
         pagetriage_py.analyse_page(b"\x00" * 3, 2, 2, DPI)

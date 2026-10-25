@@ -13,6 +13,9 @@ OUT = pathlib.Path(__file__).resolve().parent / "inputs"
 # Module M3 fixtures are bigger than the 64 x 80 pages above, so they live apart: the binariser
 # goldens (which run the slow Howe method on every page in inputs/) do not take them.
 QUALITY_OUT = pathlib.Path(__file__).resolve().parent / "quality_inputs"
+# Layout segmentation fixtures (the opt-in `layout` detector): pages with known columns, rulings and
+# graphics. Checked by tests/layout_golden.rs and the Python and WASM runners.
+LAYOUT_OUT = pathlib.Path(__file__).resolve().parent / "layout_inputs"
 
 
 class Lcg:
@@ -287,6 +290,81 @@ def quality_fold():
     return px
 
 
+LW, LH = 320, 260
+
+
+def _ink_lines(rng, ink, x0, x1, y, count):
+    """`count` lines of text-like words between x0 and x1, 17 px apart from row y (same glyph
+    shapes as `_quality_ink`)."""
+    for _ in range(count):
+        x = x0
+        while x < x1 - 40:
+            glyphs = 2 + rng.next(5)
+            for g in range(glyphs):
+                gx = x + g * 6
+                kind = rng.next(4)
+                for dy in range(8):
+                    ink.update({(gx, y + dy), (gx + 1, y + dy)})
+                if kind == 1:
+                    for dy in range(8):
+                        ink.update({(gx + 3, y + dy), (gx + 4, y + dy)})
+                elif kind == 2:
+                    for dx in range(5):
+                        ink.update({(gx + dx, y + 3), (gx + dx, y + 4)})
+                elif kind == 3:
+                    for dx in range(5):
+                        ink.update({(gx + dx, y + 6), (gx + dx, y + 7)})
+            x += glyphs * 6 + 6 + rng.next(4)
+        y += 17
+
+
+def _layout_page(ink):
+    rng = Lcg(51)
+    px = [235 + rng.next(5) for _ in range(LW * LH)]
+    for x, y in sorted(ink):
+        px[y * LW + x] = 30 + rng.next(20)
+    return px
+
+
+def layout_one_column():
+    """One paragraph of 10 lines and, below a gap, a second paragraph of 3."""
+    rng = Lcg(52)
+    ink = set()
+    _ink_lines(rng, ink, 20, 300, 16, 10)
+    _ink_lines(rng, ink, 20, 300, 16 + 10 * 17 + 24, 3)
+    return _layout_page(ink)
+
+
+def layout_two_columns():
+    """A heading line over two columns of 9 lines with a 40-px gutter."""
+    rng = Lcg(53)
+    ink = set()
+    _ink_lines(rng, ink, 20, 300, 12, 1)
+    _ink_lines(rng, ink, 14, 130, 50, 9)
+    _ink_lines(rng, ink, 186, 306, 50, 9)
+    return _layout_page(ink)
+
+
+def layout_form():
+    """Text, a ruled box (table frame with a rule through it) and a filled rectangle (a stamp)."""
+    rng = Lcg(54)
+    ink = set()
+    _ink_lines(rng, ink, 20, 300, 12, 3)
+    for x in range(20, 300):
+        ink.update({(x, 80), (x, 81), (x, 150), (x, 151), (x, 118)})
+    for y in range(80, 152):
+        ink.update({(20, y), (21, y), (298, y), (299, y)})
+    _ink_lines(rng, ink, 30, 150, 90, 3)
+    for y in range(180, 236):
+        for x in range(220, 290):
+            ink.add((x, y))
+    _ink_lines(rng, ink, 20, 200, 180, 3)
+    for x in range(20, 200):
+        ink.update({(x, 60), (x, 61)})  # two free-standing rules
+        ink.update({(x, 244), (x, 245)})
+    return _layout_page(ink)
+
+
 if __name__ == "__main__":
     for fn in (blank_speckle, text_like, borderline, faint_strokes, dark_fill):
         write_pgm(fn.__name__, fn())
@@ -302,3 +380,6 @@ if __name__ == "__main__":
         print("wrote", fn.__name__)
     write_pgm("quality_fold", quality_fold(), QFW, QH, QUALITY_OUT)
     print("wrote quality_fold")
+    for fn in (layout_one_column, layout_two_columns, layout_form):
+        write_pgm(fn.__name__, fn(), LW, LH, LAYOUT_OUT)
+        print("wrote", fn.__name__)

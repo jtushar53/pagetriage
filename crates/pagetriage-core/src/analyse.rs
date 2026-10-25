@@ -7,6 +7,7 @@ use serde::Deserialize;
 use crate::error::{Error, Result};
 use crate::params::Params;
 use crate::pixel::content_type::{self, BLANK_PAGE};
+use crate::pixel::layout::{self, LAYOUT};
 use crate::pixel::phash::{self, PHASH};
 use crate::pixel::quality;
 use crate::schema::{self, Finding, Kind, PageReport};
@@ -17,6 +18,7 @@ use crate::structural::PageStructure;
 #[rustfmt::skip]
 pub const DETECTORS: &[&str] = &[
     BLANK_PAGE,
+    LAYOUT,
     PHASH,
 ];
 
@@ -25,6 +27,7 @@ pub const DETECTORS: &[&str] = &[
 /// been reviewed; promoting it means deleting its line. Same layout rule as [`DETECTORS`].
 #[rustfmt::skip]
 pub const OPT_IN: &[&str] = &[
+    LAYOUT,
 ];
 
 /// One rasterised page. `gray` is `width * height` bytes, row-major. `rgb`, when present, is
@@ -118,6 +121,16 @@ pub fn analyse_page_report(
         }
     };
 
+    // Module M3: degradation triage. Always runs; it is not a finding. It runs first because the
+    // layout pass levels the page by its skew.
+    let assessment = quality::assess(
+        input.gray,
+        input.width as usize,
+        input.height as usize,
+        input.dpi,
+        &params,
+    )?;
+
     let mut findings = Vec::new();
     let mut debug: BTreeMap<String, BTreeMap<String, f64>> = BTreeMap::new();
     let mut hashes = None;
@@ -126,6 +139,13 @@ pub fn analyse_page_report(
             BLANK_PAGE => {
                 content_type::detect_blank_page(input.gray, &params.blank_page, &params.fusion)?
             }
+            LAYOUT => layout::detect(
+                input.gray,
+                input.width as usize,
+                input.height as usize,
+                assessment.quality.skew_deg,
+                &params,
+            )?,
             PHASH => {
                 let (detection, page_hashes) = phash::detect(
                     input.gray,
@@ -147,14 +167,6 @@ pub fn analyse_page_report(
         findings.extend(structure_findings(ps));
     }
 
-    // Module M3: degradation triage. Always runs; it is not a finding.
-    let assessment = quality::assess(
-        input.gray,
-        input.width as usize,
-        input.height as usize,
-        input.dpi,
-        &params,
-    )?;
     debug.insert("quality".to_owned(), assessment.features);
 
     let dpi = f64::from(input.dpi);
