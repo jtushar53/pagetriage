@@ -89,9 +89,52 @@ def _stroke(draw: ImageDraw.ImageDraw, rng: random.Random, x: float, yb: float, 
             draw.line([(a, mid), (b, mid)], fill=ink, width=width)
 
 
+def _draw_pseudo_cursive_word(draw, rng, w, x, yb, em, width, ink):
+    """One word of joined pseudo-letters along a baseline, with dots; returns the end x. Letters
+    come in runs of 2-4 joined by the baseline, runs are separated by a small gap, as in the Arabic
+    script where some letters do not join to the next."""
+    cw = 0.5 * em
+    base = yb - 0.18 * em
+    letters = [ch for ch in w if _is_base(ch)]
+    i = 0
+    while i < len(letters):
+        run = min(len(letters) - i, rng.randint(2, 4))
+        x1 = x + run * cw
+        draw.line([(x, base), (x1, base)], fill=ink, width=width)
+        for k in range(run):
+            lx = x + k * cw + 0.5 * cw
+            kind = rng.randint(0, 3)
+            if kind == 0:  # tall stem
+                draw.line([(lx, base), (lx, yb - 0.72 * em)], fill=ink, width=width)
+            elif kind == 1:  # bump above the baseline
+                draw.arc([lx - 0.45 * cw, base - 0.5 * em, lx + 0.45 * cw, base + 0.05 * em], 180, 360, fill=ink, width=width)
+            elif kind == 2:  # bowl below the baseline
+                draw.arc([lx - 0.45 * cw, base - 0.3 * em, lx + 0.45 * cw, base + 0.3 * em], 0, 180, fill=ink, width=width)
+            else:  # three short teeth
+                for t in (-0.3, 0.0, 0.3):
+                    draw.line([(lx + t * cw, base), (lx + t * cw, base - 0.3 * em)], fill=ink, width=width)
+            if rng.random() < 0.6:
+                r = max(1.0, 0.06 * em)
+                dy = yb - 0.5 * em if rng.random() < 0.5 else base + 0.22 * em
+                for d in range(rng.randint(1, 3)):
+                    cx = lx + (d - 0.5) * 3 * r
+                    draw.ellipse([cx - r, dy - r, cx + r, dy + r], fill=ink)
+        x = x1 + 0.12 * em
+        i += run
+    return x
+
+
 def _draw_pseudo_line(draw, rng, script, text, x, yb, em, ink):
     """Draw one line of pseudo-glyphs; return list of (word, x_start, width)."""
     width = max(1, round(em * 0.07))
+    if script == "arabic":
+        out, cx = [], x
+        for w in text.split(" "):
+            wx = cx
+            cx = _draw_pseudo_cursive_word(draw, rng, w, cx, yb, em, width, ink)
+            out.append((w, wx, cx - wx))
+            cx += 0.32 * em
+        return out
     cw = 0.55 * em
     cx = x
     out = []

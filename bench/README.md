@@ -18,6 +18,7 @@ calls the Rust core through `pagetriage_py`, and scores the output.
 | `quality_eval.py` | Run the quality block over the DIBCO pages; per-page table and the bleed-through AUC against the author's own eyeball labels |
 | `quality_synth_eval.py` | Quality block against synthetic pages (from `synth/`) with known skew in three scripts, blur, speckle, show-through, creases and simulated copies; also times the pass |
 | `layout_synth_eval.py` | Layout segmentation against synthetic pages with known lines, paragraphs and columns (Latin, Devanagari, Bengali; skew, speckle, blur, two columns); also times the pass. Results in `docs/detectors/layout.md` |
+| `script_synth_eval.py` | Script-family detector (M4) against synthetic pages of nine scripts under seven conditions, dev/test split, plus mixed-script pages. Results in `docs/detectors/script.md` |
 | `tests/` | Offline unit tests (`python -I -m unittest discover -s bench/tests`) |
 
 ## Setup

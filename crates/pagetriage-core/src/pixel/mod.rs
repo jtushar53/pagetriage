@@ -11,6 +11,7 @@ pub mod content_type;
 pub mod layout;
 pub mod phash;
 pub mod quality;
+pub mod script;
 
 #[derive(Debug, Default)]
 pub struct Detection {

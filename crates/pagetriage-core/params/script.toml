@@ -1,0 +1,61 @@
+# Script family from pixels (module M4). Three families, decided from the lines of the layout pass:
+#   headline : a continuous horizontal bar at the top of each word (Devanagari, Bengali, Gurmukhi)
+#   cursive  : letters joined along a baseline, many dots (Arabic script: Urdu, Persian)
+#   discrete : separate letters (Latin, and every other script without a headline: Gujarati, Odia,
+#              Tamil, Telugu, Kannada, Malayalam)
+# M4 cannot tell Devanagari from Bengali, or Latin from Tamil: nothing here measures letter shape.
+# Every key says where it comes from. "placeholder" means a first guess not yet checked against data;
+# "tuned on <set>" names the set. Nothing here has been checked on a real document.
+
+# ---- line features ---------------------------------------------------------------------------
+
+# The "top" of a line is its first rows up to this fraction of the line height, the "low" part is
+# the rest. The headline bar sits in the top part; a cursive baseline sits in the low part.
+# Source: placeholder.
+top_fraction = 0.5
+
+# A glyph is small (a dot, an accent, a mark) when its height is under this fraction of the line's
+# median glyph height. Source: placeholder.
+small_height_fraction = 0.45
+
+# ---- page decision ---------------------------------------------------------------------------
+
+# Fewer lines than this and the detector abstains (features are still reported).
+# Source: placeholder.
+min_lines = 3
+
+# Every line weighs by its width; the page value of a feature is the weighted median.
+# (No parameter: a design choice, so that a short heading cannot outvote a paragraph.)
+
+# Each score term is coef * (feature - threshold), clipped to +-term_clip so one saturated feature
+# cannot decide alone. Source: placeholder.
+term_clip = 6.0
+
+# ---- scores ----------------------------------------------------------------------------------
+# Ink in the densest row of the top part, as a fraction of the line width. A headline bar reads
+# near 1 minus the word gaps; a discrete script reads about the share of the line covered by the
+# tops of its letters.
+top_peak_threshold = 0.7
+top_peak_coef = 12.0
+
+# Same for the densest row of the low part.
+low_peak_threshold = 0.7
+low_peak_coef = 12.0
+
+# Glyph components per x-height of line width. Discrete scripts have one component per letter;
+# headline and cursive scripts have one per word or sub-word.
+comp_density_threshold = 1.1
+comp_density_coef = 2.0
+
+# Share of small glyphs (dots, marks). High for the Arabic script.
+small_share_threshold = 0.15
+small_share_coef = 3.0
+
+# A second family is reported when at least this share of the lines vote for it (and at least
+# `min_lines` of them), for mixed-script pages (Hindi and English on one deed are the common case).
+# Source: placeholder.
+secondary_line_share = 0.2
+
+# The family needs this softmax probability to be reported as a finding.
+# Source: placeholder (same abstention rule as fusion.emit_min_confidence).
+emit_min_probability = 0.5

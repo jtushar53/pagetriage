@@ -149,6 +149,16 @@ pub struct Block {
     pub lines: Vec<usize>,
 }
 
+/// One glyph-class component with the line it belongs to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GlyphBox {
+    pub bbox: Rect,
+    pub area: u32,
+    /// Index into [`Layout::lines`]; `None` when the glyph's smoothed component was not kept as a
+    /// line (too few glyphs, wrong height).
+    pub line: Option<usize>,
+}
+
 /// The segmentation of one page.
 #[derive(Debug, Clone)]
 pub struct Layout {
@@ -169,6 +179,10 @@ pub struct Layout {
     pub ink_pixels: u64,
     /// Sorted top to bottom, then left to right.
     pub lines: Vec<TextLine>,
+    /// Every glyph-class component, in raster order of its first pixel.
+    pub glyphs: Vec<GlyphBox>,
+    /// The ink mask of the sheared frame (`width * height`, 1 = ink), what the boxes index into.
+    pub ink: Vec<u8>,
     pub blocks: Vec<Block>,
     pub rules: Vec<Rect>,
     pub graphics: Vec<Rect>,
@@ -394,8 +408,8 @@ pub fn segment(
         }
     }
 
-    let mut lines: Vec<TextLine> = Vec::new();
-    for (c, mut a) in rows.components.iter().zip(acc) {
+    let mut kept: Vec<(TextLine, u32)> = Vec::new();
+    for (ri, (c, mut a)) in rows.components.iter().zip(acc).enumerate() {
         let h = f64::from(c.height());
         if (a.heights.len() as u32) < p.line_min_glyphs
             || h < p.line_min_height_xh * xheight
@@ -403,15 +417,34 @@ pub fn segment(
         {
             continue;
         }
-        lines.push(TextLine {
-            bbox: Rect::of(c),
-            glyphs: a.heights.len() as u32,
-            ink_area: a.area,
-            glyph_height: median_u32(&mut a.heights),
-            block: 0,
-        });
+        kept.push((
+            TextLine {
+                bbox: Rect::of(c),
+                glyphs: a.heights.len() as u32,
+                ink_area: a.area,
+                glyph_height: median_u32(&mut a.heights),
+                block: 0,
+            },
+            ri as u32 + 1,
+        ));
     }
-    lines.sort_by_key(|l| (l.bbox.y0, l.bbox.x0, l.bbox.y1, l.bbox.x1));
+    kept.sort_by_key(|(l, _)| (l.bbox.y0, l.bbox.x0, l.bbox.y1, l.bbox.x1));
+    let mut line_of_label = vec![None; rows.components.len() + 1];
+    for (idx, (_, label)) in kept.iter().enumerate() {
+        line_of_label[*label as usize] = Some(idx);
+    }
+    let glyphs: Vec<GlyphBox> = lab
+        .components
+        .iter()
+        .enumerate()
+        .filter(|(k, _)| kinds[*k] == Kind::Glyph)
+        .map(|(k, c)| GlyphBox {
+            bbox: Rect::of(c),
+            area: c.area,
+            line: line_of_label[rows.labels[first[k]] as usize],
+        })
+        .collect();
+    let mut lines: Vec<TextLine> = kept.into_iter().map(|(l, _)| l).collect();
 
     // Blocks. Candidate pairs are lines that overlap horizontally; the typical gap of the page is
     // the median, over lines, of the gap to the nearest candidate below.
@@ -500,6 +533,8 @@ pub fn segment(
         glyph_ink_pixels,
         ink_pixels,
         lines,
+        glyphs,
+        ink,
         blocks,
         rules,
         graphics,
@@ -516,7 +551,12 @@ pub fn detect(
     skew_deg: f64,
     params: &Params,
 ) -> Result<Detection> {
-    let layout = segment(gray, width, height, skew_deg, params)?;
+    Ok(summarize(&segment(gray, width, height, skew_deg, params)?))
+}
+
+/// The summary numbers of a segmentation, as [`detect`] reports them.
+pub fn summarize(layout: &Layout) -> Detection {
+    let (width, height) = (layout.width, layout.height);
     let xh = layout.xheight;
     let page_px = (width * height) as f64;
 
@@ -565,10 +605,10 @@ pub fn detect(
         "median_glyph_height_xh",
         f64::from(median_u32(&mut heights)) / xh,
     );
-    Ok(Detection {
+    Detection {
         findings: Vec::new(),
         features,
-    })
+    }
 }
 
 #[cfg(test)]

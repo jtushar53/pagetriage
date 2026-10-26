@@ -8,7 +8,7 @@ The analyser is split into modules. Code that implements one cites its number (f
 | M1 | `structural.text_layer` | Native text, raster only, invisible OCR layer under a scan, mixed, vector only, or empty | 1 | implemented: [`text_layer`](detectors/text_layer.md) (cargo feature `pdf`) |
 | M2 | `structural.font_script` | Script from PDF font internals, including legacy non-Unicode Devanagari fonts | 1 | implemented: [`font_script`](detectors/font_script.md) (cargo feature `pdf`) |
 | M3 | `pixel.quality` | Skew, blur, contrast, speckle, bleed-through, fold lines, photocopy generation; picks the binariser | 1 | implemented: [`quality`](detectors/quality.md); binarisers (Otsu, Sauvola, Wolf, Howe): [`binarize`](detectors/binarize.md) |
-| M4 | `pixel.script` | Script identification from pixels, without ML (headline, connected-component and texture tiers) | 2 | planned (builds on [`layout`](detectors/layout.md)) |
+| M4 | `pixel.script` | Script identification from pixels, without ML (headline, connected-component and texture tiers) | 2 | implemented, opt-in, synthetic checks only: [`script`](detectors/script.md) (headline and component tiers; no texture tier; family level, not individual scripts) |
 | M5 | `pixel.handwriting` | Handwritten vs machine-printed text, including filled-in blanks on printed forms | 2 | planned (builds on [`layout`](detectors/layout.md)) |
 | M6 | `pixel.stamp_seal` | Rubber stamps and seals, by colour clustering and by shape | 3 | planned |
 | M7 | `pixel.signature` | Wet signatures | 3 | planned |

@@ -365,6 +365,66 @@ def layout_form():
     return _layout_page(ink)
 
 
+def _cursive_ink(seed, w, h, y0=22, y1=None):
+    """Lines of joined pseudo-letters: words are 2-px baselines under 2-4 letters of one kind each
+    (stem, arch, bowl, teeth), with 2x2 dots above some letters, as the Arabic script has."""
+    rng = Lcg(seed)
+    ink = set()
+    y = y0
+    y1 = y1 if y1 is not None else h - 16
+    while y + 12 < y1:
+        x = 14
+        while x < w - 20:
+            letters = 2 + rng.next(4)
+            for g in range(letters):
+                gx = x + g * 6
+                for dx in range(7):
+                    ink.update({(gx + dx, y + 6), (gx + dx, y + 7)})
+                kind = rng.next(4)
+                if kind == 0:
+                    for dy in range(7):
+                        ink.update({(gx + 2, y + dy), (gx + 3, y + dy)})
+                elif kind == 1:
+                    for dx in range(1, 6):
+                        ink.update({(gx + dx, y + 3 + (dx in (1, 5)) * 2), (gx + dx, y + 4 + (dx in (1, 5)) * 2)})
+                elif kind == 2:
+                    for dx in range(1, 6):
+                        ink.update({(gx + dx, y + 10 - (dx in (1, 5)) * 2), (gx + dx, y + 9 - (dx in (1, 5)) * 2)})
+                else:
+                    for tx in (0, 3, 6):
+                        for dy in range(4, 6):
+                            ink.update({(gx + tx, y + dy)})
+                if rng.next(5) < 3:
+                    ink.update({(gx + 2, y - 3), (gx + 3, y - 3), (gx + 2, y - 2), (gx + 3, y - 2)})
+            x += letters * 6 + 8 + rng.next(4)
+        y += 20
+    return ink
+
+
+def script_cursive():
+    """Joined pseudo-letters with dots on a baseline: the cursive family."""
+    rng = Lcg(61)
+    px = [235 + rng.next(5) for _ in range(QW * QH)]
+    for x, y in sorted(_cursive_ink(62, QW, QH)):
+        px[y * QW + x] = 30 + rng.next(20)
+    return px
+
+
+def script_mixed():
+    """Headline words in the top half, separate letters in the bottom half."""
+    rng = Lcg(63)
+    px = [235 + rng.next(5) for _ in range(QW * QH)]
+    top = _quality_ink(64, QW, QH // 2 + 12, True)
+    bottom = _quality_ink(65, QW, QH // 2 + 12, False)
+    for x, y in sorted(top):
+        if y < QH // 2 - 6:
+            px[y * QW + x] = 30 + rng.next(20)
+    for x, y in sorted(bottom):
+        if y >= 22 and y + QH // 2 - 6 < QH - 8:
+            px[(y + QH // 2 - 6) * QW + x] = 30 + rng.next(20)
+    return px
+
+
 if __name__ == "__main__":
     for fn in (blank_speckle, text_like, borderline, faint_strokes, dark_fill):
         write_pgm(fn.__name__, fn())
@@ -382,4 +442,7 @@ if __name__ == "__main__":
     print("wrote quality_fold")
     for fn in (layout_one_column, layout_two_columns, layout_form):
         write_pgm(fn.__name__, fn(), LW, LH, LAYOUT_OUT)
+        print("wrote", fn.__name__)
+    for fn in (script_cursive, script_mixed):
+        write_pgm(fn.__name__, fn(), QW, QH, LAYOUT_OUT)
         print("wrote", fn.__name__)

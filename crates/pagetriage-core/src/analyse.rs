@@ -10,6 +10,7 @@ use crate::pixel::content_type::{self, BLANK_PAGE};
 use crate::pixel::layout::{self, LAYOUT};
 use crate::pixel::phash::{self, PHASH};
 use crate::pixel::quality;
+use crate::pixel::script::{self, SCRIPT};
 use crate::schema::{self, Finding, Kind, PageReport};
 use crate::structural::PageStructure;
 
@@ -20,6 +21,7 @@ pub const DETECTORS: &[&str] = &[
     BLANK_PAGE,
     LAYOUT,
     PHASH,
+    SCRIPT,
 ];
 
 /// Detectors in [`DETECTORS`] that run only when `Options::detectors` names them. A new detector
@@ -28,6 +30,7 @@ pub const DETECTORS: &[&str] = &[
 #[rustfmt::skip]
 pub const OPT_IN: &[&str] = &[
     LAYOUT,
+    SCRIPT,
 ];
 
 /// One rasterised page. `gray` is `width * height` bytes, row-major. `rgb`, when present, is
@@ -131,6 +134,19 @@ pub fn analyse_page_report(
         &params,
     )?;
 
+    // The layout pass is shared by every detector that works line by line; run it once.
+    let page_layout = if selected.iter().any(|d| matches!(*d, LAYOUT | SCRIPT)) {
+        Some(layout::segment(
+            input.gray,
+            input.width as usize,
+            input.height as usize,
+            assessment.quality.skew_deg,
+            &params,
+        )?)
+    } else {
+        None
+    };
+
     let mut findings = Vec::new();
     let mut debug: BTreeMap<String, BTreeMap<String, f64>> = BTreeMap::new();
     let mut hashes = None;
@@ -139,13 +155,8 @@ pub fn analyse_page_report(
             BLANK_PAGE => {
                 content_type::detect_blank_page(input.gray, &params.blank_page, &params.fusion)?
             }
-            LAYOUT => layout::detect(
-                input.gray,
-                input.width as usize,
-                input.height as usize,
-                assessment.quality.skew_deg,
-                &params,
-            )?,
+            LAYOUT => layout::summarize(page_layout.as_ref().expect("segmented above")),
+            SCRIPT => script::detect(page_layout.as_ref().expect("segmented above"), &params)?,
             PHASH => {
                 let (detection, page_hashes) = phash::detect(
                     input.gray,
