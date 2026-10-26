@@ -236,6 +236,11 @@
           "description": "Text on the page that the supplied text layer or OCR boxes do not cover.",
           "type": "string",
           "const": "extraction_gap"
+        },
+        {
+          "description": "The page's text does not run left to right with its tops up; `rotate_clockwise_deg` says how to turn it.",
+          "type": "string",
+          "const": "misoriented"
         }
       ]
     },
@@ -250,6 +255,108 @@
         "mixed",
         "blank",
         "cover_stamp_paper"
+      ]
+    },
+    "PagePlan": {
+      "description": "Deterministic instructions for whatever reads this page next (an OCR engine, a handwriting model, a\nvision-language model): how to turn and scale the page, which pieces to send where, which to skip.",
+      "type": "object",
+      "properties": {
+        "binarizer": {
+          "description": "The binarisation method to use before OCR (module M3).",
+          "type": "string"
+        },
+        "content_bbox": {
+          "description": "Box of everything worth reading, with a margin, in the page as given; the whole page if nothing\nwas found.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0
+          },
+          "maxItems": 4,
+          "minItems": 4
+        },
+        "deskew_clockwise_deg": {
+          "description": "Then turn it this many degrees clockwise to level its lines (the measured skew, so a page whose\ntext rises to the right is turned clockwise). `None` when the page needs a quarter turn first:\nthe skew and the regions below were measured on it sideways.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "difficulty": {
+          "description": "0 (easy) to 1 (hard): a rough budget guide, not a probability.",
+          "type": "number",
+          "format": "double"
+        },
+        "input_sha256": {
+          "description": "SHA-256 of the pixels, size and resolution: the same page always has the same key.",
+          "type": "string"
+        },
+        "needs_rerun": {
+          "description": "The page was read sideways or upside down: analyse the rotated image again for regions.",
+          "type": "boolean"
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "regions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PlanRegion"
+          }
+        },
+        "rotate_clockwise_deg": {
+          "description": "Turn the page this many degrees clockwise first (0, 90, 180 or 270).",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "scale": {
+          "$ref": "#/$defs/PlanScale"
+        },
+        "scripts": {
+          "description": "Scripts the page is probably written in, from the script detector, most likely first.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "skip": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PlanSkip"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tiles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PlanTile"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "binarizer",
+        "content_bbox",
+        "deskew_clockwise_deg",
+        "difficulty",
+        "input_sha256",
+        "needs_rerun",
+        "notes",
+        "regions",
+        "rotate_clockwise_deg",
+        "scale",
+        "scripts",
+        "skip",
+        "tiles"
       ]
     },
     "PageReport": {
@@ -319,6 +426,17 @@
             "null"
           ]
         },
+        "plan": {
+          "description": "What to do with the page next; present when the `plan` detector is selected.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PagePlan"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "quality": {
           "anyOf": [
             {
@@ -369,6 +487,7 @@
         "near_duplicate_of",
         "page_type",
         "phash",
+        "plan",
         "quality",
         "size_pt",
         "text_layer",
@@ -398,6 +517,133 @@
         "alternatives",
         "confidence",
         "label"
+      ]
+    },
+    "PlanRegion": {
+      "description": "A piece of the page and where to send it.",
+      "type": "object",
+      "properties": {
+        "bbox": {
+          "description": "`[x0, y0, x1, y1]` in the page as given (before any rotation or deskew), pixels.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0
+          },
+          "maxItems": 4,
+          "minItems": 4
+        },
+        "kind": {
+          "description": "`text_block`, `table`, `handwriting`, `signature`, `stamp`, `seal`, `embossed_seal`,\n`thumb_impression`, `photo`, `qr_code`, `checkbox_grid` or `redaction_box`.",
+          "type": "string"
+        },
+        "priority": {
+          "description": "0 reads first (text, tables, handwriting), 1 next (marks and pictures), 2 last (codes, notes).",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "route": {
+          "description": "`ocr`, `table`, `handwriting`, `mark`, `vision`, `decoded`, `decode`, `fields` or `note`.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "bbox",
+        "kind",
+        "priority",
+        "route"
+      ]
+    },
+    "PlanScale": {
+      "description": "How much to enlarge or shrink the page for a downstream reader (OCR engines read best at a\ncharacter size of a few dozen pixels).",
+      "type": "object",
+      "properties": {
+        "factor": {
+          "description": "Multiply the page's size by this (1.0 leaves it).",
+          "type": "number",
+          "format": "double"
+        },
+        "suggested_dpi": {
+          "description": "The resolution that factor corresponds to, given the analysis dpi.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "target_xheight_px": {
+          "type": "number",
+          "format": "double"
+        },
+        "xheight_px": {
+          "description": "Measured height of a lower-case letter, pixels, as the page is.",
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "factor",
+        "suggested_dpi",
+        "target_xheight_px",
+        "xheight_px"
+      ]
+    },
+    "PlanSkip": {
+      "description": "Why a page need not be sent anywhere.",
+      "type": "object",
+      "properties": {
+        "of": {
+          "description": "For a near-duplicate: the `index` of the earlier page it repeats.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "reason": {
+          "description": "`blank` or `near_duplicate`.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "of",
+        "reason"
+      ]
+    },
+    "PlanTile": {
+      "description": "A tile of a page too big to send whole, cut along empty rows and columns, overlapping its neighbours.",
+      "type": "object",
+      "properties": {
+        "bbox": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0
+          },
+          "maxItems": 4,
+          "minItems": 4
+        },
+        "column": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "row": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "bbox",
+        "column",
+        "row"
       ]
     },
     "Quality": {

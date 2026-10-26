@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use serde::Deserialize;
 
 use crate::error::{Error, Result};
-use crate::fusion::{calibration, consistency, page_type};
+use crate::fusion::{calibration, consistency, page_type, plan};
 use crate::params::Params;
 use crate::pixel::content_type::{self, BLANK_PAGE};
 use crate::pixel::coverage::{self, COVERAGE};
@@ -26,6 +26,10 @@ use crate::pixel::thumb::{self, THUMB};
 use crate::schema::{self, Evidence, Finding, Kind, PageReport};
 use crate::structural::PageStructure;
 
+/// The page plan is not a detector with findings of its own: naming it runs the layout and the
+/// orientation reading and attaches `plan` to the report.
+pub const PLAN: &str = "plan";
+
 /// Detectors that can be named in `Options::detectors`. Grows as phases land. One name per line, in
 /// alphabetical order, so that branches adding detectors do not edit the same line.
 #[rustfmt::skip]
@@ -38,6 +42,7 @@ pub const DETECTORS: &[&str] = &[
     ORIENTATION,
     PHASH,
     PHOTO,
+    PLAN,
     QR,
     REDACTION,
     RULINGS,
@@ -58,6 +63,7 @@ pub const OPT_IN: &[&str] = &[
     LAYOUT,
     ORIENTATION,
     PHOTO,
+    PLAN,
     QR,
     REDACTION,
     RULINGS,
@@ -141,7 +147,7 @@ pub fn analyse_page_report(
         None => Params::defaults()?,
     };
 
-    let selected: Vec<&str> = match &options.detectors {
+    let mut selected: Vec<&str> = match &options.detectors {
         None => DETECTORS
             .iter()
             .copied()
@@ -165,6 +171,12 @@ pub fn analyse_page_report(
         }
     };
 
+    // The plan reads the orientation finding and the layout, so naming it brings them in.
+    if selected.contains(&PLAN) && !selected.contains(&ORIENTATION) {
+        selected.push(ORIENTATION);
+        selected.sort_by_key(|d| DETECTORS.iter().position(|x| x == d));
+    }
+
     // Module M3: degradation triage. Always runs; it is not a finding. It runs first because the
     // layout pass levels the page by its skew.
     let assessment = quality::assess(
@@ -176,6 +188,7 @@ pub fn analyse_page_report(
     )?;
 
     let layout_selected = selected.contains(&LAYOUT);
+    let plan_selected = selected.contains(&PLAN);
 
     // Text boxes for the coverage detector: the caller's, else the PDF's own from the structure.
     let text_boxes: Option<Vec<[u32; 4]>> = options.text_boxes.clone().or_else(|| {
@@ -198,7 +211,7 @@ pub fn analyse_page_report(
     let page_layout = if selected.iter().any(|d| {
         matches!(
             *d,
-            COVERAGE | HANDWRITING | LAYOUT | REDACTION | RULINGS | SCRIPT | SIGNATURE
+            COVERAGE | HANDWRITING | LAYOUT | PLAN | REDACTION | RULINGS | SCRIPT | SIGNATURE
         )
     }) {
         Some(layout::segment(
@@ -244,6 +257,7 @@ pub fn analyse_page_report(
                 input.dpi,
                 &params,
             )?,
+            PLAN => crate::pixel::Detection::default(),
             PHOTO => photo::detect(
                 input.gray,
                 input.width as usize,
@@ -332,6 +346,27 @@ pub fn analyse_page_report(
         _ => None,
     };
 
+    let page_plan = match (&page_layout, plan_selected) {
+        (Some(l), true) => Some(plan::build(
+            &plan::PlanInput {
+                gray: input.gray,
+                width: input.width as usize,
+                height: input.height as usize,
+                dpi: input.dpi,
+                layout: l,
+                findings: &findings,
+                quality: &assessment.quality,
+                badness: assessment
+                    .features
+                    .get("grade_badness")
+                    .copied()
+                    .unwrap_or(0.0),
+            },
+            &params.plan,
+        )),
+        _ => None,
+    };
+
     calibration::apply(&mut findings, &params.calibration);
 
     debug.insert("quality".to_owned(), assessment.features);
@@ -349,6 +384,7 @@ pub fn analyse_page_report(
         quality: Some(assessment.quality),
         findings,
         page_type,
+        plan: page_plan,
         phash: hashes.map(|h| h.phash_hex()),
         dhash: hashes.map(|h| h.dhash_hex()),
         near_duplicate_of: None,
@@ -378,6 +414,26 @@ pub fn finish_document(pages_json: &str, opts_json: &str) -> Result<String> {
         &params.document,
         &params.fusion,
     )?;
+    // A page that repeats an earlier one need not be sent anywhere again.
+    for r in &mut reports {
+        let repeat = r.near_duplicate_of;
+        if let Some(plan) = &mut r.plan {
+            let is_dup_skip = plan
+                .skip
+                .as_ref()
+                .is_some_and(|s| s.reason == "near_duplicate");
+            match repeat {
+                Some(of) if plan.skip.is_none() || is_dup_skip => {
+                    plan.skip = Some(schema::PlanSkip {
+                        reason: "near_duplicate".into(),
+                        of: Some(of),
+                    });
+                }
+                None if is_dup_skip => plan.skip = None,
+                _ => {}
+            }
+        }
+    }
     schema::to_canonical_json(&reports)
 }
 

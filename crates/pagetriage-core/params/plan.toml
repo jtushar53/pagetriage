@@ -1,0 +1,55 @@
+# Page plan (module M14): what to do with a page before and while a model reads it. Everything is
+# arithmetic on what the other detectors found; no model. "hand set" means written from the author's idea
+# of what an OCR engine or a vision-language model needs; nothing here has been checked against a real
+# downstream reader or a real document.
+
+# ---- scale ------------------------------------------------------------------------------------
+
+# Character size (height of a lower-case letter, pixels) the page is brought to before OCR. OCR engines
+# are usually said to read best at an x-height of roughly 20 to 30 pixels. Source: hand set.
+target_xheight_px = 24.0
+# The factor is kept between these, so a page is not blown up into noise or shrunk to nothing.
+# Source: hand set.
+min_scale = 0.5
+max_scale = 4.0
+
+# ---- content box and regions -------------------------------------------------------------------
+
+# Margin kept around the content, inches. Source: hand set.
+margin_in = 0.1
+# A layout text block is a handwriting region instead when at least this share of it lies inside a
+# handwriting finding, and is left out when at least this share lies inside a table or a mark.
+# Source: hand set.
+handwriting_overlap = 0.5
+covered_overlap = 0.6
+
+# ---- skipping ----------------------------------------------------------------------------------
+
+# A page with less ink than this share of its pixels and no region is blank. Source: module M10
+# (blank = ink coverage < 0.2%).
+blank_ink_share = 0.002
+
+# ---- tiles -------------------------------------------------------------------------------------
+
+# A page with a side longer than this is cut into tiles whose sides are at most this (a vision-language
+# model downscales a large image and loses small print). Source: hand set.
+tile_max_side_px = 2048
+# Neighbouring tiles overlap by this share of the tile side. Source: hand set.
+tile_overlap = 0.08
+# A cut is searched for within this share of the tile side either side of an even cut, at the row
+# or column with least ink. Source: hand set.
+tile_search = 0.15
+# A pixel is ink for the cut search when it is this many gray levels darker than the paper (the most
+# common gray). Source: hand set.
+tile_ink_delta = 60
+
+# ---- difficulty --------------------------------------------------------------------------------
+
+# difficulty = min(1, quality badness + bonuses), the badness being the M3 grade's score in [0, 1].
+# Bonuses: handwriting on the page, a table, a page that has to be turned, text smaller than
+# small_xheight_px. Source: hand set.
+handwriting_bonus = 0.10
+table_bonus = 0.10
+turn_bonus = 0.05
+small_text_bonus = 0.10
+small_xheight_px = 12.0
