@@ -289,6 +289,25 @@ Known limits, beyond the table:
   detectors (stamp-paper header, e-stamp QR code, registrar endorsement, embossed seal) are built and
   measured on synthetic pages only; the stamp-paper header is a guess at what stamp paper looks like.
 
+## Page size and resolution
+
+Nothing is tied to A4 or to 150 dpi. The page size comes from the pixels you pass in, the resolution from
+the `dpi` you give, and the layout measures in x-heights. Checked on one synthetic text page (script
+`bench/page_size_eval.py`, test `crates/pagetriage-core/tests/page_sizes.rs`): A4, Letter, Legal, A5, A3,
+landscape, a 6 in square and a 3.1 in receipt strip at 150 dpi, A4 from 72 to 600 dpi, tilted 3 degrees,
+type from 6 to 24 pt: the lines drawn were found every time and the tilt was read as 3.0.
+
+- **You must give the right dpi.** The core does not read it from the image. A wrong dpi leaves the
+  layout alone but changes the page size in the report and every inch- or millimetre-based setting
+  (picture and coverage tiles, seal radius). The CLI assumes 150 when you do not say.
+- **Cost grows with the pixel count.** A4 at 150 dpi takes about 0.4 s; at 300 dpi 2 s; at 600 dpi 10 s.
+  A poster sheet (A1 at 300 dpi, 70 megapixels) took 14 s and 1.3 GB in one run with only the layout
+  on. There is no tiling and no pixel cap in the core; the browser demo refuses images over 36 megapixels.
+- **Only the layout, script and quality readouts were swept over sizes.** The other detectors were tuned
+  and measured on A4 at 150 dpi and have not been checked at other sizes or resolutions.
+- **Engineering sheets (A1/A0 drawings) are not what this was built for**: it does not recognise symbols or
+  trace lines, and it does not tile sheets that large.
+
 ## Large documents
 
 The structure pass reads PDF objects and content streams without rendering, so its cost grows about
