@@ -102,6 +102,7 @@ PDFS = [
     ("scripts_legacy", "Hindi in four font families", "One page uses a legacy font (Kruti Dev) that looks like Devanagari on screen but copies as Latin gibberish. It is flagged."),
     ("signed_then_edited", "Edited after signing", "An incremental update was appended after the first save, the footprint of a change made later."),
     ("encrypted", "Encrypted PDF", "Cannot be read without a password. Reported as such, not guessed at."),
+    ("redacted_text", "Boxes over text that is still there", "A black box over a name and a white box over an address, both painted on top of text that is still in the file. Anyone can copy the text out from under them."),
     ("vector_empty_mixed", "Vector, blank and mixed pages", "Drawn lines with no text, an empty page, and a page mixing both."),
 ]
 

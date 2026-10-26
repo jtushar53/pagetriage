@@ -5,11 +5,24 @@ use std::collections::BTreeMap;
 use serde::Deserialize;
 
 use crate::error::{Error, Result};
+use crate::fusion::{calibration, consistency, page_type};
 use crate::params::Params;
 use crate::pixel::content_type::{self, BLANK_PAGE};
+use crate::pixel::coverage::{self, COVERAGE};
+use crate::pixel::emboss::{self, EMBOSS};
+use crate::pixel::handwriting::{self, HANDWRITING};
+use crate::pixel::layout::{self, LAYOUT};
 use crate::pixel::phash::{self, PHASH};
+use crate::pixel::photo::{self, PHOTO};
+use crate::pixel::qr::{self, QR};
 use crate::pixel::quality;
-use crate::schema::{self, Finding, Kind, PageReport};
+use crate::pixel::redaction::{self, REDACTION};
+use crate::pixel::rulings::{self, RULINGS};
+use crate::pixel::script::{self, SCRIPT};
+use crate::pixel::signature::{self, SIGNATURE};
+use crate::pixel::stamp::{self, STAMP};
+use crate::pixel::thumb::{self, THUMB};
+use crate::schema::{self, Evidence, Finding, Kind, PageReport};
 use crate::structural::PageStructure;
 
 /// Detectors that can be named in `Options::detectors`. Grows as phases land. One name per line, in
@@ -17,7 +30,19 @@ use crate::structural::PageStructure;
 #[rustfmt::skip]
 pub const DETECTORS: &[&str] = &[
     BLANK_PAGE,
+    COVERAGE,
+    EMBOSS,
+    HANDWRITING,
+    LAYOUT,
     PHASH,
+    PHOTO,
+    QR,
+    REDACTION,
+    RULINGS,
+    SCRIPT,
+    SIGNATURE,
+    STAMP,
+    THUMB,
 ];
 
 /// Detectors in [`DETECTORS`] that run only when `Options::detectors` names them. A new detector
@@ -25,6 +50,18 @@ pub const DETECTORS: &[&str] = &[
 /// been reviewed; promoting it means deleting its line. Same layout rule as [`DETECTORS`].
 #[rustfmt::skip]
 pub const OPT_IN: &[&str] = &[
+    COVERAGE,
+    EMBOSS,
+    HANDWRITING,
+    LAYOUT,
+    PHOTO,
+    QR,
+    REDACTION,
+    RULINGS,
+    SCRIPT,
+    SIGNATURE,
+    STAMP,
+    THUMB,
 ];
 
 /// One rasterised page. `gray` is `width * height` bytes, row-major. `rgb`, when present, is
@@ -48,6 +85,10 @@ pub struct Options {
     pub detectors: Option<Vec<String>>,
     /// TOML merged over the embedded `params/*.toml` defaults.
     pub params: Option<String>,
+    /// Where the page's text layer or an OCR run put text, `[x0, y0, x1, y1]` in page pixels at the
+    /// analysis DPI, for the `coverage` detector. An empty list means "no text"; leaving it out means
+    /// "unknown" (a PDF's own text boxes from `structural_json` are used then).
+    pub text_boxes: Option<Vec<[u32; 4]>>,
     /// Value for the report's `index` field (the page's position in its document).
     pub page_index: u32,
 }
@@ -118,6 +159,53 @@ pub fn analyse_page_report(
         }
     };
 
+    // Module M3: degradation triage. Always runs; it is not a finding. It runs first because the
+    // layout pass levels the page by its skew.
+    let assessment = quality::assess(
+        input.gray,
+        input.width as usize,
+        input.height as usize,
+        input.dpi,
+        &params,
+    )?;
+
+    let layout_selected = selected.contains(&LAYOUT);
+
+    // Text boxes for the coverage detector: the caller's, else the PDF's own from the structure.
+    let text_boxes: Option<Vec<[u32; 4]>> = options.text_boxes.clone().or_else(|| {
+        let scale = f64::from(input.dpi) / 72.0;
+        structure
+            .as_ref()
+            .and_then(|ps| ps.text_boxes_pt.as_ref())
+            .map(|boxes| {
+                boxes
+                    .iter()
+                    .map(|b| {
+                        let px = |v: f64| (v * scale).max(0.0).round() as u32;
+                        [px(b[0]), px(b[1]), px(b[2]), px(b[3])]
+                    })
+                    .collect()
+            })
+    });
+
+    // The layout pass is shared by every detector that works line by line; run it once.
+    let page_layout = if selected.iter().any(|d| {
+        matches!(
+            *d,
+            COVERAGE | HANDWRITING | LAYOUT | REDACTION | RULINGS | SCRIPT | SIGNATURE
+        )
+    }) {
+        Some(layout::segment(
+            input.gray,
+            input.width as usize,
+            input.height as usize,
+            assessment.quality.skew_deg,
+            &params,
+        )?)
+    } else {
+        None
+    };
+
     let mut findings = Vec::new();
     let mut debug: BTreeMap<String, BTreeMap<String, f64>> = BTreeMap::new();
     let mut hashes = None;
@@ -126,6 +214,68 @@ pub fn analyse_page_report(
             BLANK_PAGE => {
                 content_type::detect_blank_page(input.gray, &params.blank_page, &params.fusion)?
             }
+            COVERAGE => coverage::detect(
+                page_layout.as_ref().expect("segmented above"),
+                text_boxes.as_deref(),
+                input.dpi,
+                &params,
+            )?,
+            EMBOSS => emboss::detect(
+                input.gray,
+                input.width as usize,
+                input.height as usize,
+                input.dpi,
+                &params,
+            )?,
+            HANDWRITING => {
+                handwriting::detect(page_layout.as_ref().expect("segmented above"), &params)?
+            }
+            LAYOUT => layout::summarize(page_layout.as_ref().expect("segmented above")),
+            PHOTO => photo::detect(
+                input.gray,
+                input.width as usize,
+                input.height as usize,
+                input.dpi,
+                &params,
+            )?,
+            QR => qr::detect(
+                input.gray,
+                input.width as usize,
+                input.height as usize,
+                &params,
+            )?,
+            REDACTION => redaction::detect(
+                page_layout.as_ref().expect("segmented above"),
+                input.gray,
+                &params,
+            )?,
+            RULINGS => rulings::detect(
+                page_layout.as_ref().expect("segmented above"),
+                input.gray,
+                input.dpi,
+                &params,
+            )?,
+            SIGNATURE => signature::detect(
+                page_layout.as_ref().expect("segmented above"),
+                input.dpi,
+                &params,
+            )?,
+            THUMB => thumb::detect(
+                input.gray,
+                input.width as usize,
+                input.height as usize,
+                input.dpi,
+                &params,
+            )?,
+            STAMP => stamp::detect(
+                input.gray,
+                input.rgb,
+                input.width as usize,
+                input.height as usize,
+                input.dpi,
+                &params,
+            )?,
+            SCRIPT => script::detect(page_layout.as_ref().expect("segmented above"), &params)?,
             PHASH => {
                 let (detection, page_hashes) = phash::detect(
                     input.gray,
@@ -144,17 +294,33 @@ pub fn analyse_page_report(
 
     // The structural layer's verdict for this page (M1) and its legacy-font finding (M2).
     if let Some(ps) = &structure {
-        findings.extend(structure_findings(ps));
+        findings.extend(structure_findings(ps, input.dpi));
     }
 
-    // Module M3: degradation triage. Always runs; it is not a finding.
-    let assessment = quality::assess(
-        input.gray,
-        input.width as usize,
-        input.height as usize,
-        input.dpi,
-        &params,
-    )?;
+    // Module M13: rules across detectors, then the composites of module M11 that are built from
+    // other findings (e-stamp QR, stamp-paper header).
+    let context = match &page_layout {
+        Some(l) => consistency::context(l, &params.consistency),
+        None => consistency::PageContext {
+            width: input.width,
+            height: input.height,
+            ..consistency::PageContext::default()
+        },
+    };
+    consistency::apply(&mut findings, &context, &params.consistency, &params.fusion);
+
+    // Module M10: page typing needs the layout, so it runs when `layout` was asked for.
+    let page_type = match (&page_layout, layout_selected) {
+        (Some(l), true) => {
+            let facts = page_type::facts(l, &findings, input.gray, &params.page_type);
+            debug.insert("page_type".to_owned(), page_type::features(&facts));
+            Some(page_type::classify(&facts, &params.page_type))
+        }
+        _ => None,
+    };
+
+    calibration::apply(&mut findings, &params.calibration);
+
     debug.insert("quality".to_owned(), assessment.features);
 
     let dpi = f64::from(input.dpi);
@@ -169,12 +335,37 @@ pub fn analyse_page_report(
         text_layer: structure.as_ref().and_then(|ps| ps.text_layer.clone()),
         quality: Some(assessment.quality),
         findings,
-        page_type: None,
+        page_type,
         phash: hashes.map(|h| h.phash_hex()),
         dhash: hashes.map(|h| h.dhash_hex()),
         near_duplicate_of: None,
         debug: options.debug.then_some(debug),
     })
+}
+
+/// The document-level pass over a document's page reports: near-duplicate pages (module M12, when the
+/// reports carry hashes) and registrar-endorsement repetition (module M11). `pages_json` is a JSON
+/// array of page reports in page order, as `analyse_page` returns them (the `pages` of a `Report`
+/// work too); the result is the canonical JSON of the same array with `near_duplicate_of` and the
+/// `registrar_endorsement` findings filled. `opts_json` takes `params` (TOML merged over the
+/// defaults). Running it again on its own output changes nothing.
+pub fn finish_document(pages_json: &str, opts_json: &str) -> Result<String> {
+    let options = Options::from_json(opts_json)?;
+    let params = match &options.params {
+        Some(toml) => Params::with_overrides(toml)?,
+        None => Params::defaults()?,
+    };
+    let mut reports: Vec<PageReport> = serde_json::from_str(pages_json)
+        .map_err(|e| Error::InvalidInput(format!("pages_json: {e}")))?;
+    if reports.iter().any(|r| r.phash.is_some()) {
+        phash::mark_near_duplicates(&mut reports, &params.phash)?;
+    }
+    crate::fusion::document::mark_repeated_endorsements(
+        &mut reports,
+        &params.document,
+        &params.fusion,
+    )?;
+    schema::to_canonical_json(&reports)
 }
 
 /// `structural_json` must be a JSON object. If it has a `text_layer` key it is read as one
@@ -200,7 +391,55 @@ fn parse_structural(s: &str) -> Result<Option<PageStructure>> {
 
 /// A legacy-encoded page becomes a `script` finding: its extracted text is not Unicode, so any
 /// consumer that reads the text layer needs to know.
-fn structure_findings(ps: &PageStructure) -> Vec<Finding> {
+fn structure_findings(ps: &PageStructure, dpi: u16) -> Vec<Finding> {
+    let mut out = covered_text_findings(ps, dpi);
+    out.extend(legacy_script_finding(ps));
+    out
+}
+
+/// A filled box over text that is still in the file (module M12, PDF side): a `redaction_box` whose
+/// text can be copied out, or a white one (white-out).
+fn covered_text_findings(ps: &PageStructure, dpi: u16) -> Vec<Finding> {
+    let scale = f64::from(dpi) / 72.0;
+    ps.covered_text
+        .iter()
+        .map(|c| {
+            let mut attributes = serde_json::Map::new();
+            attributes.insert("source".into(), "pdf_content_stream".into());
+            attributes.insert("fill".into(), c.fill.clone().into());
+            attributes.insert("text_recoverable".into(), true.into());
+            attributes.insert("glyphs_covered".into(), c.glyphs.into());
+            // Seen in the file, not estimated from pixels: the confidence rises with the glyphs
+            // under the box (0.5 log-odds each, capped at 12 glyphs) and is not calibrated.
+            let llr = 0.5 * f64::from(c.glyphs.min(12));
+            let evidence: Vec<Evidence> = Evidence::new(
+                "structural.covered_text",
+                "glyphs_covered",
+                f64::from(c.glyphs),
+                None,
+                llr,
+                format!("{} glyphs of text-show operations lie under a {} box", c.glyphs, c.fill),
+                "module M12: a filled rectangle painted over text that is still in the content stream",
+            )
+            .into_iter()
+            .collect();
+            let confidence = crate::math::round_output(crate::fusion::scorer::confidence(0.0, &evidence));
+            Finding {
+                kind: Kind::RedactionBox,
+                confidence,
+                bbox: c.bbox_pt.map(|b| {
+                    let px = |v: f64| (v * scale).max(0.0).round() as u32;
+                    [px(b[0]), px(b[1]), px(b[2]), px(b[3])]
+                }),
+                polygon: None,
+                attributes,
+                evidence,
+            }
+        })
+        .collect()
+}
+
+fn legacy_script_finding(ps: &PageStructure) -> Vec<Finding> {
     let Some(script) = ps.script.as_ref().filter(|s| s.legacy_encoded) else {
         return Vec::new();
     };
@@ -403,10 +642,41 @@ mod tests {
     }
 
     #[test]
+    fn covered_text_becomes_a_redaction_box_in_page_pixels() {
+        let structural = r#"{"index":0,"size_pt":[612.0,792.0],"rotation":0,"text_layer":null,"script":null,"features":null,"images":[],"conflicts":[],"notes":[],"covered_text":[{"bbox_pt":[72.0,100.0,144.0,124.0],"fill":"black","glyphs":10},{"bbox_pt":null,"fill":"white","glyphs":4}]}"#;
+        let gray = vec![255u8; 8 * 8];
+        let input = PageInput {
+            gray: &gray,
+            rgb: None,
+            width: 8,
+            height: 8,
+            dpi: 144,
+        };
+        let r = analyse_page_report(&input, Some(structural), r#"{"detectors":[]}"#).unwrap();
+        let boxes: Vec<_> = r
+            .findings
+            .iter()
+            .filter(|f| f.kind == Kind::RedactionBox)
+            .collect();
+        assert_eq!(boxes.len(), 2);
+        // 144 dpi is two pixels per point.
+        assert_eq!(boxes[0].bbox, Some([144, 200, 288, 248]));
+        assert_eq!(boxes[0].attributes["fill"], "black");
+        assert_eq!(boxes[0].attributes["text_recoverable"], true);
+        assert!(
+            boxes[0].confidence > boxes[1].confidence,
+            "more glyphs, more confident"
+        );
+        assert_eq!(boxes[1].bbox, None, "a rotated page's box is not placed");
+    }
+
+    #[test]
     fn structural_page_fills_text_layer_and_legacy_finding() {
         use crate::schema::{TextLayer, TextLayerState};
         use crate::structural::types::{FontInfo, PageStructure, ScriptInfo};
         let ps = PageStructure {
+            covered_text: Vec::new(),
+            text_boxes_pt: None,
             index: 0,
             size_pt: [612.0, 792.0],
             rotation: 0,

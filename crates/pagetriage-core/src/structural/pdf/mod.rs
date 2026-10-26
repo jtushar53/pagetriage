@@ -19,8 +19,8 @@ use super::jpeg;
 use super::params::StructuralParams;
 use super::text_layer::{self, DocContext};
 use super::types::{
-    DocumentStructure, ImageInfo, JpegInfo, PageFeatures, PageStructure, STRUCTURE_SCHEMA_ID,
-    StructureReport,
+    CoveredTextBox, DocumentStructure, ImageInfo, JpegInfo, PageFeatures, PageStructure,
+    STRUCTURE_SCHEMA_ID, StructureReport,
 };
 use crate::error::{Error, Result};
 use crate::hash::sha256_hex;
@@ -111,6 +111,8 @@ pub fn analyse(bytes: &[u8], p: &StructuralParams) -> Result<StructureReport> {
                 script: None,
                 features: None,
                 images: Vec::new(),
+                covered_text: Vec::new(),
+                text_boxes_pt: None,
                 conflicts: Vec::new(),
                 notes: vec!["encrypted: content not readable".into()],
             }
@@ -224,6 +226,8 @@ pub fn analyse(bytes: &[u8], p: &StructuralParams) -> Result<StructureReport> {
     })
 }
 
+const MAX_TEXT_BOXES: usize = 8192;
+
 #[allow(clippy::too_many_arguments)]
 fn analyse_page(
     doc: &Document,
@@ -255,6 +259,8 @@ fn analyse_page(
             script: None,
             features: None,
             images: Vec::new(),
+            covered_text: Vec::new(),
+            text_boxes_pt: None,
             conflicts: Vec::new(),
             notes,
         });
@@ -296,6 +302,36 @@ fn analyse_page(
         .iter()
         .map(|im| image_info(doc, im, p, jpeg_cache))
         .collect();
+    let covered_text: Vec<CoveredTextBox> = scan
+        .covered
+        .iter()
+        .map(|c| CoveredTextBox {
+            bbox_pt: (rotation == 0).then(|| {
+                [
+                    c.bbox[0] - page_box.x0,
+                    page_box.y1 - c.bbox[3],
+                    c.bbox[2] - page_box.x0,
+                    page_box.y1 - c.bbox[1],
+                ]
+            }),
+            fill: if c.fill <= 0.5 { "black" } else { "white" }.to_owned(),
+            glyphs: c.glyphs,
+        })
+        .collect();
+    let text_boxes_pt = (rotation == 0 && !scan.obs.truncated).then(|| {
+        scan.text_boxes
+            .iter()
+            .take(MAX_TEXT_BOXES)
+            .map(|b| {
+                [
+                    b[0] - page_box.x0,
+                    page_box.y1 - b[3],
+                    b[2] - page_box.x0,
+                    page_box.y1 - b[1],
+                ]
+            })
+            .collect()
+    });
     let o = &scan.obs;
     let features = PageFeatures {
         glyphs: o.glyphs,
@@ -319,6 +355,8 @@ fn analyse_page(
         script: Some(summary.info),
         features: Some(features),
         images,
+        covered_text,
+        text_boxes_pt,
         conflicts,
         notes,
     })

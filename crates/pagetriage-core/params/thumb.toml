@@ -1,0 +1,70 @@
+# Thumb and finger impressions (module M8): compact dark ovals of ridges. No model: local orientation
+# coherence of the gray gradient in blocks, ridge period from zero crossings along the gradient
+# direction, then regions of ridge blocks scored on size, ink density, how varied the orientations
+# are and how oval the region is. Every key says where it comes from. "placeholder" means a first
+# guess not yet checked against data; "tuned on <set>" names the set. Nothing here has been checked on
+# a real impression.
+
+# ---- blocks ----------------------------------------------------------------------------------
+
+# Block side in inches (15 px at 150 dpi). A block is "ridged" when its gradient is strong and
+# coherent and its ridge period is in range. Source: placeholder (a block holds about 4 ridges).
+block_in = 0.1
+
+# Mean squared gradient (Sobel, of the 0-255 gray, per pixel) below this is flat: paper or solid ink.
+# Source: placeholder.
+min_energy = 4000.0
+
+# Orientation coherence |2 Gxy, Gxx - Gyy| / (Gxx + Gyy) at least this. Source: placeholder (Bazen
+# and Gerez's coherence for fingerprint segmentation, IEEE TPAMI 24(7), 2002, is the model; their
+# thresholds were not used).
+min_coherence = 0.35
+
+# Ridge period in inches: finger ridges are about 0.5 mm (0.02 in) apart, a smudged or scaled print
+# 0.014 to 0.05 in. The period comes from the zero crossings of the mean-removed gray along a line of
+# two block sides through the block centre, in the gradient direction. Source: placeholder.
+min_period_in = 0.014
+max_period_in = 0.05
+
+# ---- regions ---------------------------------------------------------------------------------
+
+# Ridged blocks that touch (8-neighbours) form a region. A region's sides must be between these
+# (inches): thumbs print 0.6 to 1.1 in wide, fingers 0.5 to 0.8. Source: placeholder.
+min_side_in = 0.45
+max_side_in = 1.6
+
+# The aspect ratio (long side over short) is at most this. Source: placeholder.
+max_aspect = 1.8
+
+# Share of the region's box that is ridged blocks: an ellipse fills 0.79 of its box; smudges and
+# gaps lower it. Between these. Source: placeholder.
+min_fill = 0.45
+max_fill = 0.98
+
+# Share of the pixels of the box that are dark (below the page's paper level by `dark_delta`): a
+# print is half ink, text a tenth. Source: placeholder.
+dark_delta = 60
+min_dark_fraction = 0.3
+
+# Circular variance of the doubled orientation angle over the blocks, 0 (all one direction: ruling,
+# hatching, a barcode) to 1: a fingerprint's loops and whorls are well above ruling. Source:
+# placeholder.
+min_orientation_spread = 0.12
+
+# ---- scoring ---------------------------------------------------------------------------------
+
+# Confidence = sigmoid(prior + sum of terms), each coef * (value - threshold) clipped to +-term_clip.
+# Source: placeholder (uncalibrated).
+term_clip = 4.0
+prior = -1.0
+coherence_threshold = 0.45
+coherence_coef = 8.0
+spread_threshold = 0.2
+spread_coef = 6.0
+dark_threshold = 0.4
+dark_coef = 6.0
+fill_threshold = 0.6
+fill_coef = 4.0
+
+# At most this many impressions per page. Source: placeholder.
+max_impressions = 8

@@ -1,0 +1,67 @@
+# Wet signatures (module M7): isolated, tangled, curvy pen marks that are bigger than text. No model:
+# five hand-designed measurements on large non-text components of the layout pass, a clipped linear
+# score. Every key says where it comes from. "placeholder" means a first guess not yet checked against
+# data; "tuned on <set>" names the set. Nothing here has been checked on a real document.
+
+# ---- candidates ------------------------------------------------------------------------------
+
+# A component is a candidate when it is a graphic of the layout pass (big in both directions), or a
+# glyph at least this many times as tall as its line's glyphs (or as the page's x-height when it has
+# no line) and at least `min_width_xh` x-heights wide. Source: placeholder.
+min_height_xh = 2.2
+min_width_xh = 3.0
+
+# Candidates whose boxes are within this many inches of each other are one signature (a pen lift, a
+# dot, a flourish). Source: placeholder.
+merge_in = 0.25
+
+# Size window of the merged box, in inches. A signature is rarely under half an inch wide (initials
+# are the exception and are not looked for) or over 4. Source: placeholder.
+min_width_in = 0.5
+max_width_in = 4.0
+min_height_in = 0.15
+max_height_in = 1.6
+
+# Ink share of the box. A signature is a few strokes; a logo or a blob is solid. Source: placeholder.
+max_fill = 0.35
+min_fill = 0.02
+
+# ---- scoring ---------------------------------------------------------------------------------
+
+# Confidence = sigmoid(prior + sum of terms), each term coef * (value - threshold), clipped to
+# +-term_clip. Source: placeholder, thresholds set from the feature ranges of synthetic dev seeds.
+term_clip = 4.0
+prior = -2.0
+
+# Stroke path length (ink pixels over stroke width) divided by the box diagonal. A straight rule is
+# about 1, a printed word about 2 to 3, a tangled flourish more.
+tortuosity_threshold = 3.0
+tortuosity_coef = 0.8
+
+# Closed loops (holes of the ink, by the Euler number), per inch of width, counted up to a cap. The
+# synthetic flourishes have 9 to 33 per inch; ringed stamps with text 4 to 9.
+loops_threshold = 6.0
+loops_coef = 0.3
+loops_cap = 8.0
+
+# Share of edge strength near an axis (see `handwriting`): round, slanted writing is low.
+axis_threshold = 0.55
+axis_coef = 6.0
+
+# Height in x-heights: a signature stands taller than a line of text.
+height_xh_threshold = 3.0
+height_xh_coef = 0.4
+
+# The biggest enclosed hole, as a share of the box: a ring (a stamp, a circled word) has one big hole
+# and a flourish only small ones, so a big hole counts against. Source: placeholder, set from the
+# synthetic ring stamps (hole about 0.3 to 0.5) against flourishes (under 0.05).
+hole_threshold = 0.12
+hole_coef = 10.0
+
+# A candidate whose biggest hole is at least this share of its box is a ring or a frame, never a
+# signature (its other terms can add up to more than the hole term takes away: a stamp's text is
+# as tangled as a flourish). Source: placeholder; synthetic stamps are 0.3 to 0.5, flourishes under 0.15.
+veto_hole = 0.25
+
+# At most this many signatures per page. Source: placeholder.
+max_signatures = 8

@@ -1,0 +1,53 @@
+# Page typing (module M10): which kind of page this is, from what the other detectors found and from
+# the layout. Eight features in [0, 1] are weighed by hand-set coefficients per label (a linear
+# score per label, then a softmax), no trained model. Every number is a placeholder: "hand set" means
+# written from the author's idea of what each page type looks like, then adjusted on the dev seeds of
+# bench/page_type_synth_eval.py. Nothing here has been checked on a real document.
+
+# ---- feature scales: the value at which a feature reaches 1 -----------------------------------
+
+# Text lines in the layout. Source: hand set.
+text_lines_full = 8.0
+# Ink share of the page (Sauvola mask) below which a page counts as empty: empty = 1 - ink / this.
+# Source: module M10 (blank = ink coverage < 0.2%).
+ink_blank = 0.002
+# The larger of the graphic components' bounding boxes and the dark area that is not text, as a share
+# of the page. A picture's smooth areas are not ink to the layout's Sauvola mask, so the dark area
+# is also counted on the gray page: pixels at least dark_delta below the paper (the most common
+# gray), less the text's own ink. Source: hand set.
+graphic_full = 0.15
+dark_delta = 60
+# Largest table's bounding box as a share of the page. Source: hand set.
+table_full = 0.12
+# Printed rules (the counts in the ruling-line findings, the segments of a table), each weighted by
+# how long the longest ruling is. Source: hand set.
+rules_full = 8.0
+# The longest ruling over the page width at which the length weight reaches 1: a form's field rules
+# run a third of the page, the stray rules a stamp or a signature leaves are short. Source: hand set.
+rule_span_full = 0.3
+# Handwriting, signature, stamp, seal, thumb and redaction findings. Source: hand set.
+annot_full = 3.0
+# The top band of the page, as a fraction of its height, where a QR code or a heading makes a page a
+# stamp-paper cover. Source: hand set.
+top_band = 0.35
+
+# ---- softmax -----------------------------------------------------------------------------------
+
+# Scores are divided by this before the softmax; larger gives flatter probabilities. Source: hand set.
+temperature = 1.0
+# Labels other than the winner are listed under `alternatives` at or above this probability.
+# Source: hand set.
+alternative_min = 0.05
+
+# ---- coefficients (a linear score per label) ---------------------------------------------------
+# Keys: bias, text, rules, table, annot, graphic, qr_top, header, empty. Missing means 0. Only the
+# non-zero ones are written (49 in all, just under the limit of about 50 per detector).
+
+text = { bias = 0.0, text = 3.0, rules = -2.0, table = -3.0, annot = -2.5, graphic = -3.0, qr_top = -1.0, header = -2.0 }
+text_with_annotations = { bias = -1.0, text = 3.0, rules = -1.5, table = -3.0, annot = 2.5, graphic = -3.0, qr_top = -1.0, header = -2.0 }
+form = { bias = -2.0, text = 1.5, rules = 3.0, table = 1.0, annot = 1.0, graphic = -2.0, qr_top = -1.0, header = -2.0 }
+table = { bias = -1.0, text = 0.5, rules = 1.0, table = 7.0, graphic = -2.0 }
+photo = { bias = -3.0, text = -4.0, graphic = 7.0 }
+mixed = { bias = -2.5, text = 2.0, rules = 0.5, annot = 0.5, graphic = 3.0 }
+blank = { bias = -2.0, text = -4.0, rules = -2.0, table = -2.0, annot = -2.0, graphic = -4.0, empty = 8.0 }
+cover_stamp_paper = { bias = -4.0, text = -1.0, rules = 0.5, annot = 1.0, qr_top = 3.0, header = 4.0 }

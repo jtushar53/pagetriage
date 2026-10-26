@@ -1,0 +1,12 @@
+# Confidence calibration (module M13): an optional monotone map from the raw confidence to a
+# calibrated one, per finding kind (the snake_case `kind` of the report). A map is a list of
+# [raw, calibrated] knots, raw strictly increasing and calibrated not decreasing, all in [0, 1];
+# values are interpolated linearly between knots and held flat beyond the first and last knot.
+# A kind without a map is left as it is (the identity).
+#
+# No map ships. Calibrating needs findings labelled on real documents, which this project does not
+# have; the confidences are sigmoids of hand-set log-odds and say how much evidence, not how often
+# the detector is right. `bench/fit_calibration.py` fits maps by isotonic regression from a labelled
+# CSV and prints the override. Example:
+#   maps = { stamp = [[0.0, 0.0], [0.5, 0.35], [1.0, 0.9]] }
+maps = {}

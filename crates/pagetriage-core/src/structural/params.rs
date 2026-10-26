@@ -48,6 +48,11 @@ pub struct TextLayerParams {
     pub coverage_grid: u32,
     pub approx_advance_em: f64,
     pub max_text_records: usize,
+    pub redaction_dark_gray: f64,
+    pub redaction_light_gray: f64,
+    pub redaction_cover_fraction: f64,
+    pub redaction_min_glyphs: u32,
+    pub redaction_max_page_fraction: f64,
     pub weights: TextLayerWeights,
 }
 
@@ -257,6 +262,21 @@ impl StructuralParams {
         }
         if !(t.approx_advance_em.is_finite() && (0.0..=4.0).contains(&t.approx_advance_em)) {
             return bad("text_layer.approx_advance_em must be in [0, 4]");
+        }
+        for (name, v) in [
+            ("redaction_dark_gray", t.redaction_dark_gray),
+            ("redaction_light_gray", t.redaction_light_gray),
+            ("redaction_cover_fraction", t.redaction_cover_fraction),
+            ("redaction_max_page_fraction", t.redaction_max_page_fraction),
+        ] {
+            if !(v.is_finite() && (0.0..=1.0).contains(&v)) {
+                return bad(&format!("text_layer.{name} must be in [0, 1], got {v}"));
+            }
+        }
+        if t.redaction_dark_gray >= t.redaction_light_gray || t.redaction_min_glyphs == 0 {
+            return bad(
+                "text_layer.redaction_dark_gray must be below redaction_light_gray and redaction_min_glyphs at least 1",
+            );
         }
         let w = &t.weights;
         for (name, v) in [

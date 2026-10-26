@@ -18,6 +18,8 @@ Fixtures (what each one is for):
   vector_empty_mixed rules only, an empty page, text outlined into paths, text with a small logo
   signed_then_edited a signed base revision, an update that adds an annotation, an update that
                      rewrites page content after the signature
+  redacted_text      text with a black box and a white box painted over words (the text stays in the
+                     file), a box painted before its text, a box over nothing, and an untouched line
   jpeg_scan          two scans whose DCT streams carry an IJG quality-75 table and a custom table
   encrypted          opens only with a password (made with qpdf)
 """
@@ -235,6 +237,26 @@ ZIGZAG = [
 ]
 
 
+def redacted_text():
+    pdf = Pdf()
+    lines = [
+        "Name of vendor: RAMESH KUMAR SHARMA",
+        "PAN number: ABCDE1234F",
+        "Address: 12 Station Road Pune",
+        "Plain line that stays untouched here",
+    ]
+    boxes = (
+        "0 g 174 681 108 15 re f\n"    # black, over RAMESH KUMAR SHARMA
+        "1 g 126 649 90 15 re f\n"     # white, over 12 Station Road
+        "0 g 72 557 400 1 re f\n"      # a rule: nothing under it
+    )
+    later = "0 g 72 597 200 15 re f BT 1 g /F1 12 Tf 72 600 Td (Reversed heading text) Tj ET\n"  # box first, text on top
+    content = text(lines) + boxes + later
+    info = pages_doc(pdf, [(content, "/Font << /F1 100 0 R >>")], producer="Synthetic Writer 1.0",
+                     extra_objects=lambda p: p.obj(100, HELV))
+    return pdf.finish(1, 101, info)
+
+
 def jpeg_header(natural_table, w=64, h=80):
     """SOI, one DQT, a baseline SOF, an SOS and EOI: enough for the table parser, not decodable."""
     dqt = bytes([0xFF, 0xDB, 0x00, 0x43, 0x00]) + bytes(natural_table[i] for i in ZIGZAG)
@@ -284,6 +306,7 @@ def main():
         "scripts_legacy": scripts_legacy(),
         "vector_empty_mixed": vector_empty_mixed(),
         "signed_then_edited": signed_then_edited(),
+        "redacted_text": redacted_text(),
         "jpeg_scan": jpeg_scan(),
     }
     for name, data in files.items():

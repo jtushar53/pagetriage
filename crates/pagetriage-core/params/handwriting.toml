@@ -1,0 +1,64 @@
+# Handwritten vs machine-printed text (module M5), decided per word of the layout pass's lines and
+# merged into regions. Hand-designed features, fixed thresholds, a few frozen logistic coefficients.
+# Every key says where it comes from. "placeholder" means a first guess not yet checked against
+# data; "tuned on <set>" names the set. Nothing here has been checked on a real document.
+
+# ---- words -----------------------------------------------------------------------------------
+
+# Consecutive glyphs of a line whose boxes are at most this many x-heights apart horizontally form
+# one word. Source: placeholder.
+word_gap_xh = 0.35
+
+# A glyph counts for the baseline and height measures only if it is at least this fraction of the
+# line's median glyph height (dots and marks do not sit on the baseline). Source: placeholder.
+tall_fraction = 0.6
+
+# ---- features --------------------------------------------------------------------------------
+# A line of print has one baseline and one x-height: baseline_dev is the mean distance of a word's
+# glyph bottoms from the line's median bottom, in x-heights. Handwriting wanders. (Cf. the
+# regularity features of Garlapati and Chalamala, UKSim 2017, and the pseudo-word features of
+# Belaid et al., arXiv 1303.4614.)
+baseline_dev_threshold = 0.11
+baseline_dev_coef = 10.0
+
+# Share of edge strength (|gx|+|gy| of a 3x3 Sobel of the ink mask) in gradients within about 22
+# degrees of the axes. Print is built of verticals and horizontals; handwriting is slanted and round.
+axis_share_threshold = 0.56
+axis_share_coef = 15.0
+
+# Coefficient of variation of the stroke width (distance-transform values on stroke centre lines).
+# Print has a nearly constant pen; handwriting varies with pressure and speed.
+stroke_cv_threshold = 0.29
+stroke_cv_coef = 12.0
+
+# Coefficient of variation of the tall glyphs' heights, used only for words with at least
+# `min_glyphs_for_height_cv` tall glyphs.
+height_cv_threshold = 0.22
+height_cv_coef = 6.0
+min_glyphs_for_height_cv = 3
+
+# Each term is clipped to +-term_clip, and the sum starts at prior_logit (0 = even odds).
+# Source: placeholder.
+term_clip = 4.0
+prior_logit = 0.0
+
+# ---- context and regions ---------------------------------------------------------------------
+
+# A word's score is its own plus this fraction of the mean score of its neighbours on the line,
+# so a short word borrows from the words around it (after the neighbour propagation of Belaid et
+# al., arXiv 1303.4614). Source: placeholder.
+neighbour_weight = 1.0
+
+# Handwritten words on one line whose gap is at most this many x-heights make one region.
+# Source: placeholder.
+region_gap_xh = 2.0
+
+# A region is reported as a finding when its mean probability is at least this and it has at least
+# `min_region_glyphs` glyphs. The probability is tuned on synthetic dev seeds 1-5 (sweep 0.6-0.85):
+# with neighbour_weight 0.5, 17 of 30 printed pages had a stray region at 0.6, with 1.0 and 0.85 two of
+# thirty. It trades recall (3-5 points on forms). The glyph count is a placeholder.
+emit_min_probability = 0.85
+min_region_glyphs = 2
+
+# At most this many regions are reported per page (largest first by ink).
+max_regions = 64

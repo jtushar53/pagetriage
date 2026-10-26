@@ -1,0 +1,93 @@
+# Layout segmentation (shared groundwork for M4 pixel.script and M5 pixel.handwriting): glyph
+# components, text lines, blocks, rulings and graphics. Every key says where it comes from.
+# "placeholder" means a first guess that has not been checked against data yet. Lengths are in
+# x-heights (the area-weighted median glyph height of the page) so the settings follow the scan
+# resolution; pixel counts are for the unscaled page.
+
+# ---- glyph candidates ------------------------------------------------------------------------
+
+# A component with fewer ink pixels than this is a speck and takes no part in layout.
+# Source: placeholder (same scale as quality.text_min_area).
+glyph_min_area = 4
+
+# A component whose bounding box spans this fraction of the page width or height is a frame, fold
+# shadow or scan edge, not a glyph. Source: placeholder (quality.text_max_extent_frac = 0.4).
+glyph_max_extent_frac = 0.4
+
+# Components with fewer pixels than this are left out of the x-height estimate.
+# Source: placeholder (quality.xheight_min_area = 6).
+xheight_min_area = 20
+
+# Glyph height in pixels when no component is large enough to measure it.
+# Source: placeholder (about a 10 pt x-height at 150 dpi, as quality.xheight_fallback_px).
+xheight_fallback_px = 10.0
+
+# ---- rulings and graphics --------------------------------------------------------------------
+
+# A component at least this many x-heights long and at most `rule_max_thick_xh` thick, in either
+# direction, is a ruling (a table line, an underline, a form rule), not text.
+# Source: placeholder.
+rule_min_len_xh = 6.0
+rule_max_thick_xh = 0.5
+
+# Before components are found, thin rulings are cut out of the ink mask: a horizontal or vertical
+# run of ink at least this many x-heights long (6 reaches a 3-row table's vertical lines; 12 missed
+# them), wherever it is at most `rule_max_thick_xh` thick
+# across. A pen stroke that crosses the ruling is thicker there, so it stays whole. This is what
+# lets a handwritten fill-in on a printed line, or a word touching a table edge, be read as text.
+# Source: placeholder.
+rule_run_xh = 6.0
+
+# A component at least this many x-heights tall AND wide (and not a ruling) is a graphic: a table
+# frame, stamp, photo or blob. Rulings that touch each other (a table frame) are one component, so
+# they are reported as one graphic, not as rules. Source: placeholder.
+graphic_min_xh = 5.0
+
+# ---- text lines ------------------------------------------------------------------------------
+
+# Horizontal run-length smoothing: a background run no longer than this many x-heights between two
+# glyph pixels on the same row is filled, so the glyphs of a line fuse into one component. The
+# threshold has to span a word space but not a column gutter. Method: K. Y. Wong, R. G. Casey and
+# F. M. Wahl, "Document analysis system", IBM J. Res. Dev. 26(6):647-656, 1982. Source: placeholder.
+smear_xh = 2.0
+
+# A smoothed component is a text line only if it holds at least this many glyph components.
+# Source: placeholder.
+line_min_glyphs = 2
+
+# A line must be at least this many x-heights tall (drops flat smears of dots and dashes) and at
+# most `line_max_height_xh` (a taller one is two lines fused, or a blob). Source: placeholder.
+line_min_height_xh = 0.6
+line_max_height_xh = 4.0
+
+# ---- blocks and columns ----------------------------------------------------------------------
+
+# Two lines belong to one block when their horizontal extents overlap by at least
+# `block_min_overlap` of the narrower one (a short last line sits inside the line above it) and the
+# gap between them is small. "Small" is relative to the page, not to the x-height, because scripts
+# with a headline have word-high components and a much larger "x-height" than Latin: the gap may be
+# at most the page's typical gap (median over each line's nearest neighbour below) plus
+# `block_gap_margin_lines` median line heights, and never more than `block_max_gap_lines` median
+# line heights. Source: placeholder.
+block_min_overlap = 0.5
+block_gap_margin_lines = 0.5
+block_max_gap_lines = 3.0
+
+# The page has another column wherever the horizontal projection of the lines has a gap of at least
+# this many x-heights ...
+# Source: placeholder.
+column_gap_xh = 3.0
+
+# ... where a position counts as covered only if the number of lines over it is above this fraction
+# of the largest number over any position, so a full-width heading does not hide the gutter below
+# it. A column with fewer lines than this fraction of the busiest one is not seen.
+# Source: placeholder.
+column_cover_frac = 0.2
+
+# ---- skew ------------------------------------------------------------------------------------
+
+# The page is levelled by the skew module M3 measured (quality.skew_deg) before it is segmented,
+# by moving each column of the ink mask by x * tan(skew) rows. Below this many degrees (in
+# absolute value) no shear is applied, so an upright page is segmented exactly as it is.
+# Source: placeholder (about one pixel of drift per 230 pixels).
+shear_min_deg = 0.25

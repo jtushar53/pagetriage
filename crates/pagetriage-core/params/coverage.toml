@@ -1,0 +1,26 @@
+# Extraction coverage: how much of the page's text the supplied text boxes (a PDF's text layer, hidden
+# OCR text included, or boxes from an OCR run) actually sit on. A finding, `extraction_gap`, is made
+# when text on the page is not covered. The boxes of a PDF come from a flat glyph width, so they are
+# rough: lines are judged by the share of their glyphs inside the boxes, not by exact overlap. Every
+# number is a placeholder, "hand set"; nothing here has been checked on a real document.
+
+# A text line counts as covered when at least this share of its glyphs have their centre inside a box.
+# Source: hand set.
+covered_line_fraction = 0.5
+
+# Boxes are grown by this many inches on every side before the test (estimated widths are off by
+# a few percent). Source: hand set.
+box_pad_in = 0.03
+
+# Fewest text lines on the page for a verdict (a page of three words says little). Source: hand set.
+min_lines = 3
+
+# At most this many boxes are used; the rest are ignored. Source: engineering limit.
+max_boxes = 20000
+
+# Confidence = sigmoid(prior + clip(gap_coef * (uncovered_share - gap_threshold))), uncovered_share being
+# the share of glyph ink not under a box. Source: hand set (uncalibrated).
+prior = 0.0
+gap_threshold = 0.2
+gap_coef = 6.0
+term_clip = 4.0

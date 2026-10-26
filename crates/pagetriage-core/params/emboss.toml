@@ -1,0 +1,69 @@
+# Embossed (blind) seals (module M11): a circular relief pressed into the paper with no ink. Seen on a
+# scan it is a faint circle of shading: lit on one side of each edge, shaded on the other, so the
+# gradient across the edge points outwards on one half of the circle and inwards on the other. A
+# printed ring has the same sign all the way round. No model: a Hough vote of faint gradient edges for
+# circle centres on a 4x reduced page, then a check of the radial gradient around the best circles.
+# "placeholder" means a first guess not yet checked against data. Nothing here has been checked on a
+# real embossed seal.
+
+# The page is averaged in blocks of this side before anything else (the relief is smooth, and the
+# vote is cheaper). Source: placeholder.
+reduce = 4
+
+# Then smoothed by a box of side 2 * smooth + 1 reduced pixels before the gradient is taken, so sensor
+# noise does not drown the faint edges (0 turns it off). Source: placeholder.
+smooth = 1
+
+# Circle radius in millimetres. Seals pressed by a registrar are 30 to 50 mm across. Source: placeholder.
+min_radius_mm = 10.0
+max_radius_mm = 30.0
+
+# Edge pixels vote when their gradient (gray levels per reduced pixel) is between these. Below min it
+# is paper noise; above max it is ink, and printed marks are the stamp detector's business.
+# Source: placeholder.
+min_gradient = 0.6
+max_gradient = 12.0
+
+# Votes within one reduced pixel of the radius, over the circumference, must reach this for a circle to
+# be looked at. Source: placeholder.
+min_vote_share = 0.25
+
+# Antisymmetry check. The page is high-passed (the mean of a box of 2 * highpass + 1 reduced pixels
+# removed) and, inside the annulus between annulus_inner and annulus_outer times the radius, correlated
+# with itself turned through 180 degrees about the centre. A relief lit from one side is point-
+# antisymmetric (a raised ring is symmetric, its shading is not): minus the correlation is near +1. An
+# inked or stained ring looks the same turned round: minus the correlation is negative. Sampling a
+# ring's gradient around an off-centre circle looks like a dipole too, which is why the first version
+# (the first harmonic of the radial gradient) was dropped for this. Source: placeholder.
+highpass = 3
+annulus_inner = 0.5
+annulus_outer = 1.1
+antisymmetry_min = 0.4
+# The seal's size is how far out its edges reach: the outermost radius at which the mean gradient
+# magnitude around the centre, sampled at `angles` angles, is at least edge_fraction of its largest
+# value over the radius range. Source: placeholder.
+angles = 48
+edge_fraction = 0.5
+# The centre is searched for within this many reduced pixels of the vote peak (the votes lean towards
+# the lit and shaded edges), and at most this many vote peaks are looked at per page. Source: placeholder.
+centre_search = 3
+max_tries = 30
+# Pairs of pixels where either is more than this many gray levels from its local mean are ink (text,
+# a printed mark), not shading, and are left out. Source: placeholder.
+max_shading = 12.0
+# Rms shading in the annulus at least this many gray levels (below it the relief is not above the
+# noise). Source: placeholder.
+min_contrast = 0.8
+
+# At most this many circles per page, at least this many radii apart (in radii). Source: placeholder.
+max_seals = 4
+separation = 1.0
+
+# Confidence = sigmoid(prior + sum of terms), each coef * (value - threshold) clipped to +-term_clip:
+# the vote share and the antisymmetry. Source: placeholder (uncalibrated).
+term_clip = 4.0
+prior = -2.0
+vote_threshold = 0.25
+vote_coef = 8.0
+antisymmetry_threshold = 0.4
+antisymmetry_coef = 6.0

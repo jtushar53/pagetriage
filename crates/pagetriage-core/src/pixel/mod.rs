@@ -8,8 +8,22 @@ use crate::schema::Finding;
 pub mod binarize;
 pub mod components;
 pub mod content_type;
+pub mod coverage;
+pub mod emboss;
+pub mod handwriting;
+pub mod layout;
 pub mod phash;
+pub mod photo;
+pub mod qr;
+pub mod qr_decode;
+mod qr_tables;
 pub mod quality;
+pub mod redaction;
+pub mod rulings;
+pub mod script;
+pub mod signature;
+pub mod stamp;
+pub mod thumb;
 
 #[derive(Debug, Default)]
 pub struct Detection {

@@ -17,8 +17,10 @@ Wolf-Jolion and Howe (static mode), and what pagetriage says about the page. An 
 benchmark; the benchmark numbers are [below](#results-and-known-limits).*
 
 **Status: early.** The PDF structure checks, the scan-quality readout, four binarisers and
-near-duplicate detection are built and measured. Handwriting, stamps, signatures, thumb impressions
-and the other pixel detectors are being built on branches and are not on `main`. See
+near-duplicate detection are built and measured on public benchmarks. Every pixel detector (script,
+handwriting, stamps, signatures, thumb impressions, rulings, redaction, QR, embossed seals, pictures,
+extraction coverage), the page typing and the fusion rules are built and opt-in, and **checked on
+synthetic pages only**: no real deed has been looked at, and no confidence is calibrated. See
 [What works today](#what-works-today), [Results and known limits](#results-and-known-limits) and
 the [roadmap](#roadmap).
 
@@ -69,10 +71,25 @@ text.
 | M2 font script | Script of each page's text, and a flag for legacy non-Unicode Indian fonts (Kruti Dev and others) whose text extracts as gibberish | Built | [font_script](docs/detectors/font_script.md) |
 | M3 quality | Skew, blur, contrast, specks, bleed-through, fold lines, an overall grade, and which binariser to use | Built | [quality](docs/detectors/quality.md) |
 | Binarisers | Otsu, Sauvola, Wolf-Jolion, and the Howe graph-cut method with automatic parameter tuning | Built | [binarize](docs/detectors/binarize.md) |
+| Layout | Text lines, blocks and columns, with rulings and graphics set aside; groundwork for M4 and M5. Opt-in, checked on synthetic pages only | Built, opt-in | [layout](docs/detectors/layout.md) |
+| M4 script | Script family of a scan: headline (Devanagari, Bengali, Gurmukhi), joined (Arabic script) or separate letters (Latin and the rest). Opt-in, checked on synthetic pages only | Built, opt-in | [script](docs/detectors/script.md) |
+| M5 handwriting | Regions of handwriting among print, including form fill-ins. **Weak**: catches round cursive-like strokes in synthetic tests, misses block capitals, never seen real handwriting | Built, opt-in, weak | [handwriting](docs/detectors/handwriting.md) |
+| M9 rulings | Tables (rows and columns), ruled lines, checkbox grids with ticks counted, and faint fold lines told from printed rules. Opt-in, checked on synthetic pages only | Built, opt-in | [rulings](docs/detectors/rulings.md) |
+| M6 stamp and seal | Coloured rubber stamps and seals (circle, rectangle, double ring), with colour and shape. Needs a colour page; finds nothing in gray scans. Opt-in, synthetic checks only | Built, opt-in | [stamp](docs/detectors/stamp.md) |
+| M7 signature | Wet signatures: isolated tangled strokes taller than text. Opt-in, synthetic checks only; tall cursive handwriting is also flagged | Built, opt-in | [signature](docs/detectors/signature.md) |
+| M8 thumb impression | Dark ovals of fingerprint ridges, from orientation coherence, ridge period, ink density and size. Opt-in; misses faint and smudged prints; synthetic checks only | Built, opt-in, weak | [thumb](docs/detectors/thumb.md) |
+| M12 redaction boxes | Solid dark rectangles in running text (pixels), and black or white boxes painted over text that is still in a PDF's content stream (white-out included). Opt-in, synthetic checks only | Built, opt-in | [redaction](docs/detectors/redaction.md) |
+| M11 QR codes | QR codes from their finder patterns, and their text (a full decoder with Reed-Solomon correction; no perspective correction). Opt-in, synthetic pages only | Built, opt-in | [qr](docs/detectors/qr.md) |
+| M11 embossed seal | Blind-embossed circular seals, from the antisymmetry of their shading. **Basic**: 3 to 5 of 6 on rendered reliefs, 0 of 6 under sensor noise 4; opt-in, synthetic checks only | Built, opt-in, weak | [emboss](docs/detectors/emboss.md) |
+| M11 registrar endorsement | A stamp, seal or signature in the same place on most pages of a document (a pass over the page reports: CLI `document`, `finish_document`). Synthetic checks only | Built, document level | [endorsement](docs/detectors/endorsement.md) |
+| M10 photo regions | Continuous-tone pictures (a pasted photograph), by gentle mid-gray area. **Misses black-and-white photocopied photos**. Opt-in, synthetic checks only | Built, opt-in | [photo](docs/detectors/photo.md) |
+| M10 page type | Text, text with annotations, form, table, photo, mixed, blank, stamp-paper cover, from the layout and the other detectors' findings. Runs with `layout`; synthetic checks only | Built, opt-in | [page_type](docs/detectors/page_type.md) |
+| M13 consistency rules | Overlap and blank-page rules; `estamp_qr` and `stamp_paper_header` (unvalidated) built from other findings; optional per-kind calibration maps (none shipped) | Built, hand set | [fusion](docs/detectors/fusion.md) |
 | M12 provenance | PDF producer, edits after the first save (incremental updates), edits after a signature, JPEG encoder tables | Built | [provenance](docs/detectors/provenance.md) |
 | M12 near-duplicates | Perceptual hashes per page, and which pages repeat an earlier one | Built, with limits | [phash](docs/detectors/phash.md) |
 | M10 blank page | Blank-page finding | Skeleton, known wrong on faded scans | [blank_page](docs/detectors/blank_page.md) |
-| M4 to M9, M11, M13 and extraction coverage | Script from pixels, handwriting vs print, stamps and seals, signatures, thumb impressions, rulings, Indian-deed detectors, calibrated fusion | In progress on branches, or planned; not on `main` | [roadmap](#roadmap), [modules](docs/modules.md) |
+| Extraction coverage | Text on the page that no text box (a PDF's text layer, hidden OCR included, or an OCR run's boxes) sits on. Opt-in, synthetic checks only | Built, opt-in | [coverage](docs/detectors/coverage.md) |
+| Calibrated confidences | Confidences calibrated on labelled real pages (the fitting tool exists, the labelled data does not) | Not possible yet | [roadmap](#roadmap), [modules](docs/modules.md) |
 
 ## Quick start
 
@@ -189,7 +206,7 @@ flowchart TB
   params[("params/*.toml<br/>every threshold, with its source")]
   core["pagetriage-core: pure Rust, no I/O, no clock, no model files<br/>analyse_page, analyse_pdf_structure, binarize, near_duplicates"]
   structural["Structural, PDF only (cargo feature pdf)<br/>M1 text layer, M2 font script, M12 provenance"]
-  pixel["Pixel<br/>M3 quality readout, Otsu, Sauvola, Wolf, Howe,<br/>M12 pHash and dHash, M13 fusion (skeleton)"]
+  pixel["Pixel<br/>M3 quality readout, Otsu, Sauvola, Wolf, Howe,<br/>opt-in detectors (layout, script, handwriting, stamps, rulings, QR, ...),<br/>M12 pHash and dHash, M13 fusion and page typing"]
   report(["Canonical JSON report<br/>validated against a JSON Schema"])
   gate["Determinism gate in CI<br/>native = Python = WASM, Linux = macOS"]
   cli --> core
@@ -269,7 +286,8 @@ Known limits, beyond the table:
   degrees, and never find a page scanned upside down. On made-up typed pages with an identical
   layout, 12% to 16% of distinct page pairs fall within the default 10-bit threshold.
 - **No real Indian deed has been tested.** The PDF corpus is synthetic, and the deed-specific
-  detectors (stamp-paper header, e-stamp QR code, registrar endorsement) are not on `main`.
+  detectors (stamp-paper header, e-stamp QR code, registrar endorsement, embossed seal) are built and
+  measured on synthetic pages only; the stamp-paper header is a guess at what stamp paper looks like.
 
 ## Large documents
 
@@ -337,10 +355,10 @@ settings were tuned on, is in `docs/detectors/`.
 
 Module codes are defined in [docs/modules.md](docs/modules.md). Nothing is on `main` until it has
 a docs page with a failure gallery, golden tests and a benchmark line, and a new detector first lands
-opt-in so the default report and the golden files do not change. Status as of 2026-10-25.
+opt-in so the default report and the golden files do not change. Status as of 2026-10-26.
 
 <!-- Status vocabulary, one per row: Built | Built, with limits | Skeleton | In progress (branch) | Planned.
-     Flip a row's Status cell when its branch merges; the "What works today" table above has the same rows. -->
+     The "What works today" table above has the same rows. -->
 
 | Module | What it will decide | Phase | Status |
 |---|---|---|---|
@@ -348,17 +366,17 @@ opt-in so the default report and the golden files do not change. Status as of 20
 | M2 font script | Script from PDF fonts; legacy non-Unicode Indian fonts | 1 | Built |
 | M3 quality | Skew, blur, contrast, specks, bleed-through, folds, grade, binariser choice | 1 | Built; one target missed (Howe on DIBCO 2011) |
 | M12 provenance and hashes | Producer, incremental updates, edits after a signature, JPEG tables, near-duplicate pages | 1 | Built, with limits |
-| M10 content type | Page and region typing (text, form, table, photo, blank) | 0 and later | Skeleton (blank page only) |
-| M4 script from pixels | Script of a scanned page, without a text layer | 2 | In progress (branch) |
-| M5 handwriting | Handwritten vs machine-printed text, filled-in blanks on forms | 2 | In progress (branch) |
-| Extraction coverage | How much of the page the text layer or OCR actually covers | 2 | In progress (branch) |
-| M6 stamps and seals | Rubber stamps and seals, by colour and by shape | 3 | In progress (branch) |
-| M7 signatures | Wet signatures | 3 | In progress (branch) |
-| M8 thumb impressions | Thumb and finger impressions, via ridge coherence and frequency | 3 | In progress (branch) |
-| M9 rulings | Rulings, tables, checkbox grids, fold lines vs rules | 3 | In progress (branch) |
-| M11 Indian deeds | Stamp-paper header, e-stamp QR code, registrar endorsement, embossed seal. Needs a small annotated set of real deed pages; no public set exists | 4 | In progress (branch) |
-| M13 fusion and calibration | Calibrated confidences, abstention, cross-detector consistency | 5 | Skeleton (log-odds sum only) |
-| Release | PyPI, crates.io and npm packages; docs site; browser demo | 5 | Browser demo in progress; packages not started |
+| M10 content type | Page and region typing (text, form, table, photo, blank) | 0 and later | Page typing and picture regions built (synthetic checks only) |
+| M4 script from pixels | Script of a scanned page, without a text layer | 2 | Built, opt-in (synthetic checks only) |
+| M5 handwriting | Handwritten vs machine-printed text, filled-in blanks on forms | 2 | Built, opt-in, weak (synthetic checks only) |
+| Extraction coverage | How much of the page the text layer or OCR actually covers | 2 | Built (synthetic checks only) |
+| M6 stamps and seals | Rubber stamps and seals, by colour and by shape | 3 | Built, opt-in (synthetic checks only) |
+| M7 signatures | Wet signatures | 3 | Built, opt-in (synthetic checks only) |
+| M8 thumb impressions | Thumb and finger impressions, via ridge coherence and frequency | 3 | Built, opt-in, weak (synthetic checks only) |
+| M9 rulings | Rulings, tables, checkbox grids, fold lines vs rules | 3 | Built, opt-in (synthetic checks only) |
+| M11 Indian deeds | Stamp-paper header, e-stamp QR code, registrar endorsement, embossed seal. Needs a small annotated set of real deed pages; no public set exists | 4 | All four built; the header and the embossed seal are the weakest; synthetic checks only, no real deed seen |
+| M13 fusion and calibration | Calibrated confidences, abstention, cross-detector consistency | 5 | Log-odds sum and consistency rules built; calibration machinery built, no maps (no labelled data) |
+| Release | PyPI, crates.io and npm packages; docs site; browser demo | 5 | Browser demo built; packages build, install and run in dry runs (`scripts/package-npm.sh`, `scripts/package-python.sh`, `cargo package`); nothing is published, see [RELEASING](docs/RELEASING.md) |
 
 ## Built on
 

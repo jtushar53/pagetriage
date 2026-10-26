@@ -13,6 +13,22 @@ const WOLF_TOML: &str = include_str!("../params/wolf.toml");
 const HOWE_TOML: &str = include_str!("../params/howe.toml");
 const PHASH_TOML: &str = include_str!("../params/phash.toml");
 const QUALITY_TOML: &str = include_str!("../params/quality.toml");
+const LAYOUT_TOML: &str = include_str!("../params/layout.toml");
+const SCRIPT_TOML: &str = include_str!("../params/script.toml");
+const HANDWRITING_TOML: &str = include_str!("../params/handwriting.toml");
+const RULINGS_TOML: &str = include_str!("../params/rulings.toml");
+const STAMP_TOML: &str = include_str!("../params/stamp.toml");
+const SIGNATURE_TOML: &str = include_str!("../params/signature.toml");
+const THUMB_TOML: &str = include_str!("../params/thumb.toml");
+const REDACTION_TOML: &str = include_str!("../params/redaction.toml");
+const QR_TOML: &str = include_str!("../params/qr.toml");
+const PHOTO_TOML: &str = include_str!("../params/photo.toml");
+const COVERAGE_TOML: &str = include_str!("../params/coverage.toml");
+const EMBOSS_TOML: &str = include_str!("../params/emboss.toml");
+const PAGE_TYPE_TOML: &str = include_str!("../params/page_type.toml");
+const CONSISTENCY_TOML: &str = include_str!("../params/consistency.toml");
+const CALIBRATION_TOML: &str = include_str!("../params/calibration.toml");
+const DOCUMENT_TOML: &str = include_str!("../params/document.toml");
 
 /// Sauvola local threshold (see `params/sauvola.toml`).
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -75,6 +91,7 @@ pub struct PhashParams {
 pub struct FusionParams {
     pub emit_min_confidence: f64,
     pub llr_clip: f64,
+    pub group_cap: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -97,6 +114,22 @@ pub struct Params {
     pub howe: HoweParams,
     pub phash: PhashParams,
     pub quality: crate::pixel::quality::QualityParams,
+    pub layout: crate::pixel::layout::LayoutParams,
+    pub script: crate::pixel::script::ScriptParams,
+    pub handwriting: crate::pixel::handwriting::HandwritingParams,
+    pub rulings: crate::pixel::rulings::RulingsParams,
+    pub stamp: crate::pixel::stamp::StampParams,
+    pub signature: crate::pixel::signature::SignatureParams,
+    pub thumb: crate::pixel::thumb::ThumbParams,
+    pub redaction: crate::pixel::redaction::RedactionParams,
+    pub qr: crate::pixel::qr::QrParams,
+    pub photo: crate::pixel::photo::PhotoParams,
+    pub coverage: crate::pixel::coverage::CoverageParams,
+    pub emboss: crate::pixel::emboss::EmbossParams,
+    pub page_type: crate::fusion::page_type::PageTypeParams,
+    pub consistency: crate::fusion::consistency::ConsistencyParams,
+    pub calibration: crate::fusion::calibration::CalibrationParams,
+    pub document: crate::fusion::document::DocumentParams,
 }
 
 impl Params {
@@ -121,7 +154,7 @@ impl Params {
             "# --- fusion ---\n[fusion]\n{FUSION_TOML}\n# --- blank_page ---\n[blank_page]\n{BLANK_PAGE_TOML}\n\
              # --- sauvola ---\n[sauvola]\n{SAUVOLA_TOML}\n# --- wolf ---\n[wolf]\n{WOLF_TOML}\n\
              # --- howe ---\n[howe]\n{HOWE_TOML}\n# --- phash ---\n[phash]\n{PHASH_TOML}\n\
-             # --- quality ---\n[quality]\n{QUALITY_TOML}"
+             # --- quality ---\n[quality]\n{QUALITY_TOML}\n# --- layout ---\n[layout]\n{LAYOUT_TOML}\n# --- script ---\n[script]\n{SCRIPT_TOML}\n# --- handwriting ---\n[handwriting]\n{HANDWRITING_TOML}\n# --- rulings ---\n[rulings]\n{RULINGS_TOML}\n# --- stamp ---\n[stamp]\n{STAMP_TOML}\n# --- signature ---\n[signature]\n{SIGNATURE_TOML}\n# --- thumb ---\n[thumb]\n{THUMB_TOML}\n# --- redaction ---\n[redaction]\n{REDACTION_TOML}\n# --- qr ---\n[qr]\n{QR_TOML}\n# --- photo ---\n[photo]\n{PHOTO_TOML}\n# --- coverage ---\n[coverage]\n{COVERAGE_TOML}\n# --- emboss ---\n[emboss]\n{EMBOSS_TOML}\n# --- page_type ---\n[page_type]\n{PAGE_TYPE_TOML}\n# --- consistency ---\n[consistency]\n{CONSISTENCY_TOML}\n# --- calibration ---\n[calibration]\n{CALIBRATION_TOML}\n# --- document ---\n[document]\n{DOCUMENT_TOML}"
         )
     }
 
@@ -178,6 +211,22 @@ impl Params {
             ));
         }
         self.quality.validate()?;
+        self.layout.validate()?;
+        self.script.validate()?;
+        self.handwriting.validate()?;
+        self.rulings.validate()?;
+        self.stamp.validate()?;
+        self.signature.validate()?;
+        self.thumb.validate()?;
+        self.redaction.validate()?;
+        self.qr.validate()?;
+        self.photo.validate()?;
+        self.coverage.validate()?;
+        self.emboss.validate()?;
+        self.page_type.validate()?;
+        self.consistency.validate()?;
+        self.calibration.validate()?;
+        self.document.validate()?;
         self.validate_binarizers()?;
         self.validate_phash()
     }
@@ -290,6 +339,31 @@ fn defaults_table() -> Result<toml::Table> {
     table.insert("howe".into(), parse("howe", HOWE_TOML)?);
     table.insert("phash".into(), parse("phash", PHASH_TOML)?);
     table.insert("quality".into(), parse("quality", QUALITY_TOML)?);
+    table.insert("layout".into(), parse("layout", LAYOUT_TOML)?);
+    table.insert("script".into(), parse("script", SCRIPT_TOML)?);
+    table.insert(
+        "handwriting".into(),
+        parse("handwriting", HANDWRITING_TOML)?,
+    );
+    table.insert("rulings".into(), parse("rulings", RULINGS_TOML)?);
+    table.insert("stamp".into(), parse("stamp", STAMP_TOML)?);
+    table.insert("signature".into(), parse("signature", SIGNATURE_TOML)?);
+    table.insert("thumb".into(), parse("thumb", THUMB_TOML)?);
+    table.insert("redaction".into(), parse("redaction", REDACTION_TOML)?);
+    table.insert("qr".into(), parse("qr", QR_TOML)?);
+    table.insert("photo".into(), parse("photo", PHOTO_TOML)?);
+    table.insert("coverage".into(), parse("coverage", COVERAGE_TOML)?);
+    table.insert("emboss".into(), parse("emboss", EMBOSS_TOML)?);
+    table.insert("page_type".into(), parse("page_type", PAGE_TYPE_TOML)?);
+    table.insert(
+        "consistency".into(),
+        parse("consistency", CONSISTENCY_TOML)?,
+    );
+    table.insert(
+        "calibration".into(),
+        parse("calibration", CALIBRATION_TOML)?,
+    );
+    table.insert("document".into(), parse("document", DOCUMENT_TOML)?);
     Ok(table)
 }
 
