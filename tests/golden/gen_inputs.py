@@ -544,6 +544,66 @@ def qr_page():
     return px
 
 
+def emboss_page():
+    """A blank-looking page with a blind-embossed seal: a rim 12 px wide and an inner ring 6 px wide,
+    lit from the left, as gray-level shading of 8 levels around the paper (no ink). The shading of a
+    raised ring is its slope times the cosine of the angle to the light, so rising and falling halves
+    of each ring, and the left and right sides of the seal, have opposite signs. Integer arithmetic
+    and math.isqrt only."""
+    import math
+    rng = Lcg(141)
+    px = [240 + rng.next(3) - 1 for _ in range(LW * LH)]
+    cx, cy, radius = 196, 130, 72
+    for y in range(LH):
+        for x in range(LW):
+            dx, dy = x - cx, y - cy
+            d = math.isqrt(dx * dx + dy * dy)
+            if d == 0 or d > radius:
+                continue
+            slope = 0
+            if radius - 12 <= d < radius - 6:
+                slope = 1
+            elif radius - 6 <= d <= radius:
+                slope = -1
+            elif radius - 40 <= d < radius - 37:
+                slope = 1
+            elif radius - 37 <= d < radius - 34:
+                slope = -1
+            if slope:
+                px[y * LW + x] += 8 * slope * dx // d
+    return px
+
+
+DOC_OUT = pathlib.Path(__file__).resolve().parent / "document_inputs"
+
+
+def document_pages():
+    """Page reports of a five-page synthetic deed for the document-level pass: a stamp in the same
+    corner of pages 0, 1, 2 and 4 (an endorsement), a seal on page 2 alone, a signature in the same
+    place on pages 1 and 2 only, and the same hashes on pages 0 and 4 (near-duplicates)."""
+    import json
+
+    def finding(kind, bbox, confidence=0.9):
+        return {"kind": kind, "confidence": confidence, "bbox": bbox, "polygon": None, "attributes": {}, "evidence": []}
+
+    hashes = ["f0f0f0f0f0f0f0f0", "0123456789abcdef", "fedcba9876543210", "aaaaaaaa55555555", "f0f0f0f0f0f0f0f0"]
+    pages = []
+    for i in range(5):
+        findings = []
+        if i != 3:
+            findings.append(finding("stamp", [1020 + i, 1540, 1180 + i, 1680]))
+        if i == 2:
+            findings.append(finding("seal", [200, 300, 360, 460], 0.8))
+        if i in (1, 2):
+            findings.append(finding("signature", [400, 1500, 640, 1600], 0.7))
+        pages.append({
+            "index": i, "size_pt": [595.0, 842.0], "analysis_dpi": 150, "timings_ms": None,
+            "text_layer": None, "quality": None, "findings": findings, "page_type": None,
+            "phash": hashes[i], "dhash": hashes[i], "near_duplicate_of": None, "debug": None,
+        })
+    return json.dumps(pages, sort_keys=True, separators=(",", ":")) + "\n"
+
+
 def thumb_page():
     """Text lines, a thumb-like impression (concentric elliptical ridges, 4 px period, on the right)
     and, on the left, hatching with the same period that must not be taken for one. Integer
@@ -757,3 +817,8 @@ if __name__ == "__main__":
     print("wrote redaction_page")
     write_pgm("qr_page", qr_page(), LW, LH, LAYOUT_OUT)
     print("wrote qr_page")
+    write_pgm("emboss_page", emboss_page(), LW, LH, LAYOUT_OUT)
+    print("wrote emboss_page")
+    DOC_OUT.mkdir(exist_ok=True)
+    (DOC_OUT / "deed_pages.json").write_text(document_pages(), encoding="utf-8")
+    print("wrote deed_pages")

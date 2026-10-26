@@ -1,0 +1,46 @@
+# Cross-detector consistency rules (module M13) and the two Indian-deed composites of module M11
+# (e-stamp QR, stamp-paper header) that are built from other detectors' findings. A rule moves a
+# finding's confidence in log-odds and leaves its evidence list showing why. Every number is a hand-set
+# placeholder; nothing here has been checked on a real document, and the stamp-paper header has not
+# been checked against any stamp paper at all.
+
+# ---- overlap: a thumb impression, a stamp, a seal and a signature do not sit on one another -----
+
+# Two findings overlap when the intersection covers at least this share of the smaller bbox.
+# Source: hand set.
+overlap_share = 0.5
+# The less confident of two overlapping findings of different kinds loses this much log-odds.
+# Source: hand set.
+overlap_penalty = 1.5
+
+# ---- blank page next to content ----------------------------------------------------------------
+
+# A blank_page finding loses this much log-odds when the page also has a finding of ink-bearing kind
+# with confidence >= 0.5 (a stamp, a table, ...). The skeleton blank detector saturates at 0.9997
+# (log-odds 8.1), so 12 flips it. Source: hand set.
+blank_penalty = 12.0
+
+# ---- the top of the page ------------------------------------------------------------------------
+
+# Top band of the page, as a fraction of its height. Source: hand set.
+top_band = 0.35
+# A QR code narrower than this fraction of the page width is not an e-stamp QR. Source: hand set.
+qr_min_width_frac = 0.05
+# Cap on each term, in log-odds. Source: hand set.
+term_clip = 4.0
+
+# e-stamp QR = a QR code in the top band: logit = logit(QR confidence) + prior + depth term, where
+# the depth term is depth_coef * (1 - centre / top_band), so a code at the very top gets the full
+# amount. The code is not decoded, so this cannot tell an e-stamp from any other QR. Source: hand set.
+estamp_prior = -1.5
+estamp_depth_coef = 1.5
+
+# Stamp-paper header: logit = prior + header term + QR bonus + rule bonus. The header term is
+# header_coef * (ratio - header_ratio), where ratio is the tallest line's glyph height in the top band
+# over the median glyph height of the page; a stamp-paper heading is set large. The bonuses apply
+# when the top band holds a QR code or a table/ruling finding. Source: hand set.
+header_prior = -3.0
+header_ratio = 1.6
+header_coef = 3.0
+header_qr_bonus = 2.0
+header_rule_bonus = 1.0

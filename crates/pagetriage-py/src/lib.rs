@@ -130,6 +130,18 @@ fn near_duplicates(
         .map_err(|e| PyValueError::new_err(e.to_string()))
 }
 
+/// Document-level pass over the page reports of one document, in page order: near-duplicate pages
+/// (module M12) and registrar-endorsement repetition (module M11). `pages_json` is a JSON array of
+/// the strings `analyse_page` returned; the result is the canonical JSON array with
+/// `near_duplicate_of` and the `registrar_endorsement` findings filled. `opts_json` takes `params`.
+/// Raises `ValueError` for malformed input.
+#[pyfunction]
+#[pyo3(signature = (pages_json, opts_json = "{}"))]
+fn finish_document(pages_json: &str, opts_json: &str) -> PyResult<String> {
+    pagetriage_core::finish_document(pages_json, opts_json)
+        .map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
 /// Structure of a PDF (modules M1, M2 and the structure part of M12): per-page text-layer state,
 /// script shares and legacy-font verdict, and document provenance. Returns the canonical JSON of a
 /// `StructureReport`. `opts_json` takes `params` (a TOML string merged over the defaults).
@@ -165,6 +177,7 @@ fn params_toml() -> PyResult<String> {
 fn pagetriage_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(analyse_page, m)?)?;
     m.add_function(wrap_pyfunction!(near_duplicates, m)?)?;
+    m.add_function(wrap_pyfunction!(finish_document, m)?)?;
     m.add_function(wrap_pyfunction!(schema_json, m)?)?;
     m.add_function(wrap_pyfunction!(analyse_pdf_structure, m)?)?;
     m.add_function(wrap_pyfunction!(structure_schema_json, m)?)?;

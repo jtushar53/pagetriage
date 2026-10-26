@@ -5,8 +5,10 @@ use std::collections::BTreeMap;
 use serde::Deserialize;
 
 use crate::error::{Error, Result};
+use crate::fusion::{calibration, consistency, page_type};
 use crate::params::Params;
 use crate::pixel::content_type::{self, BLANK_PAGE};
+use crate::pixel::emboss::{self, EMBOSS};
 use crate::pixel::handwriting::{self, HANDWRITING};
 use crate::pixel::layout::{self, LAYOUT};
 use crate::pixel::phash::{self, PHASH};
@@ -26,6 +28,7 @@ use crate::structural::PageStructure;
 #[rustfmt::skip]
 pub const DETECTORS: &[&str] = &[
     BLANK_PAGE,
+    EMBOSS,
     HANDWRITING,
     LAYOUT,
     PHASH,
@@ -43,6 +46,7 @@ pub const DETECTORS: &[&str] = &[
 /// been reviewed; promoting it means deleting its line. Same layout rule as [`DETECTORS`].
 #[rustfmt::skip]
 pub const OPT_IN: &[&str] = &[
+    EMBOSS,
     HANDWRITING,
     LAYOUT,
     QR,
@@ -155,6 +159,8 @@ pub fn analyse_page_report(
         &params,
     )?;
 
+    let layout_selected = selected.contains(&LAYOUT);
+
     // The layout pass is shared by every detector that works line by line; run it once.
     let page_layout = if selected.iter().any(|d| {
         matches!(
@@ -181,6 +187,13 @@ pub fn analyse_page_report(
             BLANK_PAGE => {
                 content_type::detect_blank_page(input.gray, &params.blank_page, &params.fusion)?
             }
+            EMBOSS => emboss::detect(
+                input.gray,
+                input.width as usize,
+                input.height as usize,
+                input.dpi,
+                &params,
+            )?,
             HANDWRITING => {
                 handwriting::detect(page_layout.as_ref().expect("segmented above"), &params)?
             }
@@ -244,6 +257,30 @@ pub fn analyse_page_report(
         findings.extend(structure_findings(ps));
     }
 
+    // Module M13: rules across detectors, then the composites of module M11 that are built from
+    // other findings (e-stamp QR, stamp-paper header).
+    let context = match &page_layout {
+        Some(l) => consistency::context(l, &params.consistency),
+        None => consistency::PageContext {
+            width: input.width,
+            height: input.height,
+            ..consistency::PageContext::default()
+        },
+    };
+    consistency::apply(&mut findings, &context, &params.consistency, &params.fusion);
+
+    // Module M10: page typing needs the layout, so it runs when `layout` was asked for.
+    let page_type = match (&page_layout, layout_selected) {
+        (Some(l), true) => {
+            let facts = page_type::facts(l, &findings, input.gray, &params.page_type);
+            debug.insert("page_type".to_owned(), page_type::features(&facts));
+            Some(page_type::classify(&facts, &params.page_type))
+        }
+        _ => None,
+    };
+
+    calibration::apply(&mut findings, &params.calibration);
+
     debug.insert("quality".to_owned(), assessment.features);
 
     let dpi = f64::from(input.dpi);
@@ -258,12 +295,37 @@ pub fn analyse_page_report(
         text_layer: structure.as_ref().and_then(|ps| ps.text_layer.clone()),
         quality: Some(assessment.quality),
         findings,
-        page_type: None,
+        page_type,
         phash: hashes.map(|h| h.phash_hex()),
         dhash: hashes.map(|h| h.dhash_hex()),
         near_duplicate_of: None,
         debug: options.debug.then_some(debug),
     })
+}
+
+/// The document-level pass over a document's page reports: near-duplicate pages (module M12, when the
+/// reports carry hashes) and registrar-endorsement repetition (module M11). `pages_json` is a JSON
+/// array of page reports in page order, as `analyse_page` returns them (the `pages` of a `Report`
+/// work too); the result is the canonical JSON of the same array with `near_duplicate_of` and the
+/// `registrar_endorsement` findings filled. `opts_json` takes `params` (TOML merged over the
+/// defaults). Running it again on its own output changes nothing.
+pub fn finish_document(pages_json: &str, opts_json: &str) -> Result<String> {
+    let options = Options::from_json(opts_json)?;
+    let params = match &options.params {
+        Some(toml) => Params::with_overrides(toml)?,
+        None => Params::defaults()?,
+    };
+    let mut reports: Vec<PageReport> = serde_json::from_str(pages_json)
+        .map_err(|e| Error::InvalidInput(format!("pages_json: {e}")))?;
+    if reports.iter().any(|r| r.phash.is_some()) {
+        phash::mark_near_duplicates(&mut reports, &params.phash)?;
+    }
+    crate::fusion::document::mark_repeated_endorsements(
+        &mut reports,
+        &params.document,
+        &params.fusion,
+    )?;
+    schema::to_canonical_json(&reports)
 }
 
 /// `structural_json` must be a JSON object. If it has a `text_layer` key it is read as one

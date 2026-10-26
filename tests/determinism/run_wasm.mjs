@@ -14,7 +14,7 @@ const wasm = createRequire(import.meta.url)(join(pkgDir, "pagetriage.js"));
 
 const OPTS = '{"debug":true}';
 const STAMP_OPTS = '{"debug":true,"detectors":["stamp"]}';
-const LAYOUT_OPTS = '{"debug":true,"detectors":["layout","script","handwriting","rulings","signature","thumb","redaction","qr"]}';
+const LAYOUT_OPTS = '{"debug":true,"detectors":["layout","script","handwriting","rulings","signature","thumb","redaction","qr","emboss"]}';
 const DPI = 150;
 
 function readPgm(path) {
@@ -119,6 +119,19 @@ for (const file of stampInputs) {
   } else {
     failures++;
     console.log(`FAIL wasm   stamp ${name}`);
+  }
+}
+
+// The document-level pass.
+{
+  const docIn = readFileSync(join(golden, "document_inputs", "deed_pages.json"), "utf8");
+  const actual = wasm.finish_document(docIn, "{}") + "\n";
+  const expected = readFileSync(join(golden, "document_expected", "deed_pages.json"), "utf8");
+  if (actual === expected) {
+    console.log("ok   wasm   document deed_pages");
+  } else {
+    failures++;
+    console.log("FAIL wasm   document deed_pages");
   }
 }
 

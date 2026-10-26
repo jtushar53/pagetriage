@@ -30,6 +30,15 @@ pub fn analyse_page(
         .map_err(|e| JsError::new(&e.to_string()))
 }
 
+/// Document-level pass over a document's page reports (a JSON array of what `analyse_page` returned,
+/// in page order): near-duplicate pages and registrar-endorsement repetition. Returns the canonical
+/// JSON array; identical bytes to the native and Python builds.
+#[wasm_bindgen]
+pub fn finish_document(pages_json: &str, opts_json: &str) -> Result<String, JsError> {
+    pagetriage_core::finish_document(pages_json, opts_json)
+        .map_err(|e| JsError::new(&e.to_string()))
+}
+
 /// Binarise a gray page: `width * height` bytes, `1` for ink and `0` for paper. `method` is
 /// `otsu`, `sauvola`, `wolf` or `howe`; `params_toml` overrides the embedded defaults. Identical
 /// bytes to the native and Python builds.

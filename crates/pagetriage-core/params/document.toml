@@ -1,0 +1,25 @@
+# Document-level pass (modules M11 and M13): marks that repeat on many pages. A registered deed
+# carries the registrar's stamp, seal or signature block on every page (an endorsement), usually in
+# a margin. A mark is a stamp, seal or signature finding; marks on different pages of one document
+# belong together when they have the same kind, nearly the same place on the page and nearly the same
+# size. Every number is a hand-set placeholder; the pass has been tried only on synthetic reports.
+
+# Centre positions, as fractions of the page width and height, may differ by this much. Source: hand set.
+position_tolerance = 0.06
+# Width and height may differ by up to this ratio (largest over smallest). Source: hand set.
+size_ratio = 1.5
+# A repetition needs the mark on at least this many pages ... Source: hand set.
+min_pages = 3
+# ... and on at least this share of the document's pages. Source: hand set.
+min_share = 0.5
+
+# Confidence = sigmoid(prior + share term + margin term + spread term), each clipped to term_clip.
+# share term: share_coef * (share - min_share); margin term: margin_bonus when the mark's centre
+# is within margin_frac of a page edge; spread term: spread_coef * (position_tolerance - spread),
+# where spread is the largest centre distance in the group. Source: hand set.
+prior = -1.0
+share_coef = 4.0
+margin_frac = 0.2
+margin_bonus = 1.0
+spread_coef = 10.0
+term_clip = 4.0

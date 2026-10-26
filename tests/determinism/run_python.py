@@ -12,7 +12,7 @@ import pagetriage_py
 GOLDEN = pathlib.Path(__file__).resolve().parents[1] / "golden"
 OPTS = '{"debug":true}'
 STAMP_OPTS = '{"debug":true,"detectors":["stamp"]}'
-LAYOUT_OPTS = '{"debug":true,"detectors":["layout","script","handwriting","rulings","signature","thumb","redaction","qr"]}'
+LAYOUT_OPTS = '{"debug":true,"detectors":["layout","script","handwriting","rulings","signature","thumb","redaction","qr","emboss"]}'
 DPI = 150
 
 
@@ -100,6 +100,16 @@ def main():
         else:
             failures += 1
             print(f"FAIL python stamp {path.stem}")
+
+    # The document-level pass.
+    doc_in = (GOLDEN / "document_inputs" / "deed_pages.json").read_text(encoding="utf-8")
+    actual = pagetriage_py.finish_document(doc_in) + "\n"
+    expected = (GOLDEN / "document_expected" / "deed_pages.json").read_text(encoding="utf-8")
+    if actual == expected:
+        print("ok   python document deed_pages")
+    else:
+        failures += 1
+        print("FAIL python document deed_pages")
 
     try:
         pagetriage_py.analyse_page(b"\x00" * 3, 2, 2, DPI)

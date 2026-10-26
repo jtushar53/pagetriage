@@ -14,7 +14,9 @@ pub mod raster;
 pub mod schema;
 pub mod structural;
 
-pub use analyse::{DETECTORS, OPT_IN, Options, PageInput, analyse_page, analyse_page_report};
+pub use analyse::{
+    DETECTORS, OPT_IN, Options, PageInput, analyse_page, analyse_page_report, finish_document,
+};
 pub use error::{Error, Result};
 pub use params::Params;
 pub use schema::{

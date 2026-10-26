@@ -1,5 +1,5 @@
 //! Layout golden snapshots: the pages in `tests/golden/layout_inputs/` and `quality_inputs/` are
-//! analysed with only the opt-in `layout`, `script`, `handwriting`, `rulings`, `signature`, `thumb`, `redaction` and `qr` detectors (and `{"debug":true}`) at 150 dpi and must match
+//! analysed with only the opt-in `layout`, `script`, `handwriting`, `rulings`, `signature`, `thumb`, `redaction`, `qr` and `emboss` detectors (and `{"debug":true}`) at 150 dpi and must match
 //! `tests/golden/layout_expected/NAME.json` byte for byte. The Python and WASM runners in
 //! `tests/determinism/` check the same files.
 //!
@@ -11,7 +11,7 @@ use std::path::PathBuf;
 
 use pagetriage_core::{PageInput, analyse_page};
 
-const OPTS: &str = r#"{"debug":true,"detectors":["layout","script","handwriting","rulings","signature","thumb","redaction","qr"]}"#;
+const OPTS: &str = r#"{"debug":true,"detectors":["layout","script","handwriting","rulings","signature","thumb","redaction","qr","emboss"]}"#;
 const DPI: u16 = 150;
 
 fn golden_dir() -> PathBuf {
@@ -214,6 +214,18 @@ fn layout_pages_have_the_structure_they_were_drawn_with() {
         "redaction_page",
     ] {
         assert!(found(page, "qr_code").is_empty(), "{page}");
+    }
+    // Embossed seals (module M11): the blind relief on emboss_page and nothing on the inked pages.
+    let seals = found("emboss_page", "embossed_seal");
+    assert_eq!(seals.len(), 1, "{seals:?}");
+    for page in [
+        "layout_one_column",
+        "layout_form",
+        "rulings_table",
+        "qr_page",
+        "redaction_page",
+    ] {
+        assert!(found(page, "embossed_seal").is_empty(), "{page}");
     }
     assert_eq!(regions("layout_hand_form"), 3);
     assert_eq!(regions("layout_one_column"), 0);

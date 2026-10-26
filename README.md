@@ -78,10 +78,14 @@ text.
 | M8 thumb impression | Dark ovals of fingerprint ridges, from orientation coherence, ridge period, ink density and size. Opt-in; misses faint and smudged prints; synthetic checks only | Built, opt-in, weak | [thumb](docs/detectors/thumb.md) |
 | M12 redaction boxes | Solid dark rectangles in running text (pixel side only; white-out and the PDF check are not done). Opt-in, synthetic checks only | Built, opt-in | [redaction](docs/detectors/redaction.md) |
 | M11 QR codes | QR codes from their finder patterns (not decoded). Opt-in, synthetic checks only | Built, opt-in | [qr](docs/detectors/qr.md) |
+| M11 embossed seal | Blind-embossed circular seals, from the antisymmetry of their shading. **Basic**: 3 to 5 of 6 on rendered reliefs, 0 of 6 under sensor noise 4; opt-in, synthetic checks only | Built, opt-in, weak | [emboss](docs/detectors/emboss.md) |
+| M11 registrar endorsement | A stamp, seal or signature in the same place on most pages of a document (a pass over the page reports: CLI `document`, `finish_document`). Synthetic checks only | Built, document level | [endorsement](docs/detectors/endorsement.md) |
+| M10 page type | Text, text with annotations, form, table, photo, mixed, blank, stamp-paper cover, from the layout and the other detectors' findings. Runs with `layout`; synthetic checks only | Built, opt-in | [page_type](docs/detectors/page_type.md) |
+| M13 consistency rules | Overlap and blank-page rules; `estamp_qr` and `stamp_paper_header` (unvalidated) built from other findings; optional per-kind calibration maps (none shipped) | Built, hand set | [fusion](docs/detectors/fusion.md) |
 | M12 provenance | PDF producer, edits after the first save (incremental updates), edits after a signature, JPEG encoder tables | Built | [provenance](docs/detectors/provenance.md) |
 | M12 near-duplicates | Perceptual hashes per page, and which pages repeat an earlier one | Built, with limits | [phash](docs/detectors/phash.md) |
 | M10 blank page | Blank-page finding | Skeleton, known wrong on faded scans | [blank_page](docs/detectors/blank_page.md) |
-| M4 to M9, M11, M13 and extraction coverage | Script from pixels, handwriting vs print, stamps and seals, signatures, thumb impressions, rulings, the rest of the Indian-deed detectors, calibrated fusion | In progress on branches, or planned; not on `main` | [roadmap](#roadmap), [modules](docs/modules.md) |
+| Extraction coverage and learned or calibrated confidences | How much of the page the text layer or OCR covers; confidences calibrated on labelled real pages | Not built | [roadmap](#roadmap), [modules](docs/modules.md) |
 
 ## Quick start
 
@@ -357,7 +361,7 @@ opt-in so the default report and the golden files do not change. Status as of 20
 | M2 font script | Script from PDF fonts; legacy non-Unicode Indian fonts | 1 | Built |
 | M3 quality | Skew, blur, contrast, specks, bleed-through, folds, grade, binariser choice | 1 | Built; one target missed (Howe on DIBCO 2011) |
 | M12 provenance and hashes | Producer, incremental updates, edits after a signature, JPEG tables, near-duplicate pages | 1 | Built, with limits |
-| M10 content type | Page and region typing (text, form, table, photo, blank) | 0 and later | Skeleton (blank page only) |
+| M10 content type | Page and region typing (text, form, table, photo, blank) | 0 and later | Page typing built (synthetic checks only); region typing not built |
 | M4 script from pixels | Script of a scanned page, without a text layer | 2 | In progress (branch) |
 | M5 handwriting | Handwritten vs machine-printed text, filled-in blanks on forms | 2 | In progress (branch) |
 | Extraction coverage | How much of the page the text layer or OCR actually covers | 2 | In progress (branch) |
@@ -365,8 +369,8 @@ opt-in so the default report and the golden files do not change. Status as of 20
 | M7 signatures | Wet signatures | 3 | In progress (branch) |
 | M8 thumb impressions | Thumb and finger impressions, via ridge coherence and frequency | 3 | In progress (branch) |
 | M9 rulings | Rulings, tables, checkbox grids, fold lines vs rules | 3 | In progress (branch) |
-| M11 Indian deeds | Stamp-paper header, e-stamp QR code, registrar endorsement, embossed seal. Needs a small annotated set of real deed pages; no public set exists | 4 | In progress (branch) |
-| M13 fusion and calibration | Calibrated confidences, abstention, cross-detector consistency | 5 | Skeleton (log-odds sum only) |
+| M11 Indian deeds | Stamp-paper header, e-stamp QR code, registrar endorsement, embossed seal. Needs a small annotated set of real deed pages; no public set exists | 4 | All four built; the header and the embossed seal are the weakest; synthetic checks only, no real deed seen |
+| M13 fusion and calibration | Calibrated confidences, abstention, cross-detector consistency | 5 | Log-odds sum and consistency rules built; calibration machinery built, no maps (no labelled data) |
 | Release | PyPI, crates.io and npm packages; docs site; browser demo | 5 | Browser demo in progress; packages not started |
 
 ## Built on

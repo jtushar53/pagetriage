@@ -35,6 +35,9 @@ enum Command {
     Structure(StructureArgs),
     /// Hash page images and report near-duplicates among them (pages in the order given)
     Duplicates(DuplicatesArgs),
+    /// Analyse the page images of one document and print one report with the document-level pass
+    /// (near-duplicate pages, registrar endorsements) applied
+    Document(DocumentArgs),
     /// Print the JSON Schema of the report
     Schema,
     /// Print the embedded default detector parameters as TOML
@@ -76,6 +79,28 @@ struct StructureArgs {
 }
 
 #[derive(Args)]
+struct DocumentArgs {
+    /// Page images, in page order
+    #[arg(required = true)]
+    files: Vec<PathBuf>,
+    /// Resolution the images were scanned at
+    #[arg(long, default_value_t = 150)]
+    dpi: u16,
+    /// Include raw detector feature values under `debug`
+    #[arg(long)]
+    debug: bool,
+    /// Indent the output. The default compact form is the canonical, byte-reproducible one.
+    #[arg(long)]
+    pretty: bool,
+    /// TOML file merged over the embedded default parameters
+    #[arg(long, value_name = "FILE")]
+    params: Option<PathBuf>,
+    /// Run only these detectors (comma separated); `phash` is added so near-duplicates are found
+    #[arg(long, value_delimiter = ',')]
+    detectors: Option<Vec<String>>,
+}
+
+#[derive(Args)]
 struct DuplicatesArgs {
     /// Page images, in page order; a page is matched against the pages before it
     #[arg(required = true)]
@@ -100,6 +125,7 @@ fn run(cli: Cli) -> Result<(), String> {
         Command::Analyse(args) => analyse(&args),
         Command::Structure(args) => structure(&args),
         Command::Duplicates(args) => duplicates(&args),
+        Command::Document(args) => document(&args),
         Command::Schema => {
             print!("{}", schema_json());
             Ok(())
@@ -174,6 +200,70 @@ fn analyse(args: &AnalyseArgs) -> Result<(), String> {
             incremental_updates: None,
         },
         vec![page_report],
+    );
+    let canonical = to_canonical_json(&report).map_err(|e| e.to_string())?;
+    if args.pretty {
+        let value: serde_json::Value =
+            serde_json::from_str(&canonical).map_err(|e| e.to_string())?;
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&value).map_err(|e| e.to_string())?
+        );
+    } else {
+        println!("{canonical}");
+    }
+    Ok(())
+}
+
+fn document(args: &DocumentArgs) -> Result<(), String> {
+    let params_toml = match &args.params {
+        Some(path) => Some(
+            fs::read_to_string(path).map_err(|e| format!("cannot read {}: {e}", path.display()))?,
+        ),
+        None => None,
+    };
+    let detectors = args.detectors.clone().map(|mut d| {
+        if !d.iter().any(|n| n == "phash") {
+            d.push("phash".into());
+        }
+        d
+    });
+    let mut all_bytes = Vec::new();
+    let mut reports = Vec::new();
+    for (index, file) in args.files.iter().enumerate() {
+        let bytes = fs::read(file).map_err(|e| format!("cannot read {}: {e}", file.display()))?;
+        let page = load_page(&bytes).map_err(|e| format!("{}: {e}", file.display()))?;
+        let opts = serde_json::json!({
+            "debug": args.debug,
+            "detectors": detectors,
+            "params": params_toml,
+            "page_index": index,
+        })
+        .to_string();
+        let input = PageInput {
+            gray: &page.gray,
+            rgb: page.rgb.as_deref(),
+            width: page.width,
+            height: page.height,
+            dpi: args.dpi,
+        };
+        reports.push(analyse_page_report(&input, None, &opts).map_err(|e| e.to_string())?);
+        all_bytes.extend_from_slice(&bytes);
+    }
+    let pages_json = to_canonical_json(&reports).map_err(|e| e.to_string())?;
+    let opts = serde_json::json!({ "params": params_toml }).to_string();
+    let finished =
+        pagetriage_core::finish_document(&pages_json, &opts).map_err(|e| e.to_string())?;
+    let pages = serde_json::from_str(&finished).map_err(|e| e.to_string())?;
+    let report = Report::new(
+        DocumentInfo {
+            sha256: sha256_hex(&all_bytes),
+            pages: u32::try_from(args.files.len()).map_err(|e| e.to_string())?,
+            source: "image".into(),
+            producer: None,
+            incremental_updates: None,
+        },
+        pages,
     );
     let canonical = to_canonical_json(&report).map_err(|e| e.to_string())?;
     if args.pretty {
