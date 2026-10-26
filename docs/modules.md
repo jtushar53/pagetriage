@@ -9,7 +9,7 @@ The analyser is split into modules. Code that implements one cites its number (f
 | M2 | `structural.font_script` | Script from PDF font internals, including legacy non-Unicode Devanagari fonts | 1 | implemented: [`font_script`](detectors/font_script.md) (cargo feature `pdf`) |
 | M3 | `pixel.quality` | Skew, blur, contrast, speckle, bleed-through, fold lines, photocopy generation; picks the binariser | 1 | implemented: [`quality`](detectors/quality.md); binarisers (Otsu, Sauvola, Wolf, Howe): [`binarize`](detectors/binarize.md) |
 | M4 | `pixel.script` | Script identification from pixels, without ML (headline, connected-component and texture tiers) | 2 | implemented, opt-in, synthetic checks only: [`script`](detectors/script.md) (headline and component tiers; no texture tier; family level, not individual scripts) |
-| M5 | `pixel.handwriting` | Handwritten vs machine-printed text, including filled-in blanks on printed forms | 2 | planned (builds on [`layout`](detectors/layout.md)) |
+| M5 | `pixel.handwriting` | Handwritten vs machine-printed text, including filled-in blanks on printed forms | 2 | implemented, opt-in, **weak**: [`handwriting`](detectors/handwriting.md) (finds round cursive-like writing in synthetic tests, nothing in block capitals; real handwriting untested) |
 | M6 | `pixel.stamp_seal` | Rubber stamps and seals, by colour clustering and by shape | 3 | planned |
 | M7 | `pixel.signature` | Wet signatures | 3 | planned |
 | M8 | `pixel.thumb_impression` | Thumb and finger impressions, via ridge coherence and frequency | 3 | planned |
@@ -25,7 +25,7 @@ The analyser is split into modules. Code that implements one cites its number (f
 |---|---|
 | 0 Skeleton | Workspace, schema and JSON Schema export, params, CLI, Python and WASM builds, determinism gate, bench harness |
 | 1 Text layer and quality | M1, M2, M3, Howe binarisation, perceptual hash, incremental-update detection |
-| 2 Script and handwriting | Layout segmentation ([`layout`](detectors/layout.md), built), M4, M5 |
+| 2 Script and handwriting | Layout segmentation ([`layout`](detectors/layout.md)), M4 ([`script`](detectors/script.md)), M5 ([`handwriting`](detectors/handwriting.md)): built, opt-in, synthetic checks only |
 | 3 Stamps, signatures, thumbs | M6, M7, M8, M9 |
 | 4 Indian deeds | M11, registrar-endorsement repetition across pages; needs a small in-house annotated set |
 | 5 Fusion, calibration, release | M13 calibration, npm and PyPI packages, docs site, offline browser demo |

@@ -425,6 +425,64 @@ def script_mixed():
     return px
 
 
+def _line(ink, x0, y0, x1, y1, width):
+    """Integer Bresenham line, `width` px thick (a square pen)."""
+    dx, dy = abs(x1 - x0), -abs(y1 - y0)
+    sx, sy = (1 if x0 < x1 else -1), (1 if y0 < y1 else -1)
+    err = dx + dy
+    while True:
+        for ox in range(width):
+            for oy in range(width):
+                ink.add((x0 + ox, y0 + oy))
+        if x0 == x1 and y0 == y1:
+            return
+        e2 = 2 * err
+        if e2 >= dy:
+            err += dy
+            x0 += sx
+        if e2 <= dx:
+            err += dx
+            y0 += sy
+
+
+def _scribble_word(rng, ink, x, base, letters):
+    """A word of looping pen strokes: each letter is 6 random points within a 7 x 10 cell, joined by
+    lines of 1-2 px, the baseline wandering by up to 2 px. Integer arithmetic only."""
+    wander = 0
+    prev = None
+    for _ in range(letters):
+        wander = max(-2, min(2, wander + rng.next(3) - 1))
+        pts = [(x + rng.next(8), base + wander - rng.next(11)) for _ in range(6)]
+        pts.sort(key=lambda p: p[0])
+        if prev is not None:
+            pts.insert(0, prev)
+        for a, b in zip(pts, pts[1:]):
+            _line(ink, a[0], a[1], b[0], b[1], 1 + rng.next(2))
+        prev = pts[-1]
+        x += 6 + rng.next(3)
+    return x
+
+
+def layout_hand_form():
+    """Three printed text lines, then a form row: a printed label with a rule and a scribbled
+    fill-in on it, twice, and a line of scribble on its own."""
+    rng = Lcg(71)
+    ink = set()
+    _ink_lines(rng, ink, 20, 300, 12, 3)
+    for row, base in enumerate((90, 130)):
+        _ink_lines(rng, ink, 20, 90, base - 8, 1)
+        for x in range(100, 300):
+            ink.add((x, base + 4))
+        x = 104
+        for _ in range(2):
+            x = _scribble_word(rng, ink, x, base, 5) + 8
+    x = 20
+    for _ in range(4):
+        x = _scribble_word(rng, ink, x, 190, 5) + 10
+    _ink_lines(rng, ink, 20, 300, 215, 2)
+    return _layout_page(ink)
+
+
 if __name__ == "__main__":
     for fn in (blank_speckle, text_like, borderline, faint_strokes, dark_fill):
         write_pgm(fn.__name__, fn())
@@ -446,3 +504,5 @@ if __name__ == "__main__":
     for fn in (script_cursive, script_mixed):
         write_pgm(fn.__name__, fn(), QW, QH, LAYOUT_OUT)
         print("wrote", fn.__name__)
+    write_pgm("layout_hand_form", layout_hand_form(), LW, LH, LAYOUT_OUT)
+    print("wrote layout_hand_form")

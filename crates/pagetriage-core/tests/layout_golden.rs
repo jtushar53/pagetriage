@@ -1,5 +1,5 @@
 //! Layout golden snapshots: the pages in `tests/golden/layout_inputs/` and `quality_inputs/` are
-//! analysed with only the opt-in `layout` and `script` detectors (and `{"debug":true}`) at 150 dpi and must match
+//! analysed with only the opt-in `layout`, `script` and `handwriting` detectors (and `{"debug":true}`) at 150 dpi and must match
 //! `tests/golden/layout_expected/NAME.json` byte for byte. The Python and WASM runners in
 //! `tests/determinism/` check the same files.
 //!
@@ -11,7 +11,7 @@ use std::path::PathBuf;
 
 use pagetriage_core::{PageInput, analyse_page};
 
-const OPTS: &str = r#"{"debug":true,"detectors":["layout","script"]}"#;
+const OPTS: &str = r#"{"debug":true,"detectors":["layout","script","handwriting"]}"#;
 const DPI: u16 = 150;
 
 fn golden_dir() -> PathBuf {
@@ -70,7 +70,7 @@ fn layout_reports_match_byte_for_byte() {
     let expected_dir = golden_dir().join("layout_expected");
     fs::create_dir_all(&expected_dir).unwrap();
     let all = fixtures();
-    assert!(all.len() >= 11, "found only {} layout inputs", all.len());
+    assert!(all.len() >= 12, "found only {} layout inputs", all.len());
     for (name, path) in all {
         let actual = report(&path);
         let expected_path = expected_dir.join(format!("{name}.json"));
@@ -116,8 +116,10 @@ fn layout_pages_have_the_structure_they_were_drawn_with() {
     assert_eq!(feature("layout_two_columns", "lines"), 19.0);
     assert_eq!(feature("layout_two_columns", "columns"), 2.0);
     assert_eq!(feature("layout_two_columns", "blocks"), 3.0);
-    assert_eq!(feature("layout_form", "rules"), 2.0);
-    assert_eq!(feature("layout_form", "graphics"), 2.0);
+    // Two free-standing rules, and the frame cut into its three horizontal and two vertical rules;
+    // the stamp is the one graphic.
+    assert_eq!(feature("layout_form", "rules"), 7.0);
+    assert_eq!(feature("layout_form", "graphics"), 1.0);
     assert_eq!(feature("layout_form", "lines"), 9.0);
     // Script family of the pages drawn for it (module M4).
     let families = |page: &str| -> Vec<String> {
@@ -134,4 +136,19 @@ fn layout_pages_have_the_structure_they_were_drawn_with() {
     assert_eq!(families("script_cursive"), ["cursive"]);
     assert_eq!(families("script_mixed"), ["headline", "discrete"]);
     assert_eq!(families("layout_one_column"), ["discrete"]);
+    // Handwriting regions (module M5): the two fill-ins on their rules and the scribbled line, and
+    // none on a printed page.
+    let regions = |page: &str| -> usize {
+        let json = report(&golden_dir().join(format!("layout_inputs/{page}.pgm")));
+        let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        v["findings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|f| f["kind"] == "handwriting")
+            .count()
+    };
+    assert_eq!(regions("layout_hand_form"), 3);
+    assert_eq!(regions("layout_one_column"), 0);
+    assert_eq!(regions("layout_form"), 0);
 }

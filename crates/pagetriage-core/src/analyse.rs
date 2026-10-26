@@ -7,6 +7,7 @@ use serde::Deserialize;
 use crate::error::{Error, Result};
 use crate::params::Params;
 use crate::pixel::content_type::{self, BLANK_PAGE};
+use crate::pixel::handwriting::{self, HANDWRITING};
 use crate::pixel::layout::{self, LAYOUT};
 use crate::pixel::phash::{self, PHASH};
 use crate::pixel::quality;
@@ -19,6 +20,7 @@ use crate::structural::PageStructure;
 #[rustfmt::skip]
 pub const DETECTORS: &[&str] = &[
     BLANK_PAGE,
+    HANDWRITING,
     LAYOUT,
     PHASH,
     SCRIPT,
@@ -29,6 +31,7 @@ pub const DETECTORS: &[&str] = &[
 /// been reviewed; promoting it means deleting its line. Same layout rule as [`DETECTORS`].
 #[rustfmt::skip]
 pub const OPT_IN: &[&str] = &[
+    HANDWRITING,
     LAYOUT,
     SCRIPT,
 ];
@@ -135,7 +138,10 @@ pub fn analyse_page_report(
     )?;
 
     // The layout pass is shared by every detector that works line by line; run it once.
-    let page_layout = if selected.iter().any(|d| matches!(*d, LAYOUT | SCRIPT)) {
+    let page_layout = if selected
+        .iter()
+        .any(|d| matches!(*d, HANDWRITING | LAYOUT | SCRIPT))
+    {
         Some(layout::segment(
             input.gray,
             input.width as usize,
@@ -154,6 +160,9 @@ pub fn analyse_page_report(
         let detection = match name {
             BLANK_PAGE => {
                 content_type::detect_blank_page(input.gray, &params.blank_page, &params.fusion)?
+            }
+            HANDWRITING => {
+                handwriting::detect(page_layout.as_ref().expect("segmented above"), &params)?
             }
             LAYOUT => layout::summarize(page_layout.as_ref().expect("segmented above")),
             SCRIPT => script::detect(page_layout.as_ref().expect("segmented above"), &params)?,

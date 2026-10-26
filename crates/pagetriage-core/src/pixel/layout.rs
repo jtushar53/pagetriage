@@ -35,6 +35,7 @@ pub struct LayoutParams {
     pub xheight_fallback_px: f64,
     pub rule_min_len_xh: f64,
     pub rule_max_thick_xh: f64,
+    pub rule_run_xh: f64,
     pub graphic_min_xh: f64,
     pub smear_xh: f64,
     pub line_min_glyphs: u32,
@@ -56,6 +57,7 @@ impl LayoutParams {
             ("xheight_fallback_px", self.xheight_fallback_px),
             ("rule_min_len_xh", self.rule_min_len_xh),
             ("rule_max_thick_xh", self.rule_max_thick_xh),
+            ("rule_run_xh", self.rule_run_xh),
             ("graphic_min_xh", self.graphic_min_xh),
             ("smear_xh", self.smear_xh),
             ("line_min_height_xh", self.line_min_height_xh),
@@ -166,6 +168,8 @@ pub struct Layout {
     /// rows the shear adds. Equal to the page size when no shear was applied.
     pub width: usize,
     pub height: usize,
+    /// Height of the page itself, before the shear added rows.
+    pub page_height: usize,
     /// The skew the page was levelled by, degrees, in the sense of `quality.skew_deg`; 0 when it
     /// was below `shear_min_deg`.
     pub skew_deg: f64,
@@ -240,10 +244,114 @@ fn union(parent: &mut [usize], a: usize, b: usize) {
 }
 
 impl Layout {
+    /// The page-coordinate bounding box `[x0, y0, x1, y1]` (inclusive, clamped to the page) of a
+    /// box of the sheared frame. The shear grows with `x`, so the extremes are at the box's ends.
+    pub fn rect_to_page(&self, r: &Rect) -> [u32; 4] {
+        let at = |x: u32, y: u32| i64::from(y) - i64::from(self.shear[x as usize]);
+        let top = at(r.x0, r.y0).min(at(r.x1, r.y0));
+        let bottom = at(r.x0, r.y1).max(at(r.x1, r.y1));
+        let max_y = self.page_height as i64 - 1;
+        [
+            r.x0,
+            top.clamp(0, max_y) as u32,
+            r.x1,
+            bottom.clamp(0, max_y) as u32,
+        ]
+    }
+
     /// Map a point of the sheared frame back to page coordinates. `x` is a column of the page.
     pub fn to_page(&self, x: u32, y: u32) -> (u32, i64) {
         (x, i64::from(y) - i64::from(self.shear[x as usize]))
     }
+}
+
+/// For each ink pixel, how many ink pixels there are in a straight line through it: `(dy, dx)` is
+/// the step in the sweep direction. Returns `before + after + 1`, saturating.
+fn extent_through(ink: &[u8], width: usize, height: usize, vertical: bool) -> Vec<u16> {
+    let n = ink.len();
+    let mut before = vec![0u16; n];
+    let mut after = vec![0u16; n];
+    let step = if vertical { width } else { 1 };
+    for i in 0..n {
+        if ink[i] != 0 {
+            let first = if vertical { i < width } else { i % width == 0 };
+            before[i] = if first {
+                1
+            } else {
+                before[i - step].saturating_add(1)
+            };
+        }
+    }
+    for i in (0..n).rev() {
+        if ink[i] != 0 {
+            let last = if vertical {
+                i + width >= n
+            } else {
+                i % width == width - 1
+            };
+            after[i] = if last {
+                1
+            } else {
+                after[i + step].saturating_add(1)
+            };
+        }
+    }
+    let _ = height;
+    before
+        .iter()
+        .zip(&after)
+        .map(|(&b, &a)| (b.saturating_add(a)).saturating_sub(1))
+        .collect()
+}
+
+/// Pixels of thin rulings: horizontal or vertical runs of ink at least `run_min` long whose
+/// perpendicular extent at that pixel is at most `thick_max`. A pen stroke that crosses a ruling
+/// makes the extent larger at its own columns, so those pixels stay and the stroke stays whole.
+fn thin_ruling_pixels(
+    ink: &[u8],
+    width: usize,
+    height: usize,
+    run_min: usize,
+    thick_max: usize,
+) -> Vec<u8> {
+    let mut removed = vec![0u8; ink.len()];
+    for vertical in [false, true] {
+        // Thickness across the run: vertical extent for a horizontal run, horizontal for a vertical.
+        let thickness = extent_through(ink, width, height, !vertical);
+        let (outer, inner) = if vertical {
+            (width, height)
+        } else {
+            (height, width)
+        };
+        let at = |o: usize, i: usize| {
+            if vertical {
+                i * width + o
+            } else {
+                o * width + i
+            }
+        };
+        for o in 0..outer {
+            let mut i = 0;
+            while i < inner {
+                if ink[at(o, i)] == 0 {
+                    i += 1;
+                    continue;
+                }
+                let start = i;
+                while i < inner && ink[at(o, i)] != 0 {
+                    i += 1;
+                }
+                if i - start >= run_min {
+                    for k in start..i {
+                        if usize::from(thickness[at(o, k)]) <= thick_max {
+                            removed[at(o, k)] = 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    removed
 }
 
 /// Segment a `width * height` row-major gray page whose text lines are tilted by `skew_deg` (the
@@ -298,26 +406,50 @@ pub fn segment(
         }
         sheared
     };
+    let page_height = height;
     let (width, height) = (full_w, full_h);
-    let lab = components::label_8(&ink, width, height);
+    let mut lab = components::label_8(&ink, width, height);
     let ink_pixels: u64 = lab.components.iter().map(|c| u64::from(c.area)).sum();
 
     // Pass 1: x-height from everything that could be a glyph.
     let max_w = p.glyph_max_extent_frac * width as f64;
     let max_h = p.glyph_max_extent_frac * height as f64;
-    let candidates: Vec<(u32, u32)> = lab
-        .components
-        .iter()
-        .filter(|c| {
-            c.area >= p.xheight_min_area.max(p.glyph_min_area)
-                && f64::from(c.width()) < max_w
-                && f64::from(c.height()) < max_h
-        })
-        .map(|c| (c.height(), c.area))
-        .collect();
-    let xheight = weighted_median_height(candidates)
-        .map_or(p.xheight_fallback_px, f64::from)
-        .max(1.0);
+    let measure_xheight = |lab: &components::Labelling| {
+        let candidates: Vec<(u32, u32)> = lab
+            .components
+            .iter()
+            .filter(|c| {
+                c.area >= p.xheight_min_area.max(p.glyph_min_area)
+                    && f64::from(c.width()) < max_w
+                    && f64::from(c.height()) < max_h
+            })
+            .map(|c| (c.height(), c.area))
+            .collect();
+        weighted_median_height(candidates)
+            .map_or(p.xheight_fallback_px, f64::from)
+            .max(1.0)
+    };
+    let mut xheight = measure_xheight(&lab);
+
+    // Cut thin rulings out of the mask, so that text written across a ruling (a handwritten fill-in
+    // on a printed line, a word touching a table edge) is not fused to it; then measure again.
+    let run_min = ((p.rule_run_xh * xheight).round() as usize).max(2);
+    let thick_max = ((p.rule_max_thick_xh * xheight).round() as usize).max(1);
+    let cut = thin_ruling_pixels(&ink, width, height, run_min, thick_max);
+    let mut rules = Vec::new();
+    let mut ink = ink;
+    if cut.contains(&1) {
+        for c in &components::label_8(&cut, width, height).components {
+            rules.push(Rect::of(c));
+        }
+        for (v, &c) in ink.iter_mut().zip(&cut) {
+            if c != 0 {
+                *v = 0;
+            }
+        }
+        lab = components::label_8(&ink, width, height);
+        xheight = measure_xheight(&lab);
+    }
 
     // Pass 2: classify every component against it.
     let kinds: Vec<Kind> = lab
@@ -342,7 +474,6 @@ pub fn segment(
         })
         .collect();
 
-    let mut rules = Vec::new();
     let mut graphics = Vec::new();
     let mut glyph_count = 0u32;
     let mut glyph_ink_pixels = 0u64;
@@ -526,6 +657,7 @@ pub fn segment(
     Ok(Layout {
         width,
         height,
+        page_height,
         skew_deg: applied,
         shear,
         xheight,
@@ -738,6 +870,23 @@ mod tests {
         let a = detect(&g, 200, 140, 0.0, &params()).unwrap().features;
         let b = detect(&g, 200, 140, 0.0, &params()).unwrap().features;
         assert_eq!(a, b);
+    }
+
+    #[test]
+    fn a_stroke_crossing_a_ruling_stays_text_and_the_ruling_is_reported() {
+        // Text, a 1-px rule 200 px long below it, and a descender that crosses the rule.
+        let mut ink = text_block(20, 10, 1, 4);
+        ink.push((10, 36, 209, 36));
+        ink.push((50, 20, 52, 44)); // a tall stroke through the rule
+        ink.extend(text_block(20, 50, 1, 4));
+        let g = page(220, 80, &ink);
+        let l = segment(&g, 220, 80, 0.0, &params()).unwrap();
+        // The crossing stroke splits the ruling in two pieces; together they span the rule.
+        assert_eq!(l.rules.len(), 2, "{:?}", l.rules);
+        assert!(l.rules.iter().map(Rect::width).sum::<u32>() >= 150);
+        assert_eq!(l.lines.len(), 2);
+        // The rule no longer fuses the two text lines or the stroke to the rule.
+        assert!(l.graphics.is_empty());
     }
 
     /// Lines of 4-px-wide stems along a slope: `rise` rows per 100 columns, text rising to the right.

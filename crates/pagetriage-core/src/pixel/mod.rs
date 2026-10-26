@@ -8,6 +8,7 @@ use crate::schema::Finding;
 pub mod binarize;
 pub mod components;
 pub mod content_type;
+pub mod handwriting;
 pub mod layout;
 pub mod phash;
 pub mod quality;

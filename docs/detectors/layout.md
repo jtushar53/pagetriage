@@ -1,4 +1,4 @@
-# `layout` (shared by M4 `pixel.script` and M5 `pixel.handwriting`, Phase 2)
+# `layout` (shared by M4 `script` and M5 `handwriting`, Phase 2)
 
 Splits a page into **text lines, blocks and columns**, and sets aside **rulings** and **graphics**
 (frames, stamps, photos). It produces no `finding`: it is the groundwork the Phase 2 detectors stand
@@ -25,6 +25,12 @@ x-height, which use IEEE operations only, so native, Python and WASM give the sa
    shear, so an upright page is segmented as it is. Boxes are in the sheared frame;
    `Layout::to_page` maps a point back.
 3. **Components.** 8-connected labelling (`pixel/components.rs`).
+3b. **Cut thin rulings.** After a first labelling gives the x-height, every horizontal or vertical
+   run of ink at least `rule_run_xh` (12) x-heights long is removed wherever it is at most
+   `rule_max_thick_xh` (0.5) x-heights thick across, and the page is labelled again. A pen stroke
+   crossing the ruling is thicker at its own columns, so those pixels stay and the stroke stays
+   whole. The removed pieces are the page's `rules`. Without this, text written across or touching a
+   printed line (a handwritten fill-in on a form line, a word on a table edge) was fused to it.
 4. **Unit.** The page's *x-height* is the area-weighted median height of the glyph-sized
    components. Every length below is a multiple of it. For scripts with a headline (Devanagari,
    Bengali, Gurmukhi) a component is a whole word, so this "x-height" is about the height of a word
@@ -114,8 +120,8 @@ Known wrong answers. The first is pinned by a fixture; the rest were measured on
 
 | Case | What happens | Where |
 |---|---|---|
-| **Text touching a ruling** | The glyphs join the ruling's component. With a table frame, the frame is one *graphic* and the touching line disappears from the text mask: in `layout_form` a line whose last row sat directly above a table rule was lost (8 lines instead of 9) until the fixture's rule was moved two rows. Real forms do this constantly. | Found while building `layout_form.pgm`; the checked-in page has the rule moved away |
-| **Table frame is one graphic** | Rulings that touch (a frame with cell dividers) are a single component, so `rules` counts only free-standing rules. Cells are not separated: text inside a frame is found as ordinary lines, but nothing says it is in a cell. Rulings and tables are M9 (Phase 3). | `layout_form.pgm`: `rules` 2, `graphics` 2 (the frame and the stamp) |
+| **Text touching a ruling** | Before the ruling cut was added, text that touched a table rule joined it: in `layout_form` a line whose last row sat directly above a rule was lost (8 lines instead of 9), and a handwritten fill-in crossing a form line fused with it into one 280-px "glyph". The cut (step 3b) fixes both. What is left: a ruling thicker than 0.5 x-heights (a heavy bar, a ruling blurred to 3 px at 10 pt) is not cut, and a ruling shorter than 12 x-heights is not cut. | `layout_form.pgm`, `layout_hand_form.pgm`; unit test `a_stroke_crossing_a_ruling_stays_text_and_the_ruling_is_reported` |
+| **A frame is rules, not a table** | The cut turns a frame into its separate horizontal and vertical rules (`layout_form`: 7 rules, 2 of them free-standing). Nothing groups them into cells or says text sits in a cell. That is M9 (Phase 3). | `layout_form.pgm`: `rules` 7, `graphics` 1 (the stamp) |
 | **Narrow gutter in a headline script** | `smear_xh` (2.0) is two word heights in Devanagari, about 46 px at 11 pt and 150 dpi. A gutter narrower than that fuses the two columns' lines: at a 40 px gutter 52 true lines came out as 47, one column, 8 blocks; at 25 px, 42 lines. At 60 px it was exact. Latin was exact down to a 25 px gutter. | Measured on synthetic pages, see Evaluation |
 | **Sparse column** | A column holding fewer lines than `column_cover_frac` (20%) of the busiest position's count is not counted. A narrow sidebar of 2 lines beside a 20-line column is missed. | By construction |
 | **Pages of single-line paragraphs** | "Typical gap" is the median over lines, so a list of one-line items (or a form of evenly spaced fields) has a large typical gap and merges into one block. | By construction |
@@ -132,7 +138,7 @@ Known wrong answers. The first is pinned by a fixture; the rest were measured on
 |---|---|---|
 | `layout_one_column.pgm` | A 10-line paragraph and a 3-line paragraph | 13 lines, 2 blocks, 1 column |
 | `layout_two_columns.pgm` | A heading over two 9-line columns | 19 lines, 3 blocks, 2 columns |
-| `layout_form.pgm` | Text, a framed box with text inside, a filled stamp, two free-standing rules | 9 lines, 2 rules, 2 graphics |
+| `layout_form.pgm` | Text, a framed box with text inside, a filled stamp, two free-standing rules | 9 lines, 7 rules (two free, five from the frame), 1 graphic |
 
 The `quality_inputs/` pages are run through `layout` as well. Expected reports are in
 `tests/golden/layout_expected/`; the Python and WASM runners compare against the same files.
