@@ -4,7 +4,10 @@
 // Messages out: ready {version} | page-result {job, seq, json, sha, ms, gray}
 //               mask {job, method, mask, w, h, ms} | pdf-result {job, json, sha, ms}
 //               error {job, code, message}
-import init, { analyse_page, analyse_pdf_structure, binarize, rgb_to_gray, version } from "./pkg/pagetriage.js";
+// The build id arrives in the worker's own URL (see buildId() in app.js) and goes into the package's
+// URLs, so a browser cannot pair this worker with a package from another build.
+const BUILD = new URL(import.meta.url).searchParams.get("v") || "dev";
+let wasm = null; // the package, loaded on the first message
 
 const HOWE_STATIC = '[howe]\nmode = "static"'; // the dual mode takes about 23 s per megapixel
 
@@ -13,8 +16,12 @@ let cur = null; // the page in memory: { job, gray, rgb, w, h }
 
 function load() {
   if (!loading) {
-    loading = init()
-      .then(() => postMessage({ type: "ready", version: version() }))
+    loading = import(`./pkg/pagetriage.js?v=${BUILD}`)
+      .then(async (mod) => {
+        await mod.default({ module_or_path: new URL(`./pkg/pagetriage_bg.wasm?v=${BUILD}`, import.meta.url) });
+        wasm = mod;
+        postMessage({ type: "ready", version: mod.version() });
+      })
       .catch((err) => {
         loading = null;
         throw err;
@@ -34,7 +41,7 @@ function fail(job, code, err) {
 
 async function analyse(job, seq, dpi) {
   const t0 = performance.now();
-  const json = analyse_page(cur.gray, cur.rgb, cur.w, cur.h, dpi, undefined, "{}");
+  const json = wasm.analyse_page(cur.gray, cur.rgb, cur.w, cur.h, dpi, undefined, "{}");
   const ms = Math.round(performance.now() - t0);
   const sha = await sha256Hex(json);
   postMessage({ type: "page-result", job, seq, json, sha, ms, gray: cur.rgb === undefined });
@@ -64,7 +71,7 @@ function unpack(rgba, w, h) {
     for (let i = 0, q = 0; i < n; i++, q += 3) gray[i] = rgb[q];
     return { gray, rgb: undefined };
   }
-  return { gray: rgb_to_gray(rgb), rgb };
+  return { gray: wasm.rgb_to_gray(rgb), rgb };
 }
 
 onmessage = async (e) => {
@@ -95,7 +102,7 @@ onmessage = async (e) => {
           if (!cur || cur.job !== m.job) return;
           try {
             const t0 = performance.now();
-            const mask = binarize(cur.gray, cur.w, cur.h, m.method, m.method === "howe" ? HOWE_STATIC : undefined);
+            const mask = wasm.binarize(cur.gray, cur.w, cur.h, m.method, m.method === "howe" ? HOWE_STATIC : undefined);
             const ms = Math.round(performance.now() - t0);
             postMessage({ type: "mask", job: m.job, method: m.method, mask: mask.buffer, w: cur.w, h: cur.h, ms }, [mask.buffer]);
           } catch (err) {
@@ -105,7 +112,7 @@ onmessage = async (e) => {
         return;
       case "pdf": {
         const t0 = performance.now();
-        const json = analyse_pdf_structure(new Uint8Array(m.bytes), undefined);
+        const json = wasm.analyse_pdf_structure(new Uint8Array(m.bytes), undefined);
         const ms = Math.round(performance.now() - t0);
         const sha = await sha256Hex(json);
         postMessage({ type: "pdf-result", job: m.job, json, sha, ms });

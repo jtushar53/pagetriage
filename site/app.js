@@ -100,13 +100,27 @@ const setStatus = (text) => { ui.status.textContent = text; };
 // ------------------------------------------------------------------ worker
 
 let worker;
-try {
-  worker = new Worker("./worker.js", { type: "module" });
-} catch (err) {
-  showError("load", err);
+
+// The WASM package and the sample manifest must come from the same build. GitHub Pages lets a
+// browser keep files for ten minutes, so after a deploy a tab could pair the old package with the new
+// manifest and show a fingerprint mismatch. pkg/build.json (written by scripts/build-site.sh) is always
+// fetched fresh and its id goes into the worker's and the package's URLs, so each build's files are
+// separate cache entries.
+async function buildId() {
+  try {
+    const r = await fetch("pkg/build.json", { cache: "no-store" });
+    return (await r.json()).id || "dev";
+  } catch {
+    return "dev";
+  }
 }
 
-function startWorker() {
+async function startWorker() {
+  try {
+    worker = new Worker(`./worker.js?v=${await buildId()}`, { type: "module" });
+  } catch (err) {
+    showError("load", err);
+  }
   if (!worker) return;
   setStatus("Loading the analyser (0.6 MB, once)...");
   worker.postMessage({ type: "init" });
@@ -747,12 +761,12 @@ function buildLedger(ledger) {
 }
 
 async function boot() {
-  startWorker();
+  await startWorker();
   selectTab("page");
   try {
     const [samples, ledger] = await Promise.all([
-      fetch("samples/samples.json").then((r) => r.json()),
-      fetch("ledger.json").then((r) => r.json()),
+      fetch("samples/samples.json", { cache: "no-cache" }).then((r) => r.json()),
+      fetch("ledger.json", { cache: "no-cache" }).then((r) => r.json()),
     ]);
     state.samples = samples;
     buildPicker(samples);
