@@ -37,8 +37,8 @@ x-height, which use IEEE operations only, so native, Python and WASM give the sa
    crossing the ruling is thicker at its own columns, so those pixels stay and the stroke stays
    whole. The removed pieces are the page's `rules`. Without this, text written across or touching a
    printed line (a handwritten fill-in on a form line, a word on a table edge) was fused to it.
-4. **Unit.** The page's *x-height* is the area-weighted median height of the glyph-sized
-   components. Every length below is a multiple of it. For scripts with a headline (Devanagari,
+4. **Unit.** The page's *x-height* is the median height (one vote per component) of the
+   glyph-sized components with at least `xheight_min_area` (20) ink pixels. Every length below is a multiple of it. For scripts with a headline (Devanagari,
    Bengali, Gurmukhi) a component is a whole word, so this "x-height" is about the height of a word
    (23 px against 13 px for Latin at 11 pt and 150 dpi). The unit is a scale, not a typographic
    x-height.
@@ -150,3 +150,15 @@ The `quality_inputs/` pages are run through `layout` as well. Expected reports a
 `tests/golden/layout_expected/`; the Python and WASM runners compare against the same files.
 Refresh after an intentional change: `UPDATE_GOLDEN=1 cargo test -p pagetriage-core --test
 layout_golden`, then review the diff.
+
+## Change log of the unit
+
+The x-height was first the *area-weighted* median height, so that crowds of specks could not drag it
+down. A page with a signature and a stamp, whose few huge components hold most of the ink, then got an
+x-height of 45 px against 8 px text, and every threshold in x-heights was wrong (the signature page
+was found by the signature detector's benchmark, not by the layout's). It is now a plain median over
+components of at least 20 pixels. With the old minimum of 6 pixels the count of dots in the
+pseudo-Arabic script (small marks outnumber letters) pulled the unit down and mixed
+Devanagari/Arabic pages were read right only 6 times in 10; at 20 the layout, script and rulings
+benchmarks are exactly as before (45/45, 315/315 and 315/315, 40/40) and the handwriting form numbers
+moved by a few points (docs updated).

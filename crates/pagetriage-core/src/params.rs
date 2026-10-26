@@ -18,6 +18,7 @@ const SCRIPT_TOML: &str = include_str!("../params/script.toml");
 const HANDWRITING_TOML: &str = include_str!("../params/handwriting.toml");
 const RULINGS_TOML: &str = include_str!("../params/rulings.toml");
 const STAMP_TOML: &str = include_str!("../params/stamp.toml");
+const SIGNATURE_TOML: &str = include_str!("../params/signature.toml");
 
 /// Sauvola local threshold (see `params/sauvola.toml`).
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -107,6 +108,7 @@ pub struct Params {
     pub handwriting: crate::pixel::handwriting::HandwritingParams,
     pub rulings: crate::pixel::rulings::RulingsParams,
     pub stamp: crate::pixel::stamp::StampParams,
+    pub signature: crate::pixel::signature::SignatureParams,
 }
 
 impl Params {
@@ -131,7 +133,7 @@ impl Params {
             "# --- fusion ---\n[fusion]\n{FUSION_TOML}\n# --- blank_page ---\n[blank_page]\n{BLANK_PAGE_TOML}\n\
              # --- sauvola ---\n[sauvola]\n{SAUVOLA_TOML}\n# --- wolf ---\n[wolf]\n{WOLF_TOML}\n\
              # --- howe ---\n[howe]\n{HOWE_TOML}\n# --- phash ---\n[phash]\n{PHASH_TOML}\n\
-             # --- quality ---\n[quality]\n{QUALITY_TOML}\n# --- layout ---\n[layout]\n{LAYOUT_TOML}\n# --- script ---\n[script]\n{SCRIPT_TOML}\n# --- handwriting ---\n[handwriting]\n{HANDWRITING_TOML}\n# --- rulings ---\n[rulings]\n{RULINGS_TOML}\n# --- stamp ---\n[stamp]\n{STAMP_TOML}"
+             # --- quality ---\n[quality]\n{QUALITY_TOML}\n# --- layout ---\n[layout]\n{LAYOUT_TOML}\n# --- script ---\n[script]\n{SCRIPT_TOML}\n# --- handwriting ---\n[handwriting]\n{HANDWRITING_TOML}\n# --- rulings ---\n[rulings]\n{RULINGS_TOML}\n# --- stamp ---\n[stamp]\n{STAMP_TOML}\n# --- signature ---\n[signature]\n{SIGNATURE_TOML}"
         )
     }
 
@@ -193,6 +195,7 @@ impl Params {
         self.handwriting.validate()?;
         self.rulings.validate()?;
         self.stamp.validate()?;
+        self.signature.validate()?;
         self.validate_binarizers()?;
         self.validate_phash()
     }
@@ -313,6 +316,7 @@ fn defaults_table() -> Result<toml::Table> {
     );
     table.insert("rulings".into(), parse("rulings", RULINGS_TOML)?);
     table.insert("stamp".into(), parse("stamp", STAMP_TOML)?);
+    table.insert("signature".into(), parse("signature", SIGNATURE_TOML)?);
     Ok(table)
 }
 

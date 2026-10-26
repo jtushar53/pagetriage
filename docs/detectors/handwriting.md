@@ -79,7 +79,7 @@ have the first number. Clean and blur 1 px shown; noise 8 gave the same numbers 
 | Handwriting, block capitals (never tuned on) | clean | 0/5 | 0/5 | **0% / 0%** | |
 | Handwriting, block capitals | blur 1 px | 0/5 | 0/5 | **0% / 0%** | |
 | Form with fill-ins | clean | 5/5 | 5/5 | 70% / 67% | 94% / 94% |
-| Form with fill-ins | blur 1 px | 5/5 | 5/5 | 78% / 79% | 77% / 79% |
+| Form with fill-ins | blur 1 px | 5/5 | 5/5 | 73% / 75% | 84% / 84% |
 
 How to read it. The row that works is the one it was tuned on. The scribble row shows the
 generalisation problem: unblurred, the spiky strokes are as axis-aligned and uniform as print and

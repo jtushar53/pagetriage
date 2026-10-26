@@ -485,6 +485,35 @@ def layout_hand_form():
 
 RW, RH = 320, 500
 
+
+def signature_page():
+    """Three lines of text, a flourish of six loops with an underswing (a signature), and a black
+    double-ringed stamp that must not be taken for one."""
+    rng = Lcg(101)
+    ink = set()
+    _ink_lines(rng, ink, 20, 300, 12, 3)
+    loop = [(22, 0), (11, 19), (-11, 19), (-22, 0), (-11, -19), (11, -19)]
+    prev = (30, 125)
+    for i in range(6):
+        cx = 50 + i * 28
+        for dx, dy in loop + [loop[0]]:
+            p = (cx + dx + rng.next(7) - 3, 120 + dy + rng.next(7) - 3)
+            _line(ink, prev[0], prev[1], p[0], p[1], 2)
+            prev = p
+    _line(ink, prev[0], prev[1], 60, 160, 2)
+    _line(ink, 60, 160, 230, 150, 2)
+    for r2 in (46 * 46, 33 * 33):
+        for y in range(205 - 50, 205 + 51):
+            for x in range(250 - 50, 250 + 51):
+                d = (x - 250) ** 2 + (y - 205) ** 2
+                if abs(d - r2) <= (3 * 46 if r2 > 1500 else 3 * 33):
+                    ink.add((x, y))
+    for k in range(5):
+        for dy in range(10):
+            ink.update({(236 + k * 8 + dx, 200 + dy) for dx in range(3)})
+    return _layout_page(ink)
+
+
 # Colour fixtures for the stamp detector (module M6) are PPM (P6) files in stamp_inputs/.
 STAMP_OUT = pathlib.Path(__file__).resolve().parent / "stamp_inputs"
 SW, SH = 360, 300
@@ -635,3 +664,5 @@ if __name__ == "__main__":
     for fn in (stamp_circle_over_text, stamp_violet_seal_and_red_rectangle, stamp_confusers):
         write_ppm(fn.__name__, fn(), SW, SH, STAMP_OUT)
         print("wrote", fn.__name__)
+    write_pgm("signature_page", signature_page(), LW, LH, LAYOUT_OUT)
+    print("wrote signature_page")

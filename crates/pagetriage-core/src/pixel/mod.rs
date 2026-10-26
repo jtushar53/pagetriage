@@ -14,6 +14,7 @@ pub mod phash;
 pub mod quality;
 pub mod rulings;
 pub mod script;
+pub mod signature;
 pub mod stamp;
 
 #[derive(Debug, Default)]

@@ -113,7 +113,7 @@ fn median_i64(v: &mut [i64]) -> i64 {
 /// Share of edge strength within about 22 degrees of an axis, over the box. 3x3 Sobel of the 0/1
 /// ink mask, integers throughout; a gradient is axis-aligned when the smaller component is under
 /// 0.4 of the larger (tan 22.5 degrees is 0.414).
-fn axis_share(layout: &Layout, r: &Rect) -> f64 {
+pub(crate) fn axis_share(layout: &Layout, r: &Rect) -> f64 {
     let (w, h) = (layout.width, layout.height);
     let at = |x: i64, y: i64| -> i64 {
         if x < 0 || y < 0 || x >= w as i64 || y >= h as i64 {

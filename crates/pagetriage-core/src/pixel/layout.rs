@@ -181,7 +181,7 @@ pub struct Layout {
     /// Then, columns: a pixel on levelled row `r` moves to column `x + shear_x[r]`, which makes
     /// vertical rulings and column edges vertical.
     pub shear_x: Vec<i32>,
-    /// Area-weighted median glyph height in pixels: the unit of every length in `LayoutParams`.
+    /// Median glyph height in pixels: the unit of every length in `LayoutParams`.
     pub xheight: f64,
     pub glyph_count: u32,
     pub glyph_ink_pixels: u64,
@@ -215,22 +215,17 @@ fn median_u32(values: &mut [u32]) -> u32 {
     values[values.len() / 2]
 }
 
-/// Area-weighted median of the heights of `(height, area)` pairs: the height at which half of the
-/// ink area has been seen. The weighting keeps a crowd of small marks from dragging it down.
-fn weighted_median_height(mut by_height: Vec<(u32, u32)>) -> Option<u32> {
-    by_height.sort_unstable();
-    let total: u64 = by_height.iter().map(|&(_, a)| u64::from(a)).sum();
-    if total == 0 {
+/// Median of the heights of `(height, area)` pairs, one vote per component. (It was area-weighted,
+/// to keep specks from dragging it down, until a page with a signature and a stamp, whose few huge
+/// components hold most of the ink, got an x-height of 45 px against 8 px text. The minimum area
+/// already keeps specks out.)
+fn weighted_median_height(by_height: Vec<(u32, u32)>) -> Option<u32> {
+    let mut heights: Vec<u32> = by_height.into_iter().map(|(h, _)| h).collect();
+    if heights.is_empty() {
         return None;
     }
-    let mut acc = 0u64;
-    for &(height, area) in &by_height {
-        acc += u64::from(area);
-        if acc * 2 >= total {
-            return Some(height);
-        }
-    }
-    by_height.last().map(|&(h, _)| h)
+    heights.sort_unstable();
+    Some(heights[heights.len() / 2])
 }
 
 fn find(parent: &mut [usize], mut i: usize) -> usize {

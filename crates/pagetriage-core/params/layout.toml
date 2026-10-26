@@ -16,7 +16,7 @@ glyph_max_extent_frac = 0.4
 
 # Components with fewer pixels than this are left out of the x-height estimate.
 # Source: placeholder (quality.xheight_min_area = 6).
-xheight_min_area = 6
+xheight_min_area = 20
 
 # Glyph height in pixels when no component is large enough to measure it.
 # Source: placeholder (about a 10 pt x-height at 150 dpi, as quality.xheight_fallback_px).

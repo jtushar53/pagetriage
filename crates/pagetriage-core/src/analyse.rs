@@ -13,6 +13,7 @@ use crate::pixel::phash::{self, PHASH};
 use crate::pixel::quality;
 use crate::pixel::rulings::{self, RULINGS};
 use crate::pixel::script::{self, SCRIPT};
+use crate::pixel::signature::{self, SIGNATURE};
 use crate::pixel::stamp::{self, STAMP};
 use crate::schema::{self, Finding, Kind, PageReport};
 use crate::structural::PageStructure;
@@ -27,6 +28,7 @@ pub const DETECTORS: &[&str] = &[
     PHASH,
     RULINGS,
     SCRIPT,
+    SIGNATURE,
     STAMP,
 ];
 
@@ -39,6 +41,7 @@ pub const OPT_IN: &[&str] = &[
     LAYOUT,
     RULINGS,
     SCRIPT,
+    SIGNATURE,
     STAMP,
 ];
 
@@ -146,7 +149,7 @@ pub fn analyse_page_report(
     // The layout pass is shared by every detector that works line by line; run it once.
     let page_layout = if selected
         .iter()
-        .any(|d| matches!(*d, HANDWRITING | LAYOUT | RULINGS | SCRIPT))
+        .any(|d| matches!(*d, HANDWRITING | LAYOUT | RULINGS | SCRIPT | SIGNATURE))
     {
         Some(layout::segment(
             input.gray,
@@ -174,6 +177,11 @@ pub fn analyse_page_report(
             RULINGS => rulings::detect(
                 page_layout.as_ref().expect("segmented above"),
                 input.gray,
+                input.dpi,
+                &params,
+            )?,
+            SIGNATURE => signature::detect(
+                page_layout.as_ref().expect("segmented above"),
                 input.dpi,
                 &params,
             )?,
