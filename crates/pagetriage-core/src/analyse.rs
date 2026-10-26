@@ -12,6 +12,7 @@ use crate::pixel::coverage::{self, COVERAGE};
 use crate::pixel::emboss::{self, EMBOSS};
 use crate::pixel::handwriting::{self, HANDWRITING};
 use crate::pixel::layout::{self, LAYOUT};
+use crate::pixel::orientation::{self, ORIENTATION};
 use crate::pixel::phash::{self, PHASH};
 use crate::pixel::photo::{self, PHOTO};
 use crate::pixel::qr::{self, QR};
@@ -34,6 +35,7 @@ pub const DETECTORS: &[&str] = &[
     EMBOSS,
     HANDWRITING,
     LAYOUT,
+    ORIENTATION,
     PHASH,
     PHOTO,
     QR,
@@ -54,6 +56,7 @@ pub const OPT_IN: &[&str] = &[
     EMBOSS,
     HANDWRITING,
     LAYOUT,
+    ORIENTATION,
     PHOTO,
     QR,
     REDACTION,
@@ -89,6 +92,9 @@ pub struct Options {
     /// analysis DPI, for the `coverage` detector. An empty list means "no text"; leaving it out means
     /// "unknown" (a PDF's own text boxes from `structural_json` are used then).
     pub text_boxes: Option<Vec<[u32; 4]>>,
+    /// Refuse pages with more pixels than this (an `InvalidInput` error instead of running out of
+    /// memory; a poster sheet at 300 dpi is about 70 million). `None` sets no limit.
+    pub max_pixels: Option<u64>,
     /// Value for the report's `index` field (the page's position in its document).
     pub page_index: u32,
 }
@@ -124,7 +130,7 @@ pub fn analyse_page_report(
     opts_json: &str,
 ) -> Result<PageReport> {
     let options = Options::from_json(opts_json)?;
-    validate_input(input)?;
+    validate_input(input, options.max_pixels)?;
     let structure = match structural_json {
         Some(s) => parse_structural(s)?,
         None => None,
@@ -231,6 +237,13 @@ pub fn analyse_page_report(
                 handwriting::detect(page_layout.as_ref().expect("segmented above"), &params)?
             }
             LAYOUT => layout::summarize(page_layout.as_ref().expect("segmented above")),
+            ORIENTATION => orientation::detect(
+                input.gray,
+                input.width as usize,
+                input.height as usize,
+                input.dpi,
+                &params,
+            )?,
             PHOTO => photo::detect(
                 input.gray,
                 input.width as usize,
@@ -470,7 +483,7 @@ fn legacy_script_finding(ps: &PageStructure) -> Vec<Finding> {
     }]
 }
 
-fn validate_input(input: &PageInput<'_>) -> Result<()> {
+fn validate_input(input: &PageInput<'_>, max_pixels: Option<u64>) -> Result<()> {
     if input.width == 0 || input.height == 0 {
         return Err(Error::InvalidInput(format!(
             "empty page: {}x{}",
@@ -479,6 +492,15 @@ fn validate_input(input: &PageInput<'_>) -> Result<()> {
     }
     if input.dpi == 0 {
         return Err(Error::InvalidInput("dpi must be at least 1".into()));
+    }
+    if let Some(limit) = max_pixels {
+        let n = u64::from(input.width) * u64::from(input.height);
+        if n > limit {
+            return Err(Error::InvalidInput(format!(
+                "page of {n} pixels ({}x{}) exceeds max_pixels {limit}",
+                input.width, input.height
+            )));
+        }
     }
     let pixels = (input.width as usize)
         .checked_mul(input.height as usize)
@@ -639,6 +661,22 @@ mod tests {
         let rgb = vec![0u8; 4 * 4 * 3];
         i.rgb = Some(&rgb);
         assert!(analyse_page(&i, None, "{}").is_ok());
+    }
+
+    #[test]
+    fn max_pixels_refuses_a_large_page_with_a_clear_error() {
+        let gray = vec![255u8; 100 * 50];
+        let input = PageInput {
+            gray: &gray,
+            rgb: None,
+            width: 100,
+            height: 50,
+            dpi: 150,
+        };
+        assert!(analyse_page(&input, None, r#"{"max_pixels":5000}"#).is_ok());
+        let e = analyse_page(&input, None, r#"{"max_pixels":4999}"#).unwrap_err();
+        assert!(e.to_string().contains("exceeds max_pixels 4999"), "{e}");
+        assert!(analyse_page(&input, None, r#"{"max_pixels":null}"#).is_ok());
     }
 
     #[test]

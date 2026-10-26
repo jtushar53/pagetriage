@@ -93,6 +93,8 @@ pub enum Kind {
     BlankPage,
     /// Text on the page that the supplied text layer or OCR boxes do not cover.
     ExtractionGap,
+    /// The page's text does not run left to right with its tops up; `rotate_clockwise_deg` says how to turn it.
+    Misoriented,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]

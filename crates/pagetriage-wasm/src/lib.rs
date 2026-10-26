@@ -39,6 +39,28 @@ pub fn finish_document(pages_json: &str, opts_json: &str) -> Result<String, JsEr
         .map_err(|e| JsError::new(&e.to_string()))
 }
 
+/// The resolution an image file states in its header (PNG, JPEG with JFIF or Exif, TIFF, BMP), as the
+/// JSON `{"x":..,"y":..,"source":".."}`, or `null` if it states none.
+#[wasm_bindgen]
+pub fn image_dpi(bytes: &[u8]) -> String {
+    match pagetriage_core::scale::image_dpi(bytes) {
+        Some(d) => serde_json::json!({"x": d.x, "y": d.y, "source": d.source}).to_string(),
+        None => "null".to_owned(),
+    }
+}
+
+/// The standard paper sizes and resolutions that a page of `width x height` pixels fits within
+/// `tolerance` (a fraction, for example 0.02), best first, as the JSON array of
+/// `{"paper","dpi","landscape","error"}`. A hint only.
+#[wasm_bindgen]
+pub fn paper_matches(width: u32, height: u32, tolerance: f64) -> String {
+    let list: Vec<_> = pagetriage_core::scale::paper_matches(width, height, tolerance)
+        .into_iter()
+        .map(|m| serde_json::json!({"paper": m.paper, "dpi": m.dpi, "landscape": m.landscape, "error": m.error}))
+        .collect();
+    serde_json::Value::Array(list).to_string()
+}
+
 /// Binarise a gray page: `width * height` bytes, `1` for ink and `0` for paper. `method` is
 /// `otsu`, `sauvola`, `wolf` or `howe`; `params_toml` overrides the embedded defaults. Identical
 /// bytes to the native and Python builds.

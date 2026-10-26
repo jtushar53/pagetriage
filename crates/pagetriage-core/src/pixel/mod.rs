@@ -12,6 +12,7 @@ pub mod coverage;
 pub mod emboss;
 pub mod handwriting;
 pub mod layout;
+pub mod orientation;
 pub mod phash;
 pub mod photo;
 pub mod qr;

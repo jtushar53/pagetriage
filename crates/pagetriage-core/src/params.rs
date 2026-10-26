@@ -22,6 +22,7 @@ const SIGNATURE_TOML: &str = include_str!("../params/signature.toml");
 const THUMB_TOML: &str = include_str!("../params/thumb.toml");
 const REDACTION_TOML: &str = include_str!("../params/redaction.toml");
 const QR_TOML: &str = include_str!("../params/qr.toml");
+const ORIENTATION_TOML: &str = include_str!("../params/orientation.toml");
 const PHOTO_TOML: &str = include_str!("../params/photo.toml");
 const COVERAGE_TOML: &str = include_str!("../params/coverage.toml");
 const EMBOSS_TOML: &str = include_str!("../params/emboss.toml");
@@ -123,6 +124,7 @@ pub struct Params {
     pub thumb: crate::pixel::thumb::ThumbParams,
     pub redaction: crate::pixel::redaction::RedactionParams,
     pub qr: crate::pixel::qr::QrParams,
+    pub orientation: crate::pixel::orientation::OrientationParams,
     pub photo: crate::pixel::photo::PhotoParams,
     pub coverage: crate::pixel::coverage::CoverageParams,
     pub emboss: crate::pixel::emboss::EmbossParams,
@@ -154,7 +156,7 @@ impl Params {
             "# --- fusion ---\n[fusion]\n{FUSION_TOML}\n# --- blank_page ---\n[blank_page]\n{BLANK_PAGE_TOML}\n\
              # --- sauvola ---\n[sauvola]\n{SAUVOLA_TOML}\n# --- wolf ---\n[wolf]\n{WOLF_TOML}\n\
              # --- howe ---\n[howe]\n{HOWE_TOML}\n# --- phash ---\n[phash]\n{PHASH_TOML}\n\
-             # --- quality ---\n[quality]\n{QUALITY_TOML}\n# --- layout ---\n[layout]\n{LAYOUT_TOML}\n# --- script ---\n[script]\n{SCRIPT_TOML}\n# --- handwriting ---\n[handwriting]\n{HANDWRITING_TOML}\n# --- rulings ---\n[rulings]\n{RULINGS_TOML}\n# --- stamp ---\n[stamp]\n{STAMP_TOML}\n# --- signature ---\n[signature]\n{SIGNATURE_TOML}\n# --- thumb ---\n[thumb]\n{THUMB_TOML}\n# --- redaction ---\n[redaction]\n{REDACTION_TOML}\n# --- qr ---\n[qr]\n{QR_TOML}\n# --- photo ---\n[photo]\n{PHOTO_TOML}\n# --- coverage ---\n[coverage]\n{COVERAGE_TOML}\n# --- emboss ---\n[emboss]\n{EMBOSS_TOML}\n# --- page_type ---\n[page_type]\n{PAGE_TYPE_TOML}\n# --- consistency ---\n[consistency]\n{CONSISTENCY_TOML}\n# --- calibration ---\n[calibration]\n{CALIBRATION_TOML}\n# --- document ---\n[document]\n{DOCUMENT_TOML}"
+             # --- quality ---\n[quality]\n{QUALITY_TOML}\n# --- layout ---\n[layout]\n{LAYOUT_TOML}\n# --- script ---\n[script]\n{SCRIPT_TOML}\n# --- handwriting ---\n[handwriting]\n{HANDWRITING_TOML}\n# --- rulings ---\n[rulings]\n{RULINGS_TOML}\n# --- stamp ---\n[stamp]\n{STAMP_TOML}\n# --- signature ---\n[signature]\n{SIGNATURE_TOML}\n# --- thumb ---\n[thumb]\n{THUMB_TOML}\n# --- redaction ---\n[redaction]\n{REDACTION_TOML}\n# --- qr ---\n[qr]\n{QR_TOML}\n# --- orientation ---\n[orientation]\n{ORIENTATION_TOML}\n# --- photo ---\n[photo]\n{PHOTO_TOML}\n# --- coverage ---\n[coverage]\n{COVERAGE_TOML}\n# --- emboss ---\n[emboss]\n{EMBOSS_TOML}\n# --- page_type ---\n[page_type]\n{PAGE_TYPE_TOML}\n# --- consistency ---\n[consistency]\n{CONSISTENCY_TOML}\n# --- calibration ---\n[calibration]\n{CALIBRATION_TOML}\n# --- document ---\n[document]\n{DOCUMENT_TOML}"
         )
     }
 
@@ -220,6 +222,7 @@ impl Params {
         self.thumb.validate()?;
         self.redaction.validate()?;
         self.qr.validate()?;
+        self.orientation.validate()?;
         self.photo.validate()?;
         self.coverage.validate()?;
         self.emboss.validate()?;
@@ -351,6 +354,10 @@ fn defaults_table() -> Result<toml::Table> {
     table.insert("thumb".into(), parse("thumb", THUMB_TOML)?);
     table.insert("redaction".into(), parse("redaction", REDACTION_TOML)?);
     table.insert("qr".into(), parse("qr", QR_TOML)?);
+    table.insert(
+        "orientation".into(),
+        parse("orientation", ORIENTATION_TOML)?,
+    );
     table.insert("photo".into(), parse("photo", PHOTO_TOML)?);
     table.insert("coverage".into(), parse("coverage", COVERAGE_TOML)?);
     table.insert("emboss".into(), parse("emboss", EMBOSS_TOML)?);
