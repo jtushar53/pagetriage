@@ -12,8 +12,18 @@ detectors other than layout and script were tuned on A4 at 150 dpi (see each doc
 been swept over sizes. `crates/pagetriage-core/tests/page_sizes.rs` pins the layout result in the test
 suite. Needs the Python binding, numpy and Pillow.
 """
-sys.path.insert(0,'/home/user/pagetriage/bench'); sys.path.insert(0,'/home/user/pagetriage/bench/synth')
-import numpy as np, pagetriage_py, scanimg, synthtext
+import json
+import random
+import resource
+import sys
+import time
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / "synth"))
+import numpy as np  # noqa: E402
+import pagetriage_py  # noqa: E402
+import scanimg  # noqa: E402
+import synthtext  # noqa: E402
 IN={"A4":(8.27,11.69),"Letter":(8.5,11),"Legal":(8.5,14),"A5":(5.83,8.27),"A3":(11.69,16.54),"A1":(23.4,33.1),"receipt":(3.1,11),"landscape A4":(11.69,8.27),"square 6in":(6,6)}
 def run(name,dpi,skew=0.0,pt=11.0,paras=6):
     w,h=round(IN[name][0]*dpi),round(IN[name][1]*dpi)
@@ -49,7 +59,6 @@ for dpi in (75,150,300,600):
     r=json.loads(pagetriage_py.analyse_page(s.image.tobytes(),1240,1754,dpi,None,None,json.dumps({"detectors":["layout","script","rulings","photo"],"debug":True})))
     print(dpi,"lines",int(r["debug"]["layout"]["lines"]),"(true",truth,") grade",r["quality"]["grade"],"size_pt",[round(x) for x in r["size_pt"]])
 print("--- very large")
-import resource
 for name,dpi in (("A1",200),("A1",300)):
     w,h=round(IN[name][0]*dpi),round(IN[name][1]*dpi)
     img=np.full((h,w),255,np.uint8); img[200:260,200:w-200]=40
