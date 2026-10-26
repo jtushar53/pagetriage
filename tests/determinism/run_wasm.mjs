@@ -14,7 +14,7 @@ const wasm = createRequire(import.meta.url)(join(pkgDir, "pagetriage.js"));
 
 const OPTS = '{"debug":true}';
 const STAMP_OPTS = '{"debug":true,"detectors":["stamp"]}';
-const LAYOUT_OPTS = '{"debug":true,"detectors":["layout","script","handwriting","rulings","signature","thumb"]}';
+const LAYOUT_OPTS = '{"debug":true,"detectors":["layout","script","handwriting","rulings","signature","thumb","redaction"]}';
 const DPI = 150;
 
 function readPgm(path) {
@@ -67,8 +67,8 @@ for (const file of inputs) {
 const layoutInputs = ["layout_inputs", "quality_inputs"]
   .flatMap((sub) => readdirSync(join(golden, sub)).filter((f) => f.endsWith(".pgm")).map((f) => join(sub, f)))
   .sort();
-if (layoutInputs.length < 15) {
-  console.error(`expected at least 15 layout inputs, found ${layoutInputs.length}`);
+if (layoutInputs.length < 16) {
+  console.error(`expected at least 16 layout inputs, found ${layoutInputs.length}`);
   process.exit(1);
 }
 for (const file of layoutInputs) {

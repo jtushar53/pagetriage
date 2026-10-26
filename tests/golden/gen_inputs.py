@@ -486,6 +486,27 @@ def layout_hand_form():
 RW, RH = 320, 500
 
 
+def redaction_page():
+    """Nine lines of text-like words with a word-sized black box over one line and a block of two
+    lines blacked out. Ink next to a box is cleared first (a real redaction removes what is under it
+    and the text beside it is not pressed against it)."""
+    rng = Lcg(121)
+    ink = set()
+    _ink_lines(rng, ink, 14, 306, 12, 11)
+    px = [235 + rng.next(5) for _ in range(LW * LH)]
+    boxes = [(100, 41, 150, 58), (30, 112, 240, 144)]  # a word; two lines
+    for x0, y0, x1, y1 in boxes:
+        ink = {(x, y) for x, y in ink if not (x0 - 3 <= x <= x1 + 3 and y0 - 3 <= y <= y1 + 3)}
+    for x, y in sorted(ink):
+        if 0 <= x < LW and 0 <= y < LH:
+            px[y * LW + x] = 30 + rng.next(20)
+    for x0, y0, x1, y1 in boxes:
+        for y in range(y0, y1 + 1):
+            for x in range(x0, x1 + 1):
+                px[y * LW + x] = rng.next(8)
+    return px
+
+
 def thumb_page():
     """Text lines, a thumb-like impression (concentric elliptical ridges, 4 px period, on the right)
     and, on the left, hatching with the same period that must not be taken for one. Integer
@@ -695,3 +716,5 @@ if __name__ == "__main__":
     print("wrote signature_page")
     write_pgm("thumb_page", thumb_page(), LW, LH, LAYOUT_OUT)
     print("wrote thumb_page")
+    write_pgm("redaction_page", redaction_page(), LW, LH, LAYOUT_OUT)
+    print("wrote redaction_page")

@@ -1,5 +1,5 @@
 //! Layout golden snapshots: the pages in `tests/golden/layout_inputs/` and `quality_inputs/` are
-//! analysed with only the opt-in `layout`, `script`, `handwriting`, `rulings`, `signature` and `thumb` detectors (and `{"debug":true}`) at 150 dpi and must match
+//! analysed with only the opt-in `layout`, `script`, `handwriting`, `rulings`, `signature`, `thumb` and `redaction` detectors (and `{"debug":true}`) at 150 dpi and must match
 //! `tests/golden/layout_expected/NAME.json` byte for byte. The Python and WASM runners in
 //! `tests/determinism/` check the same files.
 //!
@@ -11,8 +11,7 @@ use std::path::PathBuf;
 
 use pagetriage_core::{PageInput, analyse_page};
 
-const OPTS: &str =
-    r#"{"debug":true,"detectors":["layout","script","handwriting","rulings","signature","thumb"]}"#;
+const OPTS: &str = r#"{"debug":true,"detectors":["layout","script","handwriting","rulings","signature","thumb","redaction"]}"#;
 const DPI: u16 = 150;
 
 fn golden_dir() -> PathBuf {
@@ -71,7 +70,7 @@ fn layout_reports_match_byte_for_byte() {
     let expected_dir = golden_dir().join("layout_expected");
     fs::create_dir_all(&expected_dir).unwrap();
     let all = fixtures();
-    assert!(all.len() >= 15, "found only {} layout inputs", all.len());
+    assert!(all.len() >= 16, "found only {} layout inputs", all.len());
     for (name, path) in all {
         let actual = report(&path);
         let expected_path = expected_dir.join(format!("{name}.json"));
@@ -195,6 +194,11 @@ fn layout_pages_have_the_structure_they_were_drawn_with() {
     );
     assert!(found("layout_one_column", "thumb_impression").is_empty());
     assert!(found("signature_page", "thumb_impression").is_empty());
+    // Redaction boxes (module M12): a word-sized box and a two-line block on redaction_page.
+    let boxes = found("redaction_page", "redaction_box");
+    assert_eq!(boxes.len(), 2, "{boxes:?}");
+    assert!(found("layout_one_column", "redaction_box").is_empty());
+    assert!(found("rulings_table", "redaction_box").is_empty());
     assert_eq!(regions("layout_hand_form"), 3);
     assert_eq!(regions("layout_one_column"), 0);
     assert_eq!(regions("layout_form"), 0);

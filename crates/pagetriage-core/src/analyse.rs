@@ -11,6 +11,7 @@ use crate::pixel::handwriting::{self, HANDWRITING};
 use crate::pixel::layout::{self, LAYOUT};
 use crate::pixel::phash::{self, PHASH};
 use crate::pixel::quality;
+use crate::pixel::redaction::{self, REDACTION};
 use crate::pixel::rulings::{self, RULINGS};
 use crate::pixel::script::{self, SCRIPT};
 use crate::pixel::signature::{self, SIGNATURE};
@@ -27,6 +28,7 @@ pub const DETECTORS: &[&str] = &[
     HANDWRITING,
     LAYOUT,
     PHASH,
+    REDACTION,
     RULINGS,
     SCRIPT,
     SIGNATURE,
@@ -41,6 +43,7 @@ pub const DETECTORS: &[&str] = &[
 pub const OPT_IN: &[&str] = &[
     HANDWRITING,
     LAYOUT,
+    REDACTION,
     RULINGS,
     SCRIPT,
     SIGNATURE,
@@ -150,10 +153,12 @@ pub fn analyse_page_report(
     )?;
 
     // The layout pass is shared by every detector that works line by line; run it once.
-    let page_layout = if selected
-        .iter()
-        .any(|d| matches!(*d, HANDWRITING | LAYOUT | RULINGS | SCRIPT | SIGNATURE))
-    {
+    let page_layout = if selected.iter().any(|d| {
+        matches!(
+            *d,
+            HANDWRITING | LAYOUT | REDACTION | RULINGS | SCRIPT | SIGNATURE
+        )
+    }) {
         Some(layout::segment(
             input.gray,
             input.width as usize,
@@ -177,6 +182,11 @@ pub fn analyse_page_report(
                 handwriting::detect(page_layout.as_ref().expect("segmented above"), &params)?
             }
             LAYOUT => layout::summarize(page_layout.as_ref().expect("segmented above")),
+            REDACTION => redaction::detect(
+                page_layout.as_ref().expect("segmented above"),
+                input.gray,
+                &params,
+            )?,
             RULINGS => rulings::detect(
                 page_layout.as_ref().expect("segmented above"),
                 input.gray,

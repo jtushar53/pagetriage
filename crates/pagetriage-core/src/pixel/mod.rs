@@ -12,6 +12,7 @@ pub mod handwriting;
 pub mod layout;
 pub mod phash;
 pub mod quality;
+pub mod redaction;
 pub mod rulings;
 pub mod script;
 pub mod signature;

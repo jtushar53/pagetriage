@@ -76,6 +76,7 @@ text.
 | M6 stamp and seal | Coloured rubber stamps and seals (circle, rectangle, double ring), with colour and shape. Needs a colour page; finds nothing in gray scans. Opt-in, synthetic checks only | Built, opt-in | [stamp](docs/detectors/stamp.md) |
 | M7 signature | Wet signatures: isolated tangled strokes taller than text. Opt-in, synthetic checks only; tall cursive handwriting is also flagged | Built, opt-in | [signature](docs/detectors/signature.md) |
 | M8 thumb impression | Dark ovals of fingerprint ridges, from orientation coherence, ridge period, ink density and size. Opt-in; misses faint and smudged prints; synthetic checks only | Built, opt-in, weak | [thumb](docs/detectors/thumb.md) |
+| M12 redaction boxes | Solid dark rectangles in running text (pixel side only; white-out and the PDF check are not done). Opt-in, synthetic checks only | Built, opt-in | [redaction](docs/detectors/redaction.md) |
 | M12 provenance | PDF producer, edits after the first save (incremental updates), edits after a signature, JPEG encoder tables | Built | [provenance](docs/detectors/provenance.md) |
 | M12 near-duplicates | Perceptual hashes per page, and which pages repeat an earlier one | Built, with limits | [phash](docs/detectors/phash.md) |
 | M10 blank page | Blank-page finding | Skeleton, known wrong on faded scans | [blank_page](docs/detectors/blank_page.md) |
