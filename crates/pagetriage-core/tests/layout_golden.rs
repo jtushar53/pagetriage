@@ -207,6 +207,11 @@ fn layout_pages_have_the_structure_they_were_drawn_with() {
         b[0].as_u64().unwrap() >= 200 && b[1].as_u64().unwrap() >= 130,
         "{b:?}"
     );
+    assert_eq!(codes[0]["attributes"]["decoded"], true);
+    assert_eq!(
+        codes[0]["attributes"]["text"],
+        "HTTPS://EXAMPLE.INVALID/STAMP/IN-DL123"
+    );
     for page in [
         "layout_one_column",
         "layout_form",

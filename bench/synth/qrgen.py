@@ -40,3 +40,27 @@ def qr_like(rng: random.Random, modules: int, scale: int, quiet: int = 4) -> Ima
                 px, py = (x + quiet) * scale, (y + quiet) * scale
                 d.rectangle([px, py, px + scale - 1, py + scale - 1], fill=0)
     return img
+
+
+def real_qr(rng: random.Random, version: int, level: str, scale: int, text: str, quiet: int = 4) -> Image.Image:
+    """A decodable QR code made with the `qrcode` package (a development-time dependency), as a
+    grayscale image, 0 = dark, with a quiet zone."""
+    import qrcode
+
+    levels = {"L": qrcode.constants.ERROR_CORRECT_L, "M": qrcode.constants.ERROR_CORRECT_M,
+              "Q": qrcode.constants.ERROR_CORRECT_Q, "H": qrcode.constants.ERROR_CORRECT_H}
+    qr = qrcode.QRCode(version=version, error_correction=levels[level], box_size=1, border=0,
+                       mask_pattern=rng.randrange(8))
+    qr.add_data(text)
+    qr.make(fit=False)
+    m = qr.get_matrix()
+    n = len(m)
+    side = (n + 2 * quiet) * scale
+    img = Image.new("L", (side, side), 255)
+    d = ImageDraw.Draw(img)
+    for y, row in enumerate(m):
+        for x, dark in enumerate(row):
+            if dark:
+                px, py = (x + quiet) * scale, (y + quiet) * scale
+                d.rectangle([px, py, px + scale - 1, py + scale - 1], fill=0)
+    return img

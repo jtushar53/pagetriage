@@ -279,8 +279,8 @@ pub fn apply(
                     math::round_output(math::sigmoid(logit(f.confidence) + terms[0] + terms[1]));
                 let mut evidence = f.evidence.clone();
                 evidence.push(e);
-                let mut attributes = Map::new();
-                attributes.insert("decoded".into(), false.into());
+                // What the QR finding says about its content (decoded, text, ...) carries over.
+                let attributes = f.attributes.clone();
                 composites.push(Finding {
                     kind: Kind::EstampQr,
                     confidence,
@@ -451,12 +451,20 @@ mod tests {
     #[test]
     fn a_qr_at_the_top_gives_an_estamp_qr_and_one_below_does_not() {
         let (p, fusion) = setup();
-        let mut fs = vec![finding(Kind::QrCode, 0.95, [800, 40, 940, 180])];
+        let mut qr = finding(Kind::QrCode, 0.95, [800, 40, 940, 180]);
+        qr.attributes.insert("decoded".into(), true.into());
+        qr.attributes
+            .insert("text".into(), "https://example.invalid/x".into());
+        let mut fs = vec![qr];
         apply(&mut fs, &CTX, &p, &fusion);
         assert_eq!(fs.len(), 2);
         assert_eq!(fs[1].kind, Kind::EstampQr);
         assert!(fs[1].confidence >= 0.5 && fs[1].confidence < fs[0].confidence);
-        assert_eq!(fs[1].attributes["decoded"], false);
+        assert_eq!(
+            fs[1].attributes["decoded"], true,
+            "what the QR says carries over"
+        );
+        assert_eq!(fs[1].attributes["text"], "https://example.invalid/x");
         let mut fs = vec![finding(Kind::QrCode, 0.95, [800, 1000, 940, 1140])];
         apply(&mut fs, &CTX, &p, &fusion);
         assert_eq!(fs.len(), 1);

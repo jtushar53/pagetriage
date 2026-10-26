@@ -36,6 +36,7 @@ DEV, TEST = [1, 2, 3, 4, 5, 6], [11, 12, 13, 14, 15, 16]
 OPTS = json.dumps({"detectors": ["qr"], "debug": True})
 CONDITIONS = {"clean": {}, "rotate 3deg": dict(rot=3.0), "noise 8": dict(noise=8.0), "blur 1px": dict(blur=1.0),
               "2 px/module": dict(scale=2)}
+TEXT = "https://example.invalid/verify?cert=IN-MH0000000000001&amount=100"
 LOOKALIKES = ["plain page", "checkbox grid", "table", "barcode", "random modules"]
 
 
@@ -56,9 +57,12 @@ def page(kind, seed, rot=0.0, noise=2.0, blur=0.0, scale=None):
     img = scan.image.copy()
     d = ImageDraw.Draw(img)
     truth = []
-    if kind == "qr":
+    if kind in ("qr", "real qr"):
         sc = scale or rng.choice([3, 4, 5])
-        sym = qrgen.qr_like(rng, rng.choice([25, 33, 41, 57]) if sc >= 3 else 25, sc)
+        if kind == "real qr":
+            sym = qrgen.real_qr(rng, rng.choice([9, 10, 12]), rng.choice("MQH"), sc, TEXT)
+        else:
+            sym = qrgen.qr_like(rng, rng.choice([25, 33, 41, 57]) if sc >= 3 else 25, sc)
         if rot:
             sym = sym.rotate(rot, expand=True, fillcolor=255, resample=2)
         x, y = rng.randint(100, 1240 - sym.width - 100), rng.randint(min(1300, 1754 - sym.height - 20), 1754 - sym.height - 20)
@@ -96,17 +100,22 @@ def found(img):
     return [f for f in out["findings"] if f["kind"] == "qr_code"]
 
 
+def read_ok(fs):
+    return any(f["attributes"].get("text") == TEXT for f in fs)
+
+
 def main():
-    print(f"{'pages':<18}{'cond':<14}{'split':<6}{'found':>8}{'spurious/page':>15}")
-    for kind in ["qr"] + LOOKALIKES:
+    print(f"{'pages':<18}{'cond':<14}{'split':<6}{'found':>8}{'spurious/page':>15}{'text read':>10}")
+    for kind in ["qr", "real qr"] + LOOKALIKES:
         for cond, kw in CONDITIONS.items():
-            if kind != "qr" and cond != "clean":
+            if kind not in ("qr", "real qr") and cond != "clean":
                 continue
             for split, seeds in (("dev", DEV), ("test", TEST)):
-                hits = total = spurious = 0
+                hits = total = spurious = read = 0
                 for seed in seeds:
                     img, truth = page(kind, seed, **kw)
                     fs = found(img)
+                    read += read_ok(fs)
                     matched = set()
                     for t in truth:
                         total += 1
@@ -116,7 +125,8 @@ def main():
                                 matched.add(i)
                                 break
                     spurious += len(fs) - len(matched)
-                print(f"{kind:<18}{cond:<14}{split:<6}{(f'{hits}/{total}' if total else '-'):>8}{spurious / len(seeds):>15.2f}")
+                text_col = f"{read}/{len(seeds)}" if kind == "real qr" else "-"
+                print(f"{kind:<18}{cond if kind in ('qr', 'real qr') else '-':<14}{split:<6}{(f'{hits}/{total}' if total else '-'):>8}{spurious / len(seeds):>15.2f}{text_col:>10}")
 
 
 if __name__ == "__main__":

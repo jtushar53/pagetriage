@@ -48,3 +48,17 @@ module_coef = 8.0
 
 # At most this many codes per page. Source: placeholder.
 max_codes = 8
+
+# ---- decoding --------------------------------------------------------------------------------
+
+# Try to read each code (format information, unmasking, Reed-Solomon correction, segments). A code that
+# decodes has passed an error-correcting checksum, which a false finder triple almost never does.
+# Source: ISO/IEC 18004; the switch is an engineering option.
+decode = true
+
+# Log-odds added when a code decodes. Source: placeholder.
+decode_llr = 4.0
+
+# The decoded text is copied into the finding up to this many bytes (the rest is cut and
+# `text_truncated` is set). Source: engineering limit.
+max_text_bytes = 256

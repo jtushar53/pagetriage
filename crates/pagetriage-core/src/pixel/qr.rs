@@ -1,5 +1,5 @@
 //! QR codes (module M11, e-stamp QR): located from their three finder patterns. See
-//! `docs/detectors/qr.md`. The code is not decoded.
+//! `docs/detectors/qr.md`. Found codes are then read by `qr_decode`.
 //!
 //! A finder pattern is a 7 x 7 module square of dark, light, dark (3 x 3), light, dark rings, so a scan
 //! line through its centre crosses runs in the ratio 1:1:3:1:1 whatever the module size, in any
@@ -12,6 +12,7 @@ use serde_json::Map;
 
 use super::Detection;
 use super::binarize::local;
+use super::qr_decode::{self, Frame};
 use crate::error::{Error, Result};
 use crate::fusion::scorer;
 use crate::math;
@@ -41,6 +42,9 @@ pub struct QrParams {
     pub module_threshold: f64,
     pub module_coef: f64,
     pub max_codes: usize,
+    pub decode: bool,
+    pub decode_llr: f64,
+    pub max_text_bytes: usize,
 }
 
 impl QrParams {
@@ -62,6 +66,7 @@ impl QrParams {
             ("hyp_coef", self.hyp_coef),
             ("module_threshold", self.module_threshold),
             ("module_coef", self.module_coef),
+            ("decode_llr", self.decode_llr),
         ];
         for (name, v) in all {
             if !v.is_finite() || v.abs() > 1.0e6 {
@@ -213,6 +218,8 @@ pub struct Code {
     pub leg_error: f64,
     pub hyp_error: f64,
     pub module_spread: f64,
+    /// Finder centres in the code's own frame (top-left is the corner of the right angle).
+    pub frame: Frame,
 }
 
 pub fn codes(fs: &[Finder], width: usize, height: usize, p: &QrParams) -> Vec<Code> {
@@ -260,7 +267,31 @@ pub fn codes(fs: &[Finder], width: usize, height: usize, p: &QrParams) -> Vec<Co
                 let y0 = pts.iter().map(|p| p.1).fold(f64::INFINITY, f64::min) - pad;
                 let x1 = pts.iter().map(|p| p.0).fold(f64::NEG_INFINITY, f64::max) + pad;
                 let y1 = pts.iter().map(|p| p.1).fold(f64::NEG_INFINITY, f64::max) + pad;
+                // The corner finder is the code's top-left; of the other two, the top-right is the one
+                // from which the bottom-left lies a quarter turn clockwise (y points down).
+                let (va, vb) = ((pa.x - pc.x, pa.y - pc.y), (pb.x - pc.x, pb.y - pc.y));
+                let (tr, bl) = if va.0 * vb.1 - va.1 * vb.0 > 0.0 {
+                    (pa, pb)
+                } else {
+                    (pb, pa)
+                };
+                // Runs measured along rows and columns are 1 / cos(angle) longer when the code is
+                // turned by `angle` (folded into -45..45 degrees): the true module is shorter.
+                let quarter = std::f64::consts::FRAC_PI_2;
+                let mut angle = math::atan2(tr.y - pc.y, tr.x - pc.x);
+                while angle > quarter / 2.0 {
+                    angle -= quarter;
+                }
+                while angle <= -quarter / 2.0 {
+                    angle += quarter;
+                }
+                let true_module = module * math::cos(angle);
                 out.push(Code {
+                    frame: Frame {
+                        top_left: (pc.x, pc.y),
+                        top_right: (tr.x, tr.y),
+                        bottom_left: (bl.x, bl.y),
+                    },
                     bbox: [
                         x0.max(0.0) as u32,
                         y0.max(0.0) as u32,
@@ -268,7 +299,7 @@ pub fn codes(fs: &[Finder], width: usize, height: usize, p: &QrParams) -> Vec<Co
                         (y1.min(height as f64 - 1.0)) as u32,
                     ],
                     module,
-                    modules: (leg / module).round() as usize + 7,
+                    modules: (leg / true_module).round() as usize + 7,
                     leg_error,
                     hyp_error,
                     module_spread: mmax / mmin - 1.0,
@@ -317,7 +348,7 @@ pub fn detect_with(
         .insert("finder_patterns".into(), fs.len() as f64);
     let mut kept: Vec<(f64, Finding)> = Vec::new();
     for c in &cs {
-        let evidence = vec![
+        let mut evidence = vec![
             Evidence::new(
                 DETECTOR_ID,
                 "leg_error",
@@ -354,6 +385,31 @@ pub fn detect_with(
                 CITATION,
             )?,
         ];
+        // Try to read the code: the nearest valid size first, then its neighbours (the finder spacing
+        // gives the size to within a version or two on a turned or blurred code).
+        let decoded = if p.decode {
+            let nearest = ((c.modules as i64 - 17 + 2).div_euclid(4)).clamp(1, 40);
+            [nearest, nearest - 1, nearest + 1, nearest - 2, nearest + 2]
+                .into_iter()
+                .filter(|v| (1..=40).contains(v))
+                .find_map(|v| {
+                    qr_decode::decode(&mask, width, height, &c.frame, 17 + 4 * v as usize)
+                })
+        } else {
+            None
+        };
+        if decoded.is_some() {
+            evidence.push(Evidence::new(
+                DETECTOR_ID,
+                "decoded",
+                1.0,
+                None,
+                p.decode_llr.clamp(-fusion.llr_clip, fusion.llr_clip),
+                "the code decodes: its format information matches and every Reed-Solomon block checks"
+                    .into(),
+                CITATION,
+            )?);
+        }
         let confidence = math::round_output(scorer::confidence_capped(
             p.prior,
             &evidence,
@@ -369,7 +425,19 @@ pub fn detect_with(
             (((c.modules as i64 - 17) / 4).max(1) as u64).into(),
         );
         attributes.insert("module_px".into(), math::round_output(c.module).into());
-        attributes.insert("decoded".into(), false.into());
+        attributes.insert("decoded".into(), decoded.is_some().into());
+        if let Some(d) = &decoded {
+            attributes.insert("version".into(), (d.version as u64).into());
+            attributes.insert("ec_level".into(), d.ec_level.to_string().into());
+            attributes.insert("corrected_codewords".into(), (d.corrected as u64).into());
+            attributes.insert("payload_bytes".into(), (d.bytes.len() as u64).into());
+            let cut = d.bytes.len().min(p.max_text_bytes);
+            attributes.insert(
+                "text".into(),
+                String::from_utf8_lossy(&d.bytes[..cut]).into_owned().into(),
+            );
+            attributes.insert("text_truncated".into(), (cut < d.bytes.len()).into());
+        }
         kept.push((
             confidence,
             Finding {

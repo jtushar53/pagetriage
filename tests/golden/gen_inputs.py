@@ -507,28 +507,24 @@ def redaction_page():
     return px
 
 
+# A real QR code (version 2, level M, mask 5; text "HTTPS://EXAMPLE.INVALID/STAMP/IN-DL123"), one row per
+# integer, most significant bit first, from tests/golden/qr_vectors.json (made by gen_qr_vectors.py).
+QR_ROWS = [33322879, 17142081, 24483677, 24509789, 24411229, 17095489, 33379711, 124416, 17155022,
+           21696556, 28690467, 14201032, 3578462, 22021064, 19693692, 24226631, 19712501, 119582,
+           33357143, 17091358, 24436209, 24387687, 24414093, 17048308, 33404887]
+
+
 def qr_page():
-    """Six lines of text-like words and, bottom right, a QR-like symbol: 25 modules of 3 px with
-    the three finder patterns, separators and timing patterns, and pseudo-random data modules (not
-    decodable). A grid of small boxes on the left must not be taken for one."""
+    """Six lines of text-like words and, bottom right, a real QR code (25 modules of 3 px, decodable).
+    A grid of small boxes on the left must not be taken for one."""
     rng = Lcg(131)
     px = [235 + rng.next(5) for _ in range(LW * LH)]
     ink = set()
     _ink_lines(rng, ink, 14, 300, 6, 7)
     n, sc, ox, oy = 25, 3, 220, 150
-    grid = [[rng.next(2) == 1 for _ in range(n)] for _ in range(n)]
-    for fx, fy in ((0, 0), (n - 7, 0), (0, n - 7)):
-        for dy in range(-1, 8):
-            for dx in range(-1, 8):
-                x, y = fx + dx, fy + dy
-                if 0 <= x < n and 0 <= y < n:
-                    ring = dx in (0, 6) or dy in (0, 6) or (2 <= dx <= 4 and 2 <= dy <= 4)
-                    grid[y][x] = ring and -1 < dx < 7 and -1 < dy < 7
-    for i in range(8, n - 8):
-        grid[6][i] = grid[i][6] = i % 2 == 0
     for y in range(n):
         for x in range(n):
-            if grid[y][x]:
+            if (QR_ROWS[y] >> (n - 1 - x)) & 1:
                 for yy in range(sc):
                     for xx in range(sc):
                         ink.add((ox + x * sc + xx, oy + y * sc + yy))

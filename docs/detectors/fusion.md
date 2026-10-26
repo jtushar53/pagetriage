@@ -22,9 +22,9 @@ adds an evidence entry (`detector: "fusion.consistency"`) saying why.
    skeleton blank detector saturates at 0.9997 and cannot see faint ink or a dark fill; this rule only
    fixes the case where another detector disagrees.
 3. **e-stamp QR** (`estamp_qr`, module M11). A QR code at least 5% of the page wide whose centre is in
-   the top 35% of the page is repeated as an `estamp_qr` finding, with `decoded: false`, confidence
-   `sigmoid(logit(QR) - 1.5 + depth term)`. The QR is not decoded, so an e-stamp cannot be told from any
-   other QR; the finding says only "a QR near the top of the page".
+   the top 35% of the page is repeated as an `estamp_qr` finding, with the QR's attributes (including `decoded` and `text`),
+   confidence `sigmoid(logit(QR) - 1.5 + depth term)`. The text is not matched against anything, so an
+   e-stamp cannot be told from any other QR; the finding says only "a QR near the top of the page".
 4. **Stamp-paper header** (`stamp_paper_header`, module M11). `sigmoid(-3 + 3 * (ratio - 1.6) + 2 if a
    QR sits in the top band + 1 if a table or ruling does)`, where `ratio` is the tallest line's glyph
    height in the top 35% of the page over the median glyph height. A bbox covers the heading lines and
@@ -80,7 +80,7 @@ the code does what it was written to, not that stamp paper looks like this.
 
 | Case | What happens | Where |
 |---|---|---|
-| **Any QR near the top** | Becomes an `estamp_qr` at about 0.9 (not decoded). A letterhead QR, a payment code, a document-ID code. | By construction |
+| **Any QR near the top** | Becomes an `estamp_qr` at about 0.9 (decoded text carried over). A letterhead QR, a payment code, a document-ID code. | By construction |
 | **Plain headings** | A large title on any page with a QR (a certificate) becomes a stamp-paper header; 2 of 12 synthetic forms got one with no QR at all. | Measured (synthetic) |
 | **A real stamp paper** | Never seen; the heading may be small, in an ornamental band, or in Hindi, and the QR can be elsewhere. | Open |
 | **Overlap rule on a signature across a stamp** | A real signature written over a stamp (very common) loses 1.5 log-odds as the weaker of the two. | By construction |
