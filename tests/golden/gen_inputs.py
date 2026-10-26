@@ -485,6 +485,93 @@ def layout_hand_form():
 
 RW, RH = 320, 500
 
+# Colour fixtures for the stamp detector (module M6) are PPM (P6) files in stamp_inputs/.
+STAMP_OUT = pathlib.Path(__file__).resolve().parent / "stamp_inputs"
+SW, SH = 360, 300
+
+
+def write_ppm(name, rgb, w, h, out):
+    assert len(rgb) == w * h, name
+    out.mkdir(parents=True, exist_ok=True)
+    data = bytearray()
+    for r, g, b in rgb:
+        data += bytes((r, g, b))
+    (out / f"{name}.ppm").write_bytes(f"P6\n{w} {h}\n255\n".encode() + bytes(data))
+
+
+def _colour_page(seed):
+    """Cream paper with a little noise, and an `ink` set of dark text-like pixels drawn black."""
+    rng = Lcg(seed)
+    return [(250 - rng.next(4), 247 - rng.next(4), 238 - rng.next(4)) for _ in range(SW * SH)]
+
+
+def _paint(px, pixels, colour, rng):
+    for x, y in sorted(pixels):
+        if 0 <= x < SW and 0 <= y < SH:
+            r, g, b = colour
+            px[y * SW + x] = (r + rng.next(9) - 4, g + rng.next(9) - 4, b + rng.next(9) - 4)
+
+
+def _ring_pixels(cx, cy, r, t):
+    lo, hi = (2 * r - t) ** 2, (2 * r + t) ** 2  # squared, in half pixels
+    return {(x, y) for y in range(cy - r - t, cy + r + t + 1) for x in range(cx - r - t, cx + r + t + 1)
+            if lo <= 4 * ((x - cx) ** 2 + (y - cy) ** 2) <= hi}
+
+
+def _words_pixels(cx, cy):
+    out = set()
+    for row, n in ((cy - 12, 5), (cy + 14, 6)):
+        for k in range(n):
+            for dx in range(7):
+                for dy in range(10):
+                    out.add((cx - 30 + k * 11 + dx, row + dy))
+    return out
+
+
+def stamp_circle_over_text():
+    """Lines of black text with a blue ring stamp and two lines of words pressed over them."""
+    rng = Lcg(91)
+    px = _colour_page(90)
+    ink = set()
+    _ink_lines(rng, ink, 14, 340, 14, 14)
+    _paint(px, ink, (35, 35, 40), rng)
+    stamp = _ring_pixels(200, 160, 70, 4) | _words_pixels(200, 160)
+    _paint(px, stamp, (25, 55, 170), rng)
+    return px
+
+
+def stamp_violet_seal_and_red_rectangle():
+    """A violet double-ringed seal on the left, a red rectangle stamp (tilted by a 5:1 slope) on
+    the right, nothing else."""
+    rng = Lcg(92)
+    px = _colour_page(93)
+    seal = _ring_pixels(95, 150, 75, 4) | _ring_pixels(95, 150, 52, 3) | _words_pixels(95, 150)
+    _paint(px, seal, (110, 40, 150), rng)
+    # Rectangle with sides u = (120, -24) and v = (12, 60), which are perpendicular.
+    frame = set()
+    c = (200, 140)
+    corners = [c, (c[0] + 120, c[1] - 24), (c[0] + 132, c[1] + 36), (c[0] + 12, c[1] + 60)]
+    for a, b in zip(corners, corners[1:] + corners[:1]):
+        _line(frame, a[0], a[1], b[0], b[1], 3)
+    _paint(px, frame | {(x + 120, y + 6) for x, y in _words_pixels(130, 150)}, (185, 30, 40), rng)
+    return px
+
+
+def stamp_confusers():
+    """What is not a stamp: a bare red frame, a solid green block, a black ring with words, and a
+    block of two hues."""
+    rng = Lcg(94)
+    px = _colour_page(95)
+    frame = set()
+    for a, b in (((20, 20), (150, 20)), ((150, 20), (150, 100)), ((150, 100), (20, 100)), ((20, 100), (20, 20))):
+        _line(frame, a[0], a[1], b[0], b[1], 3)
+    _paint(px, frame, (185, 30, 40), rng)
+    _paint(px, {(x, y) for x in range(200, 330) for y in range(20, 110)}, (30, 140, 60), rng)
+    _paint(px, _ring_pixels(90, 210, 60, 4) | _words_pixels(90, 210), (30, 30, 30), rng)
+    _paint(px, {(x, y) for x in range(200, 262) for y in range(170, 260)}, (200, 40, 40), rng)
+    _paint(px, {(x, y) for x in range(266, 330) for y in range(170, 260)}, (40, 70, 190), rng)
+    return px
+
 
 def rulings_table():
     """A 4 x 3 ruled table with a word in each top-row cell, a row of five checkboxes (two ticked),
@@ -545,3 +632,6 @@ if __name__ == "__main__":
     print("wrote layout_hand_form")
     write_pgm("rulings_table", rulings_table(), RW, RH, LAYOUT_OUT)
     print("wrote rulings_table")
+    for fn in (stamp_circle_over_text, stamp_violet_seal_and_red_rectangle, stamp_confusers):
+        write_ppm(fn.__name__, fn(), SW, SH, STAMP_OUT)
+        print("wrote", fn.__name__)

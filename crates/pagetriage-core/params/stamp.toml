@@ -1,0 +1,85 @@
+# Rubber stamps and seals (module M6): coloured ink regions with a circular ring or a rectangular
+# border. Needs the colour page; without one the detector reports nothing (a ring over text in grays
+# cannot be told from a seal, or a border from a bordered paragraph). Every key says where it comes
+# from. "placeholder" means a first guess
+# not yet checked against data; "tuned on <set>" names the set. Nothing here has been checked on a
+# real document.
+
+# ---- coloured ink ----------------------------------------------------------------------------
+
+# A pixel is coloured ink when max(R,G,B) - min(R,G,B) is at least this (0-255): tinted paper reads
+# 10 to 30, a blue or purple ink 80 to 150, black text under 15. Source: placeholder.
+chroma_min = 45
+
+# Marks closer than this (in inches) belong to one stamp: the mask is widened by this radius before
+# its connected regions are taken, so the letters of a word and a date join. Anything that sits
+# inside the box of a stamp-sized region (the text inside a ring, a seal's inner ring) is added to
+# it, so the ring does not need to be this close to its text. Source: placeholder.
+merge_in = 0.07
+
+
+# A region's longer side must be between these (in inches); a smaller one is a coloured word or a
+# pen mark, a larger one a coloured block. Source: placeholder (rubber stamps are 1 to 3 in).
+min_in = 0.5
+max_in = 4.5
+
+# A region needs at least this many ink pixels in all, so that a faint cluster of specks is not a
+# stamp. Source: placeholder.
+min_pixels = 150
+
+# ---- hue -------------------------------------------------------------------------------------
+
+# Hue histogram bins (of 360 degrees) and the half-width, in bins, of the window around its peak
+# that counts as "the stamp's colour". Source: placeholder.
+hue_bins = 36
+hue_window_bins = 3
+
+# ---- shape -----------------------------------------------------------------------------------
+
+# Circle: the outer band is the radii from this fraction of the region's radius out to the radius
+# (the radius is the one holding 98% of the ink). Source: placeholder.
+ring_band_start = 0.82
+
+# The ring is complete when this share of the 36 angle sectors have at least `ring_sector_pixels`
+# ink pixels in the outer band, and the box is at most this far from square. Source: placeholder.
+ring_sectors = 36
+ring_sector_pixels = 3
+circle_aspect_tol = 0.3
+
+# A second ring, for a seal: the same count over the band from `inner_band_start` to
+# `inner_band_end` of the radius. Source: placeholder.
+inner_band_start = 0.5
+inner_band_end = 0.76
+
+# Rectangle: a side is covered when this share of its length has ink within `border_band` of the box
+# side (a fraction of the shorter box side), in the best of the tried tilts (degrees, either
+# direction; rubber stamps are rarely pressed square to the text). Source: placeholder.
+border_band = 0.1
+tilt_step_deg = 4.0
+tilt_max_deg = 20.0
+
+# ---- scoring ---------------------------------------------------------------------------------
+
+# Confidence = sigmoid(prior + sum of terms), each term coef * (value - threshold), clipped to
+# +-term_clip. Terms: how concentrated the hue is, how much of the frame is there (ring sectors or
+# the weakest rectangle side), and the mean chroma. Source: placeholder (uncalibrated).
+term_clip = 4.0
+prior = -2.5
+hue_conc_threshold = 0.6
+hue_conc_coef = 6.0
+frame_threshold = 0.7
+frame_coef = 8.0
+chroma_threshold = 60.0
+chroma_coef = 0.03
+
+# A stamp has something inside its frame: at least this share of the ink is off the ring (or the
+# border band). A bare coloured frame (a red table border) has about 0; the synthetic stamps have
+# 0.15 to 0.6 (first guess 0.25 missed a third of them). Source: tuned on synthetic dev seeds 1-6.
+min_interior_share = 0.08
+
+# A stamp is drawn in strokes: at most this share of its box is ink. A solid block (a logo, a
+# highlighter bar) is not. Source: placeholder.
+max_fill = 0.45
+
+# At most this many stamps per page. Source: placeholder.
+max_stamps = 16

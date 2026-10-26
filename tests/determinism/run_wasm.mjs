@@ -13,6 +13,7 @@ const pkgDir = process.env.WASM_PKG ?? join(here, "..", "..", "dist", "wasm", "n
 const wasm = createRequire(import.meta.url)(join(pkgDir, "pagetriage.js"));
 
 const OPTS = '{"debug":true}';
+const STAMP_OPTS = '{"debug":true,"detectors":["stamp"]}';
 const LAYOUT_OPTS = '{"debug":true,"detectors":["layout","script","handwriting","rulings"]}';
 const DPI = 150;
 
@@ -80,6 +81,44 @@ for (const file of layoutInputs) {
   } else {
     failures++;
     console.log(`FAIL wasm   layout ${name}`);
+  }
+}
+
+// The opt-in stamp detector needs a colour page: the P6 files in stamp_inputs/.
+function readPpm(path) {
+  const data = readFileSync(path);
+  const isSpace = (b) => b === 0x20 || (b >= 0x09 && b <= 0x0d);
+  let pos = 0;
+  const tokens = [];
+  while (tokens.length < 4) {
+    while (isSpace(data[pos])) pos++;
+    const start = pos;
+    while (!isSpace(data[pos])) pos++;
+    tokens.push(data.subarray(start, pos).toString("ascii"));
+  }
+  pos++;
+  if (tokens[0] !== "P6" || tokens[3] !== "255") throw new Error(`${path}: unsupported PPM`);
+  const [w, h] = [Number(tokens[1]), Number(tokens[2])];
+  const rgb = new Uint8Array(data.subarray(pos));
+  if (rgb.length !== 3 * w * h) throw new Error(`${path}: pixel count mismatch`);
+  return { w, h, rgb };
+}
+const stampInputs = readdirSync(join(golden, "stamp_inputs")).filter((f) => f.endsWith(".ppm")).sort();
+if (stampInputs.length < 3) {
+  console.error(`expected at least 3 stamp inputs, found ${stampInputs.length}`);
+  process.exit(1);
+}
+for (const file of stampInputs) {
+  const name = file.replace(/\.ppm$/, "");
+  const { w, h, rgb } = readPpm(join(golden, "stamp_inputs", file));
+  const gray = wasm.rgb_to_gray(rgb);
+  const actual = wasm.analyse_page(gray, rgb, w, h, DPI, undefined, STAMP_OPTS) + "\n";
+  const expected = readFileSync(join(golden, "stamp_expected", `${name}.json`), "utf8");
+  if (actual === expected) {
+    console.log(`ok   wasm   stamp ${name}`);
+  } else {
+    failures++;
+    console.log(`FAIL wasm   stamp ${name}`);
   }
 }
 

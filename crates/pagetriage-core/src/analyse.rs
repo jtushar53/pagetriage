@@ -13,6 +13,7 @@ use crate::pixel::phash::{self, PHASH};
 use crate::pixel::quality;
 use crate::pixel::rulings::{self, RULINGS};
 use crate::pixel::script::{self, SCRIPT};
+use crate::pixel::stamp::{self, STAMP};
 use crate::schema::{self, Finding, Kind, PageReport};
 use crate::structural::PageStructure;
 
@@ -26,6 +27,7 @@ pub const DETECTORS: &[&str] = &[
     PHASH,
     RULINGS,
     SCRIPT,
+    STAMP,
 ];
 
 /// Detectors in [`DETECTORS`] that run only when `Options::detectors` names them. A new detector
@@ -37,6 +39,7 @@ pub const OPT_IN: &[&str] = &[
     LAYOUT,
     RULINGS,
     SCRIPT,
+    STAMP,
 ];
 
 /// One rasterised page. `gray` is `width * height` bytes, row-major. `rgb`, when present, is
@@ -171,6 +174,14 @@ pub fn analyse_page_report(
             RULINGS => rulings::detect(
                 page_layout.as_ref().expect("segmented above"),
                 input.gray,
+                input.dpi,
+                &params,
+            )?,
+            STAMP => stamp::detect(
+                input.gray,
+                input.rgb,
+                input.width as usize,
+                input.height as usize,
                 input.dpi,
                 &params,
             )?,

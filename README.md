@@ -73,6 +73,7 @@ text.
 | M4 script | Script family of a scan: headline (Devanagari, Bengali, Gurmukhi), joined (Arabic script) or separate letters (Latin and the rest). Opt-in, checked on synthetic pages only | Built, opt-in | [script](docs/detectors/script.md) |
 | M5 handwriting | Regions of handwriting among print, including form fill-ins. **Weak**: catches round cursive-like strokes in synthetic tests, misses block capitals, never seen real handwriting | Built, opt-in, weak | [handwriting](docs/detectors/handwriting.md) |
 | M9 rulings | Tables (rows and columns), ruled lines, checkbox grids with ticks counted, and faint fold lines told from printed rules. Opt-in, checked on synthetic pages only | Built, opt-in | [rulings](docs/detectors/rulings.md) |
+| M6 stamp and seal | Coloured rubber stamps and seals (circle, rectangle, double ring), with colour and shape. Needs a colour page; finds nothing in gray scans. Opt-in, synthetic checks only | Built, opt-in | [stamp](docs/detectors/stamp.md) |
 | M12 provenance | PDF producer, edits after the first save (incremental updates), edits after a signature, JPEG encoder tables | Built | [provenance](docs/detectors/provenance.md) |
 | M12 near-duplicates | Perceptual hashes per page, and which pages repeat an earlier one | Built, with limits | [phash](docs/detectors/phash.md) |
 | M10 blank page | Blank-page finding | Skeleton, known wrong on faded scans | [blank_page](docs/detectors/blank_page.md) |
