@@ -32,6 +32,16 @@ branch could not edit workflow files).
 5. **Site.** The `pages` workflow deploys `site/` on every push to `main` that touches it; it refuses to
    deploy when the WASM build stops reproducing the native fingerprints.
 
+## When real labelled pages exist
+
+1. Put the pages and a `labels.json` (format in the header of `bench/eval_real.py`) outside the repository
+   or under `bench/data/`, which is git-ignored. They contain personal data: never commit them.
+2. `python -I bench/eval_real.py PAGES_DIR --calibration-csv labelled.csv` prints precision and recall per
+   kind and the page-type accuracy, and writes every finding with its raw confidence and whether it matched.
+3. `python -I bench/fit_calibration.py labelled.csv > calibration_override.toml` fits the maps; check them
+   on pages not used for the fit, then copy the maps into `params/calibration.toml`.
+4. Replace the "synthetic only" lines in the detector docs with the measured numbers.
+
 ## What a release does not claim
 
 Every detector from module M4 on was checked on synthetic pages only, and no confidence is calibrated
