@@ -12,7 +12,7 @@ import pagetriage_py
 GOLDEN = pathlib.Path(__file__).resolve().parents[1] / "golden"
 OPTS = '{"debug":true}'
 STAMP_OPTS = '{"debug":true,"detectors":["stamp"]}'
-LAYOUT_OPTS = '{"debug":true,"detectors":["layout","script","handwriting","rulings","signature","thumb","redaction","qr","emboss"]}'
+LAYOUT_OPTS = '{"debug":true,"detectors":["layout","script","handwriting","rulings","signature","thumb","redaction","qr","emboss","photo"]}'
 COVERAGE_OPTS = '{"debug":true,"detectors":["coverage"],"text_boxes":[[0,0,319,86]]}'
 DPI = 150
 

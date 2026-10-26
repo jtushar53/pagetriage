@@ -14,7 +14,7 @@ const wasm = createRequire(import.meta.url)(join(pkgDir, "pagetriage.js"));
 
 const OPTS = '{"debug":true}';
 const STAMP_OPTS = '{"debug":true,"detectors":["stamp"]}';
-const LAYOUT_OPTS = '{"debug":true,"detectors":["layout","script","handwriting","rulings","signature","thumb","redaction","qr","emboss"]}';
+const LAYOUT_OPTS = '{"debug":true,"detectors":["layout","script","handwriting","rulings","signature","thumb","redaction","qr","emboss","photo"]}';
 const DPI = 150;
 
 function readPgm(path) {

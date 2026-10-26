@@ -40,7 +40,7 @@ import signgen  # noqa: E402
 import synthtext  # noqa: E402
 
 DEV, TEST = [1, 2, 3, 4, 5, 6], [11, 12, 13, 14, 15, 16]
-OPTS = json.dumps({"detectors": ["layout", "handwriting", "rulings", "signature", "thumb", "redaction", "qr"]})
+OPTS = json.dumps({"detectors": ["layout", "handwriting", "rulings", "signature", "thumb", "redaction", "qr", "photo"]})
 CONDITIONS = {"clean": {}, "noise 8": dict(noise=8.0), "blur 1px": dict(blur=1.0)}
 LABEL = {"text": "text", "annotated": "text_with_annotations", "form": "form", "table": "table", "photo": "photo",
          "blank": "blank", "cover": "cover_stamp_paper", "mixed": "mixed"}

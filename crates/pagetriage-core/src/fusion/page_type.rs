@@ -186,6 +186,11 @@ pub fn facts(layout: &Layout, findings: &[Finding], gray: &[u8], p: &PageTypePar
                 }
             }
             Kind::StampPaperHeader => f.header = true,
+            Kind::Photo => {
+                if let Some(b) = finding.bbox {
+                    f.graphic_share = f.graphic_share.max(area(b) / page_px);
+                }
+            }
             _ => {}
         }
     }

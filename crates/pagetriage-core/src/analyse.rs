@@ -13,6 +13,7 @@ use crate::pixel::emboss::{self, EMBOSS};
 use crate::pixel::handwriting::{self, HANDWRITING};
 use crate::pixel::layout::{self, LAYOUT};
 use crate::pixel::phash::{self, PHASH};
+use crate::pixel::photo::{self, PHOTO};
 use crate::pixel::qr::{self, QR};
 use crate::pixel::quality;
 use crate::pixel::redaction::{self, REDACTION};
@@ -34,6 +35,7 @@ pub const DETECTORS: &[&str] = &[
     HANDWRITING,
     LAYOUT,
     PHASH,
+    PHOTO,
     QR,
     REDACTION,
     RULINGS,
@@ -52,6 +54,7 @@ pub const OPT_IN: &[&str] = &[
     EMBOSS,
     HANDWRITING,
     LAYOUT,
+    PHOTO,
     QR,
     REDACTION,
     RULINGS,
@@ -228,6 +231,13 @@ pub fn analyse_page_report(
                 handwriting::detect(page_layout.as_ref().expect("segmented above"), &params)?
             }
             LAYOUT => layout::summarize(page_layout.as_ref().expect("segmented above")),
+            PHOTO => photo::detect(
+                input.gray,
+                input.width as usize,
+                input.height as usize,
+                input.dpi,
+                &params,
+            )?,
             QR => qr::detect(
                 input.gray,
                 input.width as usize,

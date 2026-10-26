@@ -13,6 +13,7 @@ pub mod emboss;
 pub mod handwriting;
 pub mod layout;
 pub mod phash;
+pub mod photo;
 pub mod qr;
 pub mod quality;
 pub mod redaction;

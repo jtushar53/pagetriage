@@ -17,8 +17,8 @@ to set the coefficients and to check them are synthetic and drawn by the author 
    `text` (layout lines), `rules` (printed rules: the horizontal and vertical counts in the
    `ruling_lines` findings, each weighted by how long the longest rule is, plus checkbox grids),
    `table` (the largest table's share of the page), `annot` (handwriting, signature, stamp, seal, thumb
-   and redaction findings), `graphic` (the larger of the graphic components' boxes and the dark area
-   that is not text, counted on the gray page), `qr_top` (a QR code in the top band), `header` (a
+   and redaction findings), `graphic` (the larger of the graphic components' boxes, the dark area
+   that is not text counted on the gray page, and the area of `photo` findings), `qr_top` (a QR code in the top band), `header` (a
    `stamp_paper_header` finding, see [fusion](fusion.md)) and `empty` (`1 - ink / 0.2%`).
 2. **A linear score per label**: a bias plus the features times that label's coefficients (eight
    labels, 9 numbers each, most zero; 49 non-zero in all, just under the limit of about 50).

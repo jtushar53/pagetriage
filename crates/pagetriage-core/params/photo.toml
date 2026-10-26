@@ -1,0 +1,41 @@
+# Photographs and other continuous-tone pictures (module M10, region typing): areas where much of the
+# page is neither paper nor solid ink but in between, which text, rules and line art are not. No model:
+# the gray page is cut into square tiles, a tile is "tone" when enough of its pixels are mid-gray, tone
+# tiles are closed over small holes and joined into regions. "placeholder" means a first guess not yet
+# checked against data. Nothing here has been checked on a real photograph.
+
+# Tile side in inches (22 px at 150 dpi). Source: placeholder.
+tile_in = 0.15
+
+# A pixel is paper-like at or above (paper - paper_band), ink-like at or below (paper - ink_depth),
+# and mid-gray in between. The paper is the most common gray. Source: placeholder.
+paper_band = 20
+ink_depth = 150
+
+# Mid-gray only counts where the page is gentle: the smoothed gray (3 x 3 mean) changes by at most this
+# many gray levels per pixel, summed over x and y across four pixels. The edges of blurred text are
+# mid-gray but steep (tens of levels per pixel); the inside of a picture is gentle. Source: placeholder.
+flat_gradient = 6.0
+
+# A tile is tone when at least this share of its pixels are mid-gray. Text with anti-aliasing has
+# 10 to 25% in its densest tiles. Source: placeholder.
+min_mid_share = 0.4
+
+# Tone tiles are closed with this radius in tiles (a photo has white skies and black shadows). Source: placeholder.
+close_tiles = 1
+
+# A region needs at least this area in square inches and this share of its box in tone tiles. Source: placeholder.
+min_area_sq_in = 0.8
+min_fill = 0.5
+
+# At most this many regions per page. Source: placeholder.
+max_regions = 8
+
+# Confidence = sigmoid(prior + sum of terms), each coef * (value - threshold) clipped to +-term_clip:
+# the region's area in square inches and its mid-gray share. Source: placeholder (uncalibrated).
+term_clip = 4.0
+prior = -1.0
+area_threshold = 1.5
+area_coef = 0.8
+mid_threshold = 0.4
+mid_coef = 5.0

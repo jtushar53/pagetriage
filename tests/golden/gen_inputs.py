@@ -544,6 +544,22 @@ def qr_page():
     return px
 
 
+def photo_page():
+    """Six lines of text-like words and a picture: a 1.1 x 1.0 in (160 x 90 px at 150 dpi) area of smooth
+    mid-gray with a gentle gradient and grain. Integer arithmetic only."""
+    rng = Lcg(151)
+    px = [235 + rng.next(5) for _ in range(LW * LH)]
+    ink = set()
+    _ink_lines(rng, ink, 14, 300, 6, 7)
+    for x, y in sorted(ink):
+        if 0 <= x < LW and 0 <= y < LH:
+            px[y * LW + x] = 30 + rng.next(20)
+    for y in range(140, 236):
+        for x in range(60, 236):
+            px[y * LW + x] = 80 + (x - 60) // 2 + (y - 140) // 2 + rng.next(6)
+    return px
+
+
 def emboss_page():
     """A blank-looking page with a blind-embossed seal: a rim 12 px wide and an inner ring 6 px wide,
     lit from the left, as gray-level shading of 8 levels around the paper (no ink). The shading of a
@@ -819,6 +835,8 @@ if __name__ == "__main__":
     print("wrote qr_page")
     write_pgm("emboss_page", emboss_page(), LW, LH, LAYOUT_OUT)
     print("wrote emboss_page")
+    write_pgm("photo_page", photo_page(), LW, LH, LAYOUT_OUT)
+    print("wrote photo_page")
     DOC_OUT.mkdir(exist_ok=True)
     (DOC_OUT / "deed_pages.json").write_text(document_pages(), encoding="utf-8")
     print("wrote deed_pages")

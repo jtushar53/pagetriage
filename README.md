@@ -80,6 +80,7 @@ text.
 | M11 QR codes | QR codes from their finder patterns (not decoded). Opt-in, synthetic checks only | Built, opt-in | [qr](docs/detectors/qr.md) |
 | M11 embossed seal | Blind-embossed circular seals, from the antisymmetry of their shading. **Basic**: 3 to 5 of 6 on rendered reliefs, 0 of 6 under sensor noise 4; opt-in, synthetic checks only | Built, opt-in, weak | [emboss](docs/detectors/emboss.md) |
 | M11 registrar endorsement | A stamp, seal or signature in the same place on most pages of a document (a pass over the page reports: CLI `document`, `finish_document`). Synthetic checks only | Built, document level | [endorsement](docs/detectors/endorsement.md) |
+| M10 photo regions | Continuous-tone pictures (a pasted photograph), by gentle mid-gray area. **Misses black-and-white photocopied photos**. Opt-in, synthetic checks only | Built, opt-in | [photo](docs/detectors/photo.md) |
 | M10 page type | Text, text with annotations, form, table, photo, mixed, blank, stamp-paper cover, from the layout and the other detectors' findings. Runs with `layout`; synthetic checks only | Built, opt-in | [page_type](docs/detectors/page_type.md) |
 | M13 consistency rules | Overlap and blank-page rules; `estamp_qr` and `stamp_paper_header` (unvalidated) built from other findings; optional per-kind calibration maps (none shipped) | Built, hand set | [fusion](docs/detectors/fusion.md) |
 | M12 provenance | PDF producer, edits after the first save (incremental updates), edits after a signature, JPEG encoder tables | Built | [provenance](docs/detectors/provenance.md) |
@@ -362,7 +363,7 @@ opt-in so the default report and the golden files do not change. Status as of 20
 | M2 font script | Script from PDF fonts; legacy non-Unicode Indian fonts | 1 | Built |
 | M3 quality | Skew, blur, contrast, specks, bleed-through, folds, grade, binariser choice | 1 | Built; one target missed (Howe on DIBCO 2011) |
 | M12 provenance and hashes | Producer, incremental updates, edits after a signature, JPEG tables, near-duplicate pages | 1 | Built, with limits |
-| M10 content type | Page and region typing (text, form, table, photo, blank) | 0 and later | Page typing built (synthetic checks only); region typing not built |
+| M10 content type | Page and region typing (text, form, table, photo, blank) | 0 and later | Page typing and picture regions built (synthetic checks only) |
 | M4 script from pixels | Script of a scanned page, without a text layer | 2 | In progress (branch) |
 | M5 handwriting | Handwritten vs machine-printed text, filled-in blanks on forms | 2 | In progress (branch) |
 | Extraction coverage | How much of the page the text layer or OCR actually covers | 2 | Built (synthetic checks only) |
