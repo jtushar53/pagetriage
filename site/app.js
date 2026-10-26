@@ -688,6 +688,14 @@ function pdfRow(p) {
     const j = p.images.find((i) => i.jpeg);
     notes.push(`${p.images.length} image${p.images.length === 1 ? "" : "s"}${j && j.jpeg.luma_quality != null ? `, JPEG quality ${j.jpeg.luma_quality}` : ""}.`);
   }
+  if (p.covered_text && p.covered_text.length) {
+    const white = p.covered_text.filter((c) => c.fill === "white").length, n = p.covered_text.length;
+    notes.push(`${n} box${n === 1 ? "" : "es"} painted over text that is still in the file${white ? ` (${white} white)` : ""}: the text can be copied out from under ${n === 1 ? "it" : "them"}.`);
+  }
+  if (p.covered_text && p.covered_text.length) {
+    const white = p.covered_text.filter((c) => c.fill === "white").length, n = p.covered_text.length;
+    notes.push(`${n} box${n === 1 ? "" : "es"} painted over text that is still in the file${white ? ` (${white} white)` : ""}: the text can be copied out from under ${n === 1 ? "it" : "them"}.`);
+  }
   for (const n of notes) tdNotes.append(el("span.small", { text: n }));
   return el("tr", null, el("td", { text: String((p.index || 0) + 1) }), tdText, tdScript, tdNotes);
 }

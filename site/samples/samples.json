@@ -81,7 +81,7 @@
    "blurb": "Real text with fonts. The text layer is trustworthy.",
    "file": "samples/pdf/native_latin.pdf",
    "bytes": 1012,
-   "native_report_sha256": "f4816ae669f25bd9f5e5745d5309c81f06a4a3eac0734f8007e7eab5621aa3f3"
+   "native_report_sha256": "6607948b2227d3e1c454bb29de7e739e0cbf3df51510f27aa008ad0982777145"
   },
   {
    "id": "scanned_ocr",
@@ -89,7 +89,7 @@
    "blurb": "A page image with invisible text laid over it by an OCR engine. Text exists, but it is the OCR's guess.",
    "file": "samples/pdf/scanned_ocr.pdf",
    "bytes": 2610,
-   "native_report_sha256": "d8fa7211d55356cb6e89a500cffd25bc9518d1cc1e4a575b7cf8afd8836d5f28"
+   "native_report_sha256": "5000a195b828f60b8b658104b22bd3039b032dd52294962fa67e91ee58ace222"
   },
   {
    "id": "jpeg_scan",
@@ -97,7 +97,7 @@
    "blurb": "Just a JPEG of a page. The JPEG quality is read from its tables.",
    "file": "samples/pdf/jpeg_scan.pdf",
    "bytes": 1460,
-   "native_report_sha256": "bf76dd97f3d4cca41e80e1ea4eff5dfe55d59abd70eb90b0728169951cf67d13"
+   "native_report_sha256": "89fd5cbe3354d91772f14392431e78521418764eff17a8a5856673243d9c50fd"
   },
   {
    "id": "scripts_legacy",
@@ -105,7 +105,7 @@
    "blurb": "One page uses a legacy font (Kruti Dev) that looks like Devanagari on screen but copies as Latin gibberish. It is flagged.",
    "file": "samples/pdf/scripts_legacy.pdf",
    "bytes": 2783,
-   "native_report_sha256": "5756325548d5af86e5f2e15cf5c7c6d6407665208e6f14648e0e3f921c9fc1a7"
+   "native_report_sha256": "cac1ff6cb43bf63ec905d9a2170cf4a38ce9b9656f89f6f502b44c81c04fd2a5"
   },
   {
    "id": "signed_then_edited",
@@ -113,7 +113,7 @@
    "blurb": "An incremental update was appended after the first save, the footprint of a change made later.",
    "file": "samples/pdf/signed_then_edited.pdf",
    "bytes": 1663,
-   "native_report_sha256": "2c293fc6937d04d2443e81b3a1f5d908e87d6a6902b4a9b57f996bb4e3438479"
+   "native_report_sha256": "c15ac5b9b444b9018e3b7bc600217dcc242eee99dd5bba4819972ddc55883170"
   },
   {
    "id": "encrypted",
@@ -124,12 +124,20 @@
    "native_report_sha256": "9464b700e1c29c369932072b51a73f813189f8791ef809520c1653588924e71b"
   },
   {
+   "id": "redacted_text",
+   "title": "Boxes over text that is still there",
+   "blurb": "A black box over a name and a white box over an address, both painted on top of text that is still in the file. Anyone can copy the text out from under them.",
+   "file": "samples/pdf/redacted_text.pdf",
+   "bytes": 1034,
+   "native_report_sha256": "12e871e15b48645923ba4eb16905565aa69c5a5bdf4891f68607461688af85a2"
+  },
+  {
    "id": "vector_empty_mixed",
    "title": "Vector, blank and mixed pages",
    "blurb": "Drawn lines with no text, an empty page, and a page mixing both.",
    "file": "samples/pdf/vector_empty_mixed.pdf",
    "bytes": 35734,
-   "native_report_sha256": "fedae6feb87597ae8417e652b2f058f84f1eeec0c1b98b14576411ffc79ac909"
+   "native_report_sha256": "7a552177d6c7613130c57750ab134de0ab327456e70fd475767cada5f28b6d2b"
   }
  ]
 }

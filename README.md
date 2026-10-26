@@ -373,7 +373,7 @@ opt-in so the default report and the golden files do not change. Status as of 20
 | M9 rulings | Rulings, tables, checkbox grids, fold lines vs rules | 3 | In progress (branch) |
 | M11 Indian deeds | Stamp-paper header, e-stamp QR code, registrar endorsement, embossed seal. Needs a small annotated set of real deed pages; no public set exists | 4 | All four built; the header and the embossed seal are the weakest; synthetic checks only, no real deed seen |
 | M13 fusion and calibration | Calibrated confidences, abstention, cross-detector consistency | 5 | Log-odds sum and consistency rules built; calibration machinery built, no maps (no labelled data) |
-| Release | PyPI, crates.io and npm packages; docs site; browser demo | 5 | Browser demo in progress; packages not started |
+| Release | PyPI, crates.io and npm packages; docs site; browser demo | 5 | Browser demo built; packages build, install and run in dry runs (`scripts/package-npm.sh`, `scripts/package-python.sh`, `cargo package`); nothing is published, see [RELEASING](docs/RELEASING.md) |
 
 ## Built on
 

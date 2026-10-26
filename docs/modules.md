@@ -29,4 +29,4 @@ The analyser is split into modules. Code that implements one cites its number (f
 | 2 Script and handwriting | Layout segmentation ([`layout`](detectors/layout.md)), M4 ([`script`](detectors/script.md)), M5 ([`handwriting`](detectors/handwriting.md)): built, opt-in, synthetic checks only |
 | 3 Stamps, signatures, thumbs | M6, M7, M8, M9 |
 | 4 Indian deeds | M11, registrar-endorsement repetition across pages; needs a small in-house annotated set |
-| 5 Fusion, calibration, release | M13 calibration, npm and PyPI packages, docs site, offline browser demo |
+| 5 Fusion, calibration, release | M13 fusion (built; calibration maps need labelled data), npm and PyPI package dry runs (built, nothing published: [RELEASING](RELEASING.md)), docs site, browser demo |

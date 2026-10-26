@@ -5,6 +5,12 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
+# Published as an npm package (scripts/package-npm.sh), not as a crate.
+publish = false
 rust-version.workspace = true
 
 [lib]
