@@ -16,6 +16,7 @@ const QUALITY_TOML: &str = include_str!("../params/quality.toml");
 const LAYOUT_TOML: &str = include_str!("../params/layout.toml");
 const SCRIPT_TOML: &str = include_str!("../params/script.toml");
 const HANDWRITING_TOML: &str = include_str!("../params/handwriting.toml");
+const RULINGS_TOML: &str = include_str!("../params/rulings.toml");
 
 /// Sauvola local threshold (see `params/sauvola.toml`).
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -103,6 +104,7 @@ pub struct Params {
     pub layout: crate::pixel::layout::LayoutParams,
     pub script: crate::pixel::script::ScriptParams,
     pub handwriting: crate::pixel::handwriting::HandwritingParams,
+    pub rulings: crate::pixel::rulings::RulingsParams,
 }
 
 impl Params {
@@ -127,7 +129,7 @@ impl Params {
             "# --- fusion ---\n[fusion]\n{FUSION_TOML}\n# --- blank_page ---\n[blank_page]\n{BLANK_PAGE_TOML}\n\
              # --- sauvola ---\n[sauvola]\n{SAUVOLA_TOML}\n# --- wolf ---\n[wolf]\n{WOLF_TOML}\n\
              # --- howe ---\n[howe]\n{HOWE_TOML}\n# --- phash ---\n[phash]\n{PHASH_TOML}\n\
-             # --- quality ---\n[quality]\n{QUALITY_TOML}\n# --- layout ---\n[layout]\n{LAYOUT_TOML}\n# --- script ---\n[script]\n{SCRIPT_TOML}\n# --- handwriting ---\n[handwriting]\n{HANDWRITING_TOML}"
+             # --- quality ---\n[quality]\n{QUALITY_TOML}\n# --- layout ---\n[layout]\n{LAYOUT_TOML}\n# --- script ---\n[script]\n{SCRIPT_TOML}\n# --- handwriting ---\n[handwriting]\n{HANDWRITING_TOML}\n# --- rulings ---\n[rulings]\n{RULINGS_TOML}"
         )
     }
 
@@ -187,6 +189,7 @@ impl Params {
         self.layout.validate()?;
         self.script.validate()?;
         self.handwriting.validate()?;
+        self.rulings.validate()?;
         self.validate_binarizers()?;
         self.validate_phash()
     }
@@ -305,6 +308,7 @@ fn defaults_table() -> Result<toml::Table> {
         "handwriting".into(),
         parse("handwriting", HANDWRITING_TOML)?,
     );
+    table.insert("rulings".into(), parse("rulings", RULINGS_TOML)?);
     Ok(table)
 }
 

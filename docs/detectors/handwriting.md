@@ -12,7 +12,7 @@ pass.
 read as "it finds handwriting".** It finds *round, joined, cursive-looking strokes* written by a
 generator its thresholds were set on. On the other two kinds of synthetic handwriting it was tested
 on, it found **none of it** (0% recall), and it is not known what it does on real handwriting. The
-form-fill case is partly working (about three quarters of the fill-ins) only because those fill-ins
+form-fill case is partly working (about two thirds of the fill-ins) only because those fill-ins
 were drawn in the style it knows. It also flags pseudo-Arabic print, and blurred Devanagari print.
 All checks are synthetic. See the [results](#evaluation) and the [failure gallery](#failure-gallery).
 
@@ -78,8 +78,8 @@ have the first number. Clean and blur 1 px shown; noise 8 gave the same numbers 
 | Handwriting, scribble | blur 1 px | 5/5 | 5/5 | 97% / 96% | 100% / 100% |
 | Handwriting, block capitals (never tuned on) | clean | 0/5 | 0/5 | **0% / 0%** | |
 | Handwriting, block capitals | blur 1 px | 0/5 | 0/5 | **0% / 0%** | |
-| Form with fill-ins | clean | 5/5 | 5/5 | 74% / 71% | 94% / 94% |
-| Form with fill-ins | blur 1 px | 5/5 | 5/5 | 81% / 76% | 73% / 78% |
+| Form with fill-ins | clean | 5/5 | 5/5 | 70% / 67% | 94% / 94% |
+| Form with fill-ins | blur 1 px | 5/5 | 5/5 | 78% / 79% | 77% / 79% |
 
 How to read it. The row that works is the one it was tuned on. The scribble row shows the
 generalisation problem: unblurred, the spiky strokes are as axis-aligned and uniform as print and
@@ -112,8 +112,8 @@ the native, Python and WASM runners.
 | **Spiky or angular writing** | 0% on the random-segment scribble style when sharp, 97% when blurred. | "scribble" rows |
 | **Joined, round print** | Pseudo-Arabic print is flagged on every page; it is round, joined and wanders about its baseline. Real Arabic or Urdu print is untested. A cross-check with M4's `cursive` family (M13) is the planned remedy. | "Arabic (confuser)" rows |
 | **Blur** | Blurring rounds print: `quality_blurred` (3x3 box blur of a text page) gets six handwriting regions, and 5 of 5 blurred pseudo-Devanagari test pages get one. M3 measures blur, so M13 can discount M5 on blurred pages. | `quality_blurred.pgm` golden; Devanagari blur rows |
-| **Fill-ins that are one short glyph** | A fill-in that is a single short component has only `axis_share` and `stroke_cv` to go on, and sits near their thresholds: 26% to 29% of the synthetic form's fill-ins are missed. | "Form" rows |
-| **Writing that touches or crosses a long ruling** | Handled for thin rules (12 or more x-heights long, up to 0.5 x-heights thick), by the layout's ruling cut. A thick or short ruling, or a signature line drawn as a heavy bar, is not cut and fuses with the writing. | `layout` gallery |
+| **Fill-ins that are one short glyph** | A fill-in that is a single short component has only `axis_share` and `stroke_cv` to go on, and sits near their thresholds: 30% to 33% of the synthetic form's fill-ins are missed. | "Form" rows |
+| **Writing that touches or crosses a long ruling** | Handled for thin rules (6 or more x-heights long, up to 0.5 x-heights thick), by the layout's ruling cut. A thick or short ruling, or a signature line drawn as a heavy bar, is not cut and fuses with the writing. | `layout` gallery |
 | **Handwriting touching printed text** | A word that touches printed letters is one component with them: its features are an average and it gets one verdict. The plan's overlay case (a signature over print) is not addressed. | Not tested |
 | **Lines that touch each other** | Closely spaced handwriting, with descenders reaching the next line, fuses lines; at 1.6 em line spacing the synthetic page lost two thirds of its lines in the layout. The evaluation uses 2.1 em. | Found while building the generator |
 | **Real handwriting** | Never seen. Everything above is the author's generator. | Open |

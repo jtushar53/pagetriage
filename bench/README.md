@@ -20,6 +20,7 @@ calls the Rust core through `pagetriage_py`, and scores the output.
 | `layout_synth_eval.py` | Layout segmentation against synthetic pages with known lines, paragraphs and columns (Latin, Devanagari, Bengali; skew, speckle, blur, two columns); also times the pass. Results in `docs/detectors/layout.md` |
 | `script_synth_eval.py` | Script-family detector (M4) against synthetic pages of nine scripts under seven conditions, dev/test split, plus mixed-script pages. Results in `docs/detectors/script.md` |
 | `handwriting_synth_eval.py` | Handwriting-vs-print detector (M5) against synthetic printed pages, three styles of synthetic handwriting (`synth/handwrite.py`) and printed forms with fill-ins; dev/test split. Results in `docs/detectors/handwriting.md` |
+| `rulings_synth_eval.py` | Rulings, table and checkbox detector (M9) against synthetic ruled tables, checkbox lists, mixed pages and text pages with look-alike letters, under skew, noise, blur and 100 dpi; dev/test split. Results in `docs/detectors/rulings.md` |
 | `tests/` | Offline unit tests (`python -I -m unittest discover -s bench/tests`) |
 
 ## Setup

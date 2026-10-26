@@ -483,6 +483,43 @@ def layout_hand_form():
     return _layout_page(ink)
 
 
+RW, RH = 320, 500
+
+
+def rulings_table():
+    """A 4 x 3 ruled table with a word in each top-row cell, a row of five checkboxes (two ticked),
+    a free-standing underline, and a faint vertical crease down the right margin."""
+    rng = Lcg(81)
+    ink = set()
+    for y in (24, 64, 104, 144, 184):
+        for x in range(20, 262):
+            ink.update({(x, y), (x, y + 1)})
+    for x in (20, 100, 180, 260):
+        for y in range(24, 186):
+            ink.update({(x, y), (x + 1, y)})
+    for col in range(3):
+        _ink_lines(rng, ink, 20 + col * 80 + 8, 20 + col * 80 + 78, 36, 1)
+    for i in range(5):
+        x, y = 30 + 40 * i, 220  # 18-px boxes: M9 ignores anything under 0.11 in (16.5 px at 150 dpi)
+        for k in range(18):
+            ink.update({(x + k, y), (x + k, y + 1), (x + k, y + 16), (x + k, y + 17)})
+            ink.update({(x, y + k), (x + 1, y + k), (x + 16, y + k), (x + 17, y + k)})
+        if i in (1, 3):
+            for k in range(12):
+                ink.update({(x + 3 + k, y + 3 + k), (x + 4 + k, y + 3 + k)})
+                ink.update({(x + 14 - k, y + 3 + k), (x + 15 - k, y + 3 + k)})
+    _ink_lines(rng, ink, 20, 300, 250, 2)
+    for x in range(20, 201):
+        ink.update({(x, 320), (x, 321)})
+    px = [235 + rng.next(5) for _ in range(RW * RH)]
+    for y in range(5, 496):
+        for x in (290, 291, 292):
+            px[y * RW + x] = 175 + rng.next(3)
+    for x, y in sorted(ink):
+        px[y * RW + x] = 30 + rng.next(20)
+    return px
+
+
 if __name__ == "__main__":
     for fn in (blank_speckle, text_like, borderline, faint_strokes, dark_fill):
         write_pgm(fn.__name__, fn())
@@ -506,3 +543,5 @@ if __name__ == "__main__":
         print("wrote", fn.__name__)
     write_pgm("layout_hand_form", layout_hand_form(), LW, LH, LAYOUT_OUT)
     print("wrote layout_hand_form")
+    write_pgm("rulings_table", rulings_table(), RW, RH, LAYOUT_OUT)
+    print("wrote rulings_table")

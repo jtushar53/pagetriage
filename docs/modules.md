@@ -13,7 +13,7 @@ The analyser is split into modules. Code that implements one cites its number (f
 | M6 | `pixel.stamp_seal` | Rubber stamps and seals, by colour clustering and by shape | 3 | planned |
 | M7 | `pixel.signature` | Wet signatures | 3 | planned |
 | M8 | `pixel.thumb_impression` | Thumb and finger impressions, via ridge coherence and frequency | 3 | planned |
-| M9 | `pixel.rulings` | Rulings, tables, checkbox grids, and fold lines vs rules | 3 | planned |
+| M9 | `pixel.rulings` | Rulings, tables, checkbox grids, and fold lines vs rules | 3 | implemented, opt-in, synthetic checks only: [`rulings`](detectors/rulings.md) |
 | M10 | `pixel.content_type` | Page and region typing (text, form, table, photo, blank, ...) | 0 (blank skeleton), later phases | skeleton: [`blank_page`](detectors/blank_page.md) |
 | M11 | `india.*` | Indian-deed detectors: stamp-paper header, e-stamp QR, registrar endorsement, embossed seal | 4 | planned |
 | M12 | `provenance.*` | JPEG tables, PDF producer, incremental updates, redaction boxes, near-duplicate pages | 1 and later | near-duplicate pages (perceptual hashes): [`phash`](detectors/phash.md); PDF structure, incremental updates and JPEG tables: [`provenance`](detectors/provenance.md) (cargo feature `pdf`); redaction boxes planned |

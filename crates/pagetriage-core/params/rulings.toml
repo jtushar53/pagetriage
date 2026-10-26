@@ -1,0 +1,95 @@
+# Rulings, tables and checkbox grids (module M9), and fold lines told apart from printed rules.
+# Works on the thin rulings the layout pass cuts out of the page (`layout.rules`) and on its glyph
+# components. Every key says where it comes from. "placeholder" means a first guess not yet checked
+# against data. Nothing here has been checked on a real document.
+
+# ---- segments --------------------------------------------------------------------------------
+
+# Two ruling pieces on one line (a stroke crossing the rule splits it) are one segment when their
+# centre lines are within this many x-heights across and the gap along is at most
+# `merge_gap_xh` x-heights. Source: placeholder.
+merge_across_xh = 0.4
+merge_gap_xh = 2.0
+
+# A segment is a printed rule when its core is at least this many gray levels darker than the paper
+# beside it; fainter ones are fold-line candidates. A printed rule is black or dark grey (contrast
+# well over 100 on a typical scan); a crease binarised by Sauvola is a faint dip (tens of levels).
+# Source: placeholder.
+rule_min_contrast = 70.0
+
+# A fold-line candidate is reported only if it is at least this long, in inches, at the page's dpi
+# (the same length M3 requires of a fold). Source: M3 `fold_min_length_in`.
+fold_min_length_in = 3.0
+
+# ---- tables ----------------------------------------------------------------------------------
+
+# A horizontal and a vertical segment meet when the end of one is within this many x-heights of the
+# other. Source: placeholder.
+join_tol_xh = 0.6
+
+# A connected group of segments is a table when it has at least this many horizontal and vertical
+# segments (2 and 2 is one closed cell: a framed box). Source: placeholder.
+table_min_horizontal = 2
+table_min_vertical = 2
+
+# Positions of segments within this many x-heights are the same row or column line.
+# Source: placeholder.
+line_cluster_xh = 0.5
+
+# Confidence = sigmoid(table_prior + cells_coef * min(cells, cells_cap) + junction_coef * (share of
+# segment ends that meet another segment - 0.5)). Source: placeholder (uncalibrated).
+table_prior = -2.0
+table_cells_coef = 0.9
+table_cells_cap = 8.0
+table_junction_coef = 4.0
+
+# ---- free rulings ----------------------------------------------------------------------------
+
+# Rulings outside tables are reported together (underlines, form lines) when there are at least
+# this many. Source: placeholder.
+min_free_rules = 1
+free_rules_prior = 0.0
+free_rules_coef = 1.0
+free_rules_cap = 6.0
+
+# ---- checkboxes ------------------------------------------------------------------------------
+
+# A glyph-class component holds a box when, after trimming its outer rows and columns that carry no
+# more than this fraction of the side's length in ink (the tip of a tick poking out of the box), what
+# is left is a square frame. A letter's rounded cap carries more than that, so it is not trimmed, and
+# fails the straight-edge test instead. Source: placeholder.
+box_overshoot_fraction = 0.25
+
+# The frame's sides are at least this long in x-heights (a square of one x-height is about as
+# small as a printed checkbox goes; smaller ones cannot be told from the round letters o, e, a at
+# 100 to 150 dpi, which pass every test below at that size) and at most `box_max_xh` ...
+box_min_xh = 1.0
+
+# ... and at least this many inches, so that at 100 dpi the round letters a, o, e (8 px wide, which
+# have passed every test below) are not boxes. 0.11 in is 2.8 mm; printed checkboxes are usually 3 to
+# 5 mm, and smaller ones are missed. Source: placeholder, tuned on synthetic dev seeds 1-5 at 100 dpi.
+box_min_in = 0.11
+box_max_xh = 2.5
+# ... width and height differ by at most this fraction ...
+box_aspect_tol = 0.25
+# ... and each of its four edges has an unbroken run of ink at least this long (as a share of the
+# side) in a band of `box_tolerance_px + 1` pixels from the frame line. The band absorbs the
+# staircase of a rotated raster line; "unbroken" is what a round letter (O, D, Q, 0) lacks, whose
+# flat part is half the side or less ...
+box_tolerance_px = 1
+box_edge_coverage = 0.8
+# ... and the middle of it (the inner half, in each direction) is at most this inked. A cross or
+# tick in the box adds ink (a 2-px cross in an 11-px box covers about 0.55 of the inner half; a
+# filled square would be 1.0), so this is generous. Source: placeholder.
+box_max_inner_ink = 0.65
+
+# A box is ticked when its inner half is at least this inked.
+box_checked_ink = 0.08
+
+# Boxes in a row or column (centres within this many x-heights across) with at least this many
+# members are a checkbox grid. Source: placeholder.
+grid_align_xh = 0.5
+grid_min_boxes = 3
+grid_prior = -1.0
+grid_coef = 0.7
+grid_cap = 8.0

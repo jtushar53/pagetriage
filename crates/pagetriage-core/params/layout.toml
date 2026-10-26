@@ -31,11 +31,12 @@ rule_min_len_xh = 6.0
 rule_max_thick_xh = 0.5
 
 # Before components are found, thin rulings are cut out of the ink mask: a horizontal or vertical
-# run of ink at least this many x-heights long, wherever it is at most `rule_max_thick_xh` thick
+# run of ink at least this many x-heights long (6 reaches a 3-row table's vertical lines; 12 missed
+# them), wherever it is at most `rule_max_thick_xh` thick
 # across. A pen stroke that crosses the ruling is thicker there, so it stays whole. This is what
 # lets a handwritten fill-in on a printed line, or a word touching a table edge, be read as text.
 # Source: placeholder.
-rule_run_xh = 12.0
+rule_run_xh = 6.0
 
 # A component at least this many x-heights tall AND wide (and not a ruling) is a graphic: a table
 # frame, stamp, photo or blob. Rulings that touch each other (a table frame) are one component, so

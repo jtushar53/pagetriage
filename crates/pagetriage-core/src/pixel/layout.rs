@@ -164,18 +164,23 @@ pub struct GlyphBox {
 /// The segmentation of one page.
 #[derive(Debug, Clone)]
 pub struct Layout {
-    /// Size of the sheared frame the boxes are in: the page width, and the page height plus the
-    /// rows the shear adds. Equal to the page size when no shear was applied.
+    /// Size of the levelled frame the boxes are in: the page size plus the rows and columns the two
+    /// shears add. Equal to the page size when no shear was applied.
     pub width: usize,
     pub height: usize,
-    /// Height of the page itself, before the shear added rows.
+    /// Size of the page itself.
+    pub page_width: usize,
     pub page_height: usize,
     /// The skew the page was levelled by, degrees, in the sense of `quality.skew_deg`; 0 when it
     /// was below `shear_min_deg`.
     pub skew_deg: f64,
-    /// Rows added to the pixel at column `x` to level the page (`shear[x]`, may be negative offset
-    /// by `shear_base`): the sheared row of page pixel `(x, y)` is `y + shear[x]`.
+    /// The page is levelled by two shears, which together turn it by `-skew_deg` (a rotation, up to
+    /// terms of the order of the skew squared). First, rows: page pixel `(x, y)` moves to row
+    /// `y + shear[x]`, which makes text lines horizontal.
     pub shear: Vec<i32>,
+    /// Then, columns: a pixel on levelled row `r` moves to column `x + shear_x[r]`, which makes
+    /// vertical rulings and column edges vertical.
+    pub shear_x: Vec<i32>,
     /// Area-weighted median glyph height in pixels: the unit of every length in `LayoutParams`.
     pub xheight: f64,
     pub glyph_count: u32,
@@ -244,24 +249,56 @@ fn union(parent: &mut [usize], a: usize, b: usize) {
 }
 
 impl Layout {
-    /// The page-coordinate bounding box `[x0, y0, x1, y1]` (inclusive, clamped to the page) of a
-    /// box of the sheared frame. The shear grows with `x`, so the extremes are at the box's ends.
-    pub fn rect_to_page(&self, r: &Rect) -> [u32; 4] {
-        let at = |x: u32, y: u32| i64::from(y) - i64::from(self.shear[x as usize]);
-        let top = at(r.x0, r.y0).min(at(r.x1, r.y0));
-        let bottom = at(r.x0, r.y1).max(at(r.x1, r.y1));
-        let max_y = self.page_height as i64 - 1;
-        [
-            r.x0,
-            top.clamp(0, max_y) as u32,
-            r.x1,
-            bottom.clamp(0, max_y) as u32,
-        ]
+    /// The gray page moved into the levelled frame, `width * height`, with white where the shears
+    /// added pixels. `gray` is the page's own buffer (`page_width * page_height`).
+    pub fn level_gray(&self, gray: &[u8]) -> Vec<u8> {
+        let mut out = vec![255u8; self.width * self.height];
+        for y in 0..self.page_height {
+            for x in 0..self.page_width {
+                let ny = (y as i64 + i64::from(self.shear[x])) as usize;
+                let nx = (x as i64 + i64::from(self.shear_x[ny])) as usize;
+                out[ny * self.width + nx] = gray[y * self.page_width + x];
+            }
+        }
+        out
     }
 
-    /// Map a point of the sheared frame back to page coordinates. `x` is a column of the page.
-    pub fn to_page(&self, x: u32, y: u32) -> (u32, i64) {
-        (x, i64::from(y) - i64::from(self.shear[x as usize]))
+    /// Map a point of the levelled frame back to page coordinates (not clamped: a point in the
+    /// padding the shears added maps outside the page).
+    pub fn to_page(&self, x: u32, y: u32) -> (i64, i64) {
+        let px = i64::from(x) - i64::from(self.shear_x[y as usize]);
+        let in_page = px.clamp(0, self.page_width as i64 - 1) as usize;
+        (px, i64::from(y) - i64::from(self.shear[in_page]))
+    }
+
+    /// The page-coordinate bounding box `[x0, y0, x1, y1]` (inclusive, clamped to the page) of a
+    /// box of the levelled frame: the box of its four corners mapped back.
+    pub fn rect_to_page(&self, r: &Rect) -> [u32; 4] {
+        let corners = [(r.x0, r.y0), (r.x1, r.y0), (r.x0, r.y1), (r.x1, r.y1)]
+            .map(|(x, y)| self.to_page(x, y));
+        let (max_x, max_y) = (self.page_width as i64 - 1, self.page_height as i64 - 1);
+        let lo = |f: fn(&(i64, i64)) -> i64, m: i64| {
+            corners
+                .iter()
+                .map(f)
+                .min()
+                .expect("four corners")
+                .clamp(0, m) as u32
+        };
+        let hi = |f: fn(&(i64, i64)) -> i64, m: i64| {
+            corners
+                .iter()
+                .map(f)
+                .max()
+                .expect("four corners")
+                .clamp(0, m) as u32
+        };
+        [
+            lo(|c| c.0, max_x),
+            lo(|c| c.1, max_y),
+            hi(|c| c.0, max_x),
+            hi(|c| c.1, max_y),
+        ]
     }
 }
 
@@ -304,18 +341,26 @@ fn extent_through(ink: &[u8], width: usize, height: usize, vertical: bool) -> Ve
         .collect()
 }
 
-/// Pixels of thin rulings: horizontal or vertical runs of ink at least `run_min` long whose
-/// perpendicular extent at that pixel is at most `thick_max`. A pen stroke that crosses a ruling
-/// makes the extent larger at its own columns, so those pixels stay and the stroke stays whole.
+/// Pixels of thin rulings, as two masks (horizontal runs, vertical runs): runs of ink at least
+/// `run_min` long whose perpendicular extent at that pixel is at most `thick_max`. A pen stroke
+/// that crosses a ruling makes the extent larger at its own columns, so those pixels stay and the
+/// stroke stays whole. The masks are kept apart because at a crossing the end of one touches the
+/// side of the other diagonally, and one labelling would join a whole grid into one component.
 fn thin_ruling_pixels(
     ink: &[u8],
     width: usize,
     height: usize,
     run_min: usize,
     thick_max: usize,
-) -> Vec<u8> {
-    let mut removed = vec![0u8; ink.len()];
+) -> (Vec<u8>, Vec<u8>) {
+    let mut horizontal = vec![0u8; ink.len()];
+    let mut vertical_mask = vec![0u8; ink.len()];
     for vertical in [false, true] {
+        let removed = if vertical {
+            &mut vertical_mask
+        } else {
+            &mut horizontal
+        };
         // Thickness across the run: vertical extent for a horizontal run, horizontal for a vertical.
         let thickness = extent_through(ink, width, height, !vertical);
         let (outer, inner) = if vertical {
@@ -330,20 +375,28 @@ fn thin_ruling_pixels(
                 o * width + i
             }
         };
+        // Runs are found on the mask widened by one pixel across the run, so that a ruling that
+        // jogs by a pixel (a levelled rotated line wobbles) is still one run. Which pixels are
+        // removed, and how thick they are, are decided on the original ink.
+        let across = |o: usize, i: usize, d: isize| -> bool {
+            let o2 = o as isize + d;
+            o2 >= 0 && (o2 as usize) < outer && ink[at(o2 as usize, i)] != 0
+        };
+        let wide = |o: usize, i: usize| across(o, i, 0) || across(o, i, -1) || across(o, i, 1);
         for o in 0..outer {
             let mut i = 0;
             while i < inner {
-                if ink[at(o, i)] == 0 {
+                if !wide(o, i) {
                     i += 1;
                     continue;
                 }
                 let start = i;
-                while i < inner && ink[at(o, i)] != 0 {
+                while i < inner && wide(o, i) {
                     i += 1;
                 }
                 if i - start >= run_min {
                     for k in start..i {
-                        if usize::from(thickness[at(o, k)]) <= thick_max {
+                        if ink[at(o, k)] != 0 && usize::from(thickness[at(o, k)]) <= thick_max {
                             removed[at(o, k)] = 1;
                         }
                     }
@@ -351,7 +404,7 @@ fn thin_ruling_pixels(
             }
         }
     }
-    removed
+    (horizontal, vertical_mask)
 }
 
 /// Segment a `width * height` row-major gray page whose text lines are tilted by `skew_deg` (the
@@ -392,21 +445,32 @@ pub fn segment(
     let base = -drift.iter().copied().min().unwrap_or(0).min(0);
     let shear: Vec<i32> = drift.iter().map(|d| d + base).collect();
     let rows_added = shear.iter().copied().max().unwrap_or(0).max(0) as usize;
-    let (full_w, full_h) = (width, height + rows_added);
-    let ink = if rows_added == 0 {
+    let full_h = height + rows_added;
+    // Second shear: a pixel on levelled row r moves by -r * tan(skew), so vertical lines of a page
+    // that was turned stand up again.
+    let drift_x: Vec<i32> = (0..full_h)
+        .map(|r| (-(r as f64) * slope).round() as i32)
+        .collect();
+    let base_x = -drift_x.iter().copied().min().unwrap_or(0).min(0);
+    let shear_x: Vec<i32> = drift_x.iter().map(|d| d + base_x).collect();
+    let cols_added = shear_x.iter().copied().max().unwrap_or(0).max(0) as usize;
+    let full_w = width + cols_added;
+    let ink = if rows_added == 0 && cols_added == 0 {
         ink
     } else {
         let mut sheared = vec![0u8; full_w * full_h];
         for y in 0..height {
             for x in 0..width {
                 if ink[y * width + x] != 0 {
-                    sheared[(y as i64 + i64::from(shear[x])) as usize * full_w + x] = 1;
+                    let ny = (y as i64 + i64::from(shear[x])) as usize;
+                    let nx = (x as i64 + i64::from(shear_x[ny])) as usize;
+                    sheared[ny * full_w + nx] = 1;
                 }
             }
         }
         sheared
     };
-    let page_height = height;
+    let (page_width, page_height) = (width, height);
     let (width, height) = (full_w, full_h);
     let mut lab = components::label_8(&ink, width, height);
     let ink_pixels: u64 = lab.components.iter().map(|c| u64::from(c.area)).sum();
@@ -435,15 +499,17 @@ pub fn segment(
     // on a printed line, a word touching a table edge) is not fused to it; then measure again.
     let run_min = ((p.rule_run_xh * xheight).round() as usize).max(2);
     let thick_max = ((p.rule_max_thick_xh * xheight).round() as usize).max(1);
-    let cut = thin_ruling_pixels(&ink, width, height, run_min, thick_max);
+    let (cut_h, cut_v) = thin_ruling_pixels(&ink, width, height, run_min, thick_max);
     let mut rules = Vec::new();
     let mut ink = ink;
-    if cut.contains(&1) {
-        for c in &components::label_8(&cut, width, height).components {
-            rules.push(Rect::of(c));
+    if cut_h.contains(&1) || cut_v.contains(&1) {
+        for mask in [&cut_h, &cut_v] {
+            for c in &components::label_8(mask, width, height).components {
+                rules.push(Rect::of(c));
+            }
         }
-        for (v, &c) in ink.iter_mut().zip(&cut) {
-            if c != 0 {
+        for (v, (&a, &b)) in ink.iter_mut().zip(cut_h.iter().zip(&cut_v)) {
+            if a != 0 || b != 0 {
                 *v = 0;
             }
         }
@@ -657,9 +723,11 @@ pub fn segment(
     Ok(Layout {
         width,
         height,
+        page_width,
         page_height,
         skew_deg: applied,
         shear,
+        shear_x,
         xheight,
         glyph_count,
         glyph_ink_pixels,
@@ -922,7 +990,7 @@ mod tests {
         // Mapping a corner back lands inside the page.
         let l = &level.lines[0].bbox;
         let (x, y) = level.to_page(l.x0, l.y0);
-        assert!(x < 400 && (0..200).contains(&y), "({x}, {y})");
+        assert!((0..400).contains(&x) && (0..200).contains(&y), "({x}, {y})");
     }
 
     #[test]

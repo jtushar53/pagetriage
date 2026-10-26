@@ -1,5 +1,5 @@
 //! Layout golden snapshots: the pages in `tests/golden/layout_inputs/` and `quality_inputs/` are
-//! analysed with only the opt-in `layout`, `script` and `handwriting` detectors (and `{"debug":true}`) at 150 dpi and must match
+//! analysed with only the opt-in `layout`, `script`, `handwriting` and `rulings` detectors (and `{"debug":true}`) at 150 dpi and must match
 //! `tests/golden/layout_expected/NAME.json` byte for byte. The Python and WASM runners in
 //! `tests/determinism/` check the same files.
 //!
@@ -11,7 +11,7 @@ use std::path::PathBuf;
 
 use pagetriage_core::{PageInput, analyse_page};
 
-const OPTS: &str = r#"{"debug":true,"detectors":["layout","script","handwriting"]}"#;
+const OPTS: &str = r#"{"debug":true,"detectors":["layout","script","handwriting","rulings"]}"#;
 const DPI: u16 = 150;
 
 fn golden_dir() -> PathBuf {
@@ -70,7 +70,7 @@ fn layout_reports_match_byte_for_byte() {
     let expected_dir = golden_dir().join("layout_expected");
     fs::create_dir_all(&expected_dir).unwrap();
     let all = fixtures();
-    assert!(all.len() >= 12, "found only {} layout inputs", all.len());
+    assert!(all.len() >= 13, "found only {} layout inputs", all.len());
     for (name, path) in all {
         let actual = report(&path);
         let expected_path = expected_dir.join(format!("{name}.json"));
@@ -116,9 +116,7 @@ fn layout_pages_have_the_structure_they_were_drawn_with() {
     assert_eq!(feature("layout_two_columns", "lines"), 19.0);
     assert_eq!(feature("layout_two_columns", "columns"), 2.0);
     assert_eq!(feature("layout_two_columns", "blocks"), 3.0);
-    // Two free-standing rules, and the frame cut into its three horizontal and two vertical rules;
-    // the stamp is the one graphic.
-    assert_eq!(feature("layout_form", "rules"), 7.0);
+    // The stamp is the one graphic; the frame and the free rules are cut out as rulings.
     assert_eq!(feature("layout_form", "graphics"), 1.0);
     assert_eq!(feature("layout_form", "lines"), 9.0);
     // Script family of the pages drawn for it (module M4).
@@ -148,6 +146,39 @@ fn layout_pages_have_the_structure_they_were_drawn_with() {
             .filter(|f| f["kind"] == "handwriting")
             .count()
     };
+    // Rulings and tables (module M9): the framed box of layout_form is one 2 x 1 table, the free
+    // rules are ruling lines; rulings_table is a 4 x 3 table, five checkboxes (two ticked), one
+    // underline and a faint crease.
+    let found = |page: &str, kind: &str| -> Vec<serde_json::Value> {
+        let json = report(&golden_dir().join(format!("layout_inputs/{page}.pgm")));
+        let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        v["findings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|f| f["kind"] == kind)
+            .cloned()
+            .collect()
+    };
+    let table = &found("layout_form", "table")[0];
+    assert_eq!(
+        (&table["attributes"]["rows"], &table["attributes"]["cols"]),
+        (&2.into(), &1.into())
+    );
+    let table = &found("rulings_table", "table")[0];
+    assert_eq!(
+        (&table["attributes"]["rows"], &table["attributes"]["cols"]),
+        (&4.into(), &3.into())
+    );
+    let grid = &found("rulings_table", "checkbox_grid")[0];
+    assert_eq!(
+        (&grid["attributes"]["boxes"], &grid["attributes"]["checked"]),
+        (&5.into(), &2.into())
+    );
+    assert_eq!(found("rulings_table", "ruling_lines").len(), 1);
+    assert_eq!(found("rulings_table", "fold_line").len(), 1);
+    assert!(found("layout_one_column", "table").is_empty());
+    assert!(found("layout_one_column", "checkbox_grid").is_empty());
     assert_eq!(regions("layout_hand_form"), 3);
     assert_eq!(regions("layout_one_column"), 0);
     assert_eq!(regions("layout_form"), 0);

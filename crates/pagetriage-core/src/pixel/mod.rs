@@ -12,6 +12,7 @@ pub mod handwriting;
 pub mod layout;
 pub mod phash;
 pub mod quality;
+pub mod rulings;
 pub mod script;
 
 #[derive(Debug, Default)]
