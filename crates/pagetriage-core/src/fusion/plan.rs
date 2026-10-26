@@ -90,6 +90,9 @@ pub struct PlanInput<'a> {
     pub quality: &'a Quality,
     /// The quality grade's score in [0, 1] (0 clean).
     pub badness: f64,
+    /// The text-line detectors were not run because the page is too degraded: the layout is not
+    /// to be trusted, so the plan sends the whole page to a vision model.
+    pub gated: bool,
 }
 
 fn area(b: [u32; 4]) -> f64 {
@@ -194,7 +197,18 @@ pub fn build(input: &PlanInput<'_>, p: &PlanParams) -> PagePlan {
 
     // Regions. When the page is on its side the layout is meaningless, so there are none.
     let mut regions: Vec<PlanRegion> = Vec::new();
-    if !needs_rerun {
+    if input.gated {
+        notes.push(
+            "the page is too degraded for line-level analysis: send the whole page to a vision model"
+                .into(),
+        );
+        regions.push(PlanRegion {
+            bbox: page,
+            kind: "page".into(),
+            route: "vision".into(),
+            priority: 0,
+        });
+    } else if !needs_rerun {
         let boxes_of = |kinds: &[Kind]| -> Vec<[u32; 4]> {
             input
                 .findings

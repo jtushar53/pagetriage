@@ -95,6 +95,8 @@ pub enum Kind {
     ExtractionGap,
     /// The page's text does not run left to right with its tops up; `rotate_clockwise_deg` says how to turn it.
     Misoriented,
+    /// The page is too degraded (quality grade D) for the detectors that read text lines; they were not run.
+    Degraded,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]

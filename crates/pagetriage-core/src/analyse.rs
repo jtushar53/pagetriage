@@ -3,9 +3,12 @@
 use std::collections::BTreeMap;
 
 use serde::Deserialize;
+use serde_json::{Map, Value};
 
 use crate::error::{Error, Result};
+use crate::fusion::scorer;
 use crate::fusion::{calibration, consistency, page_type, plan};
+use crate::math;
 use crate::params::Params;
 use crate::pixel::content_type::{self, BLANK_PAGE};
 use crate::pixel::coverage::{self, COVERAGE};
@@ -101,6 +104,10 @@ pub struct Options {
     /// Refuse pages with more pixels than this (an `InvalidInput` error instead of running out of
     /// memory; a poster sheet at 300 dpi is about 70 million). `None` sets no limit.
     pub max_pixels: Option<u64>,
+    /// Run the text-line detectors (script, handwriting, signature, coverage, redaction boxes) even
+    /// on a page graded D. By default they are skipped there and a `degraded` finding says so: on
+    /// such pages they read noise as text.
+    pub no_gate: bool,
     /// Value for the report's `index` field (the page's position in its document).
     pub page_index: u32,
 }
@@ -225,11 +232,28 @@ pub fn analyse_page_report(
         None
     };
 
+    // Quality gate: on a page graded D the detectors that read text lines are not run.
+    let blur_severity = assessment
+        .features
+        .get("grade_sev_blur")
+        .copied()
+        .unwrap_or(0.0);
+    let gated_page = !options.no_gate
+        && assessment.quality.grade == "D"
+        && blur_severity >= params.quality.gate_min_blur_severity;
+    let mut gated = false;
+
     let mut findings = Vec::new();
     let mut debug: BTreeMap<String, BTreeMap<String, f64>> = BTreeMap::new();
     let mut hashes = None;
     for name in selected {
         let detection = match name {
+            COVERAGE | HANDWRITING | REDACTION | SCRIPT | SIGNATURE if gated_page => {
+                gated = true;
+                let mut d = crate::pixel::Detection::default();
+                d.features.insert("gated".to_owned(), 1.0);
+                d
+            }
             BLANK_PAGE => {
                 content_type::detect_blank_page(input.gray, &params.blank_page, &params.fusion)?
             }
@@ -319,6 +343,10 @@ pub fn analyse_page_report(
         debug.insert(name.to_owned(), detection.features);
     }
 
+    if gated {
+        findings.push(degraded_finding(&assessment, &params)?);
+    }
+
     // The structural layer's verdict for this page (M1) and its legacy-font finding (M2).
     if let Some(ps) = &structure {
         findings.extend(structure_findings(ps, input.dpi));
@@ -338,7 +366,7 @@ pub fn analyse_page_report(
 
     // Module M10: page typing needs the layout, so it runs when `layout` was asked for.
     let page_type = match (&page_layout, layout_selected) {
-        (Some(l), true) => {
+        (Some(l), true) if !gated_page => {
             let facts = page_type::facts(l, &findings, input.gray, &params.page_type);
             debug.insert("page_type".to_owned(), page_type::features(&facts));
             Some(page_type::classify(&facts, &params.page_type))
@@ -361,6 +389,7 @@ pub fn analyse_page_report(
                     .get("grade_badness")
                     .copied()
                     .unwrap_or(0.0),
+                gated: gated_page,
             },
             &params.plan,
         )),
@@ -440,6 +469,46 @@ pub fn finish_document(pages_json: &str, opts_json: &str) -> Result<String> {
 /// `structural_json` must be a JSON object. If it has a `text_layer` key it is read as one
 /// [`PageStructure`] (an element of `analyse_pdf_structure`'s `pages`); an object without that key,
 /// such as `{}`, is accepted and ignored.
+/// The `degraded` finding: the blur severity against the gate's threshold.
+fn degraded_finding(assessment: &quality::QualityAssessment, params: &Params) -> Result<Finding> {
+    let severity = assessment
+        .features
+        .get("grade_sev_blur")
+        .copied()
+        .unwrap_or(0.0);
+    let ceiling = params.quality.gate_min_blur_severity;
+    let evidence = vec![Evidence::new(
+        "quality.gate",
+        "grade_sev_blur",
+        math::round_output(severity),
+        Some(ceiling),
+        (params.quality.gate_llr_per_unit * (severity - ceiling))
+            .clamp(-params.fusion.llr_clip, params.fusion.llr_clip),
+        format!(
+            "quality grade D with blur severity {severity:.2} (gate at {ceiling:.2}): text-line detectors skipped"
+        ),
+        "hand set, see params/quality.toml",
+    )?];
+    let confidence = math::round_output(scorer::confidence_capped(
+        params.quality.gate_prior,
+        &evidence,
+        params.fusion.group_cap,
+    ));
+    let mut attributes = Map::new();
+    attributes.insert(
+        "grade".into(),
+        Value::from(assessment.quality.grade.clone()),
+    );
+    Ok(Finding {
+        kind: Kind::Degraded,
+        confidence,
+        bbox: None,
+        polygon: None,
+        attributes,
+        evidence,
+    })
+}
+
 fn parse_structural(s: &str) -> Result<Option<PageStructure>> {
     match serde_json::from_str::<serde_json::Value>(s) {
         Ok(serde_json::Value::Object(map)) => {

@@ -50,6 +50,30 @@
    "native_report_sha256": "e2dc627dc8dcc6e44b3c6e383455362068ef9d256fd3e99a515c36fcac0bab9b"
   },
   {
+   "id": "blurred_hard",
+   "title": "Badly out of focus",
+   "blurb": "Strokes have merged into blobs. The grade is D. With the line-level detectors switched on (script, handwriting, signature), they are skipped on a page like this and a degraded finding is raised instead of a guess.",
+   "built": "Gaussian blur, radius 4 px.",
+   "file": "samples/blurred_hard.png",
+   "thumb": "samples/blurred_hard.thumb.png",
+   "width": 827,
+   "height": 1170,
+   "dpi": 150,
+   "native_report_sha256": "3a1042f1cac474f08313a1d846223160994b4e7c110e193e9aab5dfa9cea8a14"
+  },
+  {
+   "id": "photocopied",
+   "title": "Photocopied five times",
+   "blurb": "Toner thinned and edges eaten. A known weak spot: the grade stays A and the generation estimate says 2 copies, not 5. Do not trust this readout on heavy copies.",
+   "built": "A simulated copier pass (blur, noise, contrast clip, lighter toner) applied five times.",
+   "file": "samples/photocopied.png",
+   "thumb": "samples/photocopied.thumb.png",
+   "width": 827,
+   "height": 1170,
+   "dpi": 150,
+   "native_report_sha256": "1b5e4c91a20daa230769e502c499d08d9a164e1c36e67b37d2efde0209133d4a"
+  },
+  {
    "id": "creased",
    "title": "Folded twice",
    "blurb": "A letter fold and a vertical fold left creases. They are found and counted.",

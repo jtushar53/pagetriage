@@ -58,6 +58,9 @@ struct AnalyseArgs {
     /// Include raw detector feature values under `debug`
     #[arg(long)]
     debug: bool,
+    /// Run the text-line detectors even on a badly blurred page (by default they are skipped there)
+    #[arg(long)]
+    no_gate: bool,
     /// Indent the output. The default compact form is the canonical, byte-reproducible one.
     #[arg(long)]
     pretty: bool,
@@ -200,6 +203,7 @@ fn analyse(args: &AnalyseArgs) -> Result<(), String> {
         "params": params_toml,
         "text_boxes": text_boxes,
         "max_pixels": args.max_pixels,
+        "no_gate": args.no_gate,
     })
     .to_string();
 

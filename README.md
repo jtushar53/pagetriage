@@ -69,7 +69,7 @@ text.
 |---|---|---|---|
 | M1 text layer | Per PDF page: real text, scan only, hidden OCR layer under a scan, mixed, drawn lines only, or blank. Reads the content stream, renders nothing | Built | [text_layer](docs/detectors/text_layer.md) |
 | M2 font script | Script of each page's text, and a flag for legacy non-Unicode Indian fonts (Kruti Dev and others) whose text extracts as gibberish | Built | [font_script](docs/detectors/font_script.md) |
-| M3 quality | Skew, blur, contrast, specks, bleed-through, fold lines, an overall grade, and which binariser to use | Built | [quality](docs/detectors/quality.md) |
+| M3 quality | Skew, blur, contrast, specks, bleed-through, fold lines, an overall grade, and which binariser to use. On a badly blurred page (grade D) the text-line detectors are skipped and a `degraded` finding says so | Built | [quality](docs/detectors/quality.md) |
 | Binarisers | Otsu, Sauvola, Wolf-Jolion, and the Howe graph-cut method with automatic parameter tuning | Built | [binarize](docs/detectors/binarize.md) |
 | Layout | Text lines, blocks and columns, with rulings and graphics set aside; groundwork for M4 and M5. Opt-in, checked on synthetic pages only | Built, opt-in | [layout](docs/detectors/layout.md) |
 | M4 script | Script family of a scan: headline (Devanagari, Bengali, Gurmukhi), joined (Arabic script) or separate letters (Latin and the rest). Opt-in, checked on synthetic pages only | Built, opt-in | [script](docs/detectors/script.md) |

@@ -222,6 +222,40 @@ not inspected, and there is no ground truth, so no false-alarm rate can be given
 D 18, Howe is recommended for 64 and Sauvola for 72, and the generation estimate is 2 or 3 for 119
 pages.
 
+## The quality gate
+
+On a page graded D **whose blur severity is at least 0.9** (`gate_min_blur_severity`; blur of 3 px and
+more at 150 dpi) the detectors that read text lines (`script`, `handwriting`, `signature`, `coverage`,
+`redaction`) are **not run**; each leaves `debug.<name>.gated = 1`, the page type is not given, and one
+finding `kind: "degraded"` (attribute `grade`, confidence from the blur severity, evidence
+`quality.gate`) says why. The [page plan](plan.md) then routes the whole page to a vision model
+(`kind: "page"`, `route: "vision"`). `"no_gate": true` (CLI `--no-gate`) switches the gate off. The
+finding appears only when a skipped detector was asked for.
+
+Why: on a stress run of synthetic pages the layout invented **262 lines** for a page of 41 at blur 4 px, and
+read "headline" script on it. A page whose text has merged into blobs has nothing for them to read.
+
+`bench/quality_stress.py` (one 41-line synthetic Latin page, each damage alone; lines found with the gate off):
+
+| Case | Grade | Blur severity | Lines found (truth 41) | Default run |
+|---|---|---|---|---|
+| clean, blur 2 px | A, B | 0.00, 0.32 | 41, 41 | script |
+| **blur 3, 4, 6 px** | D | 1.00 | 64, **262**, 22 | **degraded** (gated) |
+| noise sigma 20 | C | 0.00 | 41 | script |
+| **noise sigma 40, 60** | D | 0.00 | 55, **3** | script: **not gated, wrong** |
+| speckle 3%, bleed-through 0.4 | C, A | 0.00 | 41, 47 | script |
+| photocopied x5 | A | 0.00 | 45 | script (grade A despite the damage) |
+| photocopied x10 | B | 0.00 | 0 | nothing: text gone, nothing invented |
+| skew 25 degrees | C | 0.00 | 0 | nothing: skew read wrongly |
+| blank | D | 0.00 | 0 | nothing (gap measure alone makes it D) |
+
+So the gate covers blur only. Heavy noise (grade D from speckle) is not gated: the layout reads noise as
+text and `script` still answers. The bleed-through golden (`quality_bleed`, grade D, bleed severity 1.0) keeps
+its 16 lines.
+
+The first version gated on grade D alone and fired on the blank golden and the bleed-through golden, whose
+text is fine; blur severity is what separates them. The threshold is hand set from this one stress test.
+
 ## Failure gallery
 
 Each row is something that goes wrong, with the fixture, test or evaluation number that pins it.

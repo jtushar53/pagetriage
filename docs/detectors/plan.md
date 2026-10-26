@@ -23,6 +23,7 @@ The routes are only as good as the detectors behind them (handwriting is weak, s
 | `tiles` | When a side exceeds 2048 px: overlapping (8%) tiles whose cuts go through the least-ink row or column. |
 | `skip` | `blank`, or `near_duplicate` of an earlier page (set by the document pass; cleared if no longer a duplicate). |
 | `difficulty` | 0 to 1: quality badness plus bonuses (handwriting, table, a turn, small text). |
+| gated page | On a badly blurred page (the [quality gate](quality.md#the-quality-gate)) the line detectors did not run: one `vision` region over the whole page and a note. |
 | `scripts` | Script families found, for choosing a recogniser. |
 | `input_sha256` | Hash of the pixels and size: a **cache key** for the downstream result. Same input, same key, on every platform. |
 | `notes` | Plain-text reasons. |
