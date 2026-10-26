@@ -1,5 +1,5 @@
 //! Layout golden snapshots: the pages in `tests/golden/layout_inputs/` and `quality_inputs/` are
-//! analysed with only the opt-in `layout`, `script`, `handwriting`, `rulings`, `signature`, `thumb` and `redaction` detectors (and `{"debug":true}`) at 150 dpi and must match
+//! analysed with only the opt-in `layout`, `script`, `handwriting`, `rulings`, `signature`, `thumb`, `redaction` and `qr` detectors (and `{"debug":true}`) at 150 dpi and must match
 //! `tests/golden/layout_expected/NAME.json` byte for byte. The Python and WASM runners in
 //! `tests/determinism/` check the same files.
 //!
@@ -11,7 +11,7 @@ use std::path::PathBuf;
 
 use pagetriage_core::{PageInput, analyse_page};
 
-const OPTS: &str = r#"{"debug":true,"detectors":["layout","script","handwriting","rulings","signature","thumb","redaction"]}"#;
+const OPTS: &str = r#"{"debug":true,"detectors":["layout","script","handwriting","rulings","signature","thumb","redaction","qr"]}"#;
 const DPI: u16 = 150;
 
 fn golden_dir() -> PathBuf {
@@ -199,6 +199,22 @@ fn layout_pages_have_the_structure_they_were_drawn_with() {
     assert_eq!(boxes.len(), 2, "{boxes:?}");
     assert!(found("layout_one_column", "redaction_box").is_empty());
     assert!(found("rulings_table", "redaction_box").is_empty());
+    // QR codes (module M11): the symbol on qr_page, and not its checkbox grid or the other pages.
+    let codes = found("qr_page", "qr_code");
+    assert_eq!(codes.len(), 1, "{codes:?}");
+    let b = codes[0]["bbox"].as_array().unwrap();
+    assert!(
+        b[0].as_u64().unwrap() >= 200 && b[1].as_u64().unwrap() >= 130,
+        "{b:?}"
+    );
+    for page in [
+        "layout_one_column",
+        "layout_form",
+        "rulings_table",
+        "redaction_page",
+    ] {
+        assert!(found(page, "qr_code").is_empty(), "{page}");
+    }
     assert_eq!(regions("layout_hand_form"), 3);
     assert_eq!(regions("layout_one_column"), 0);
     assert_eq!(regions("layout_form"), 0);

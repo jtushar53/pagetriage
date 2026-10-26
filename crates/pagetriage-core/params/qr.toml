@@ -1,0 +1,50 @@
+# QR codes (module M11, e-stamp QR): found from their three finder patterns, a 1:1:3:1:1 run of
+# dark, light, dark, light, dark along a row and again down the column through its centre, three of
+# them at the corners of a right isoceles triangle. The code is not decoded (so an e-stamp QR cannot
+# be told from any other QR). Every key says where it comes from. "placeholder" means a first guess
+# not yet checked against data. Nothing here has been checked on a real document.
+
+# ---- finder patterns -------------------------------------------------------------------------
+
+# Each of the five runs may differ from its ideal (1, 1, 3, 1, 1 modules) by this fraction of a
+# module times its ideal length (the centre run of 3 modules gets three times the slack); the module
+# is the run total over 7. Source: the finder pattern of ISO/IEC 18004. Tuned on synthetic dev seeds
+# (bench/qr_synth_eval.py): 0.5 lost every symbol of 3 to 4 px per module after a 1 px blur, because
+# the binarised dark runs grow and the light runs shrink; 0.75 found them with no false code on the
+# look-alike pages.
+run_tolerance = 0.75
+
+# A finder pattern is at least this many pixels per module (smaller and the runs are noise) and at
+# most this many. Source: placeholder.
+min_module_px = 2.0
+max_module_px = 20.0
+
+# ---- triangle --------------------------------------------------------------------------------
+
+# Three finder patterns belong to one code when their modules agree to within this ratio (largest
+# over smallest) ...
+module_ratio = 1.4
+# ... the two legs of the right angle agree to within this fraction ...
+leg_tolerance = 0.2
+# ... and the hypotenuse is the leg times the square root of two to within this fraction.
+hypotenuse_tolerance = 0.15
+
+# The legs are at least this many modules (a version 1 code has 14 between finder centres).
+min_leg_modules = 12.0
+
+# ---- scoring ---------------------------------------------------------------------------------
+
+# Confidence = sigmoid(prior + sum of terms), each coef * (value - threshold) clipped to +-term_clip.
+# Terms: how equal the legs are, how close the hypotenuse is to sqrt(2) legs, and how equal the
+# modules are. Source: placeholder (uncalibrated).
+term_clip = 4.0
+prior = 1.0
+leg_threshold = 0.1
+leg_coef = 15.0
+hyp_threshold = 0.08
+hyp_coef = 15.0
+module_threshold = 0.2
+module_coef = 8.0
+
+# At most this many codes per page. Source: placeholder.
+max_codes = 8

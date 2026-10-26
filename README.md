@@ -77,10 +77,11 @@ text.
 | M7 signature | Wet signatures: isolated tangled strokes taller than text. Opt-in, synthetic checks only; tall cursive handwriting is also flagged | Built, opt-in | [signature](docs/detectors/signature.md) |
 | M8 thumb impression | Dark ovals of fingerprint ridges, from orientation coherence, ridge period, ink density and size. Opt-in; misses faint and smudged prints; synthetic checks only | Built, opt-in, weak | [thumb](docs/detectors/thumb.md) |
 | M12 redaction boxes | Solid dark rectangles in running text (pixel side only; white-out and the PDF check are not done). Opt-in, synthetic checks only | Built, opt-in | [redaction](docs/detectors/redaction.md) |
+| M11 QR codes | QR codes from their finder patterns (not decoded). Opt-in, synthetic checks only | Built, opt-in | [qr](docs/detectors/qr.md) |
 | M12 provenance | PDF producer, edits after the first save (incremental updates), edits after a signature, JPEG encoder tables | Built | [provenance](docs/detectors/provenance.md) |
 | M12 near-duplicates | Perceptual hashes per page, and which pages repeat an earlier one | Built, with limits | [phash](docs/detectors/phash.md) |
 | M10 blank page | Blank-page finding | Skeleton, known wrong on faded scans | [blank_page](docs/detectors/blank_page.md) |
-| M4 to M9, M11, M13 and extraction coverage | Script from pixels, handwriting vs print, stamps and seals, signatures, thumb impressions, rulings, Indian-deed detectors, calibrated fusion | In progress on branches, or planned; not on `main` | [roadmap](#roadmap), [modules](docs/modules.md) |
+| M4 to M9, M11, M13 and extraction coverage | Script from pixels, handwriting vs print, stamps and seals, signatures, thumb impressions, rulings, the rest of the Indian-deed detectors, calibrated fusion | In progress on branches, or planned; not on `main` | [roadmap](#roadmap), [modules](docs/modules.md) |
 
 ## Quick start
 

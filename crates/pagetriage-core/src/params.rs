@@ -21,6 +21,7 @@ const STAMP_TOML: &str = include_str!("../params/stamp.toml");
 const SIGNATURE_TOML: &str = include_str!("../params/signature.toml");
 const THUMB_TOML: &str = include_str!("../params/thumb.toml");
 const REDACTION_TOML: &str = include_str!("../params/redaction.toml");
+const QR_TOML: &str = include_str!("../params/qr.toml");
 
 /// Sauvola local threshold (see `params/sauvola.toml`).
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -113,6 +114,7 @@ pub struct Params {
     pub signature: crate::pixel::signature::SignatureParams,
     pub thumb: crate::pixel::thumb::ThumbParams,
     pub redaction: crate::pixel::redaction::RedactionParams,
+    pub qr: crate::pixel::qr::QrParams,
 }
 
 impl Params {
@@ -137,7 +139,7 @@ impl Params {
             "# --- fusion ---\n[fusion]\n{FUSION_TOML}\n# --- blank_page ---\n[blank_page]\n{BLANK_PAGE_TOML}\n\
              # --- sauvola ---\n[sauvola]\n{SAUVOLA_TOML}\n# --- wolf ---\n[wolf]\n{WOLF_TOML}\n\
              # --- howe ---\n[howe]\n{HOWE_TOML}\n# --- phash ---\n[phash]\n{PHASH_TOML}\n\
-             # --- quality ---\n[quality]\n{QUALITY_TOML}\n# --- layout ---\n[layout]\n{LAYOUT_TOML}\n# --- script ---\n[script]\n{SCRIPT_TOML}\n# --- handwriting ---\n[handwriting]\n{HANDWRITING_TOML}\n# --- rulings ---\n[rulings]\n{RULINGS_TOML}\n# --- stamp ---\n[stamp]\n{STAMP_TOML}\n# --- signature ---\n[signature]\n{SIGNATURE_TOML}\n# --- thumb ---\n[thumb]\n{THUMB_TOML}\n# --- redaction ---\n[redaction]\n{REDACTION_TOML}"
+             # --- quality ---\n[quality]\n{QUALITY_TOML}\n# --- layout ---\n[layout]\n{LAYOUT_TOML}\n# --- script ---\n[script]\n{SCRIPT_TOML}\n# --- handwriting ---\n[handwriting]\n{HANDWRITING_TOML}\n# --- rulings ---\n[rulings]\n{RULINGS_TOML}\n# --- stamp ---\n[stamp]\n{STAMP_TOML}\n# --- signature ---\n[signature]\n{SIGNATURE_TOML}\n# --- thumb ---\n[thumb]\n{THUMB_TOML}\n# --- redaction ---\n[redaction]\n{REDACTION_TOML}\n# --- qr ---\n[qr]\n{QR_TOML}"
         )
     }
 
@@ -202,6 +204,7 @@ impl Params {
         self.signature.validate()?;
         self.thumb.validate()?;
         self.redaction.validate()?;
+        self.qr.validate()?;
         self.validate_binarizers()?;
         self.validate_phash()
     }
@@ -325,6 +328,7 @@ fn defaults_table() -> Result<toml::Table> {
     table.insert("signature".into(), parse("signature", SIGNATURE_TOML)?);
     table.insert("thumb".into(), parse("thumb", THUMB_TOML)?);
     table.insert("redaction".into(), parse("redaction", REDACTION_TOML)?);
+    table.insert("qr".into(), parse("qr", QR_TOML)?);
     Ok(table)
 }
 

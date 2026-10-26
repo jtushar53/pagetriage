@@ -11,6 +11,7 @@ pub mod content_type;
 pub mod handwriting;
 pub mod layout;
 pub mod phash;
+pub mod qr;
 pub mod quality;
 pub mod redaction;
 pub mod rulings;

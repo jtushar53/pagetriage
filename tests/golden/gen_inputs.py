@@ -507,6 +507,43 @@ def redaction_page():
     return px
 
 
+def qr_page():
+    """Six lines of text-like words and, bottom right, a QR-like symbol: 25 modules of 3 px with
+    the three finder patterns, separators and timing patterns, and pseudo-random data modules (not
+    decodable). A grid of small boxes on the left must not be taken for one."""
+    rng = Lcg(131)
+    px = [235 + rng.next(5) for _ in range(LW * LH)]
+    ink = set()
+    _ink_lines(rng, ink, 14, 300, 6, 7)
+    n, sc, ox, oy = 25, 3, 220, 150
+    grid = [[rng.next(2) == 1 for _ in range(n)] for _ in range(n)]
+    for fx, fy in ((0, 0), (n - 7, 0), (0, n - 7)):
+        for dy in range(-1, 8):
+            for dx in range(-1, 8):
+                x, y = fx + dx, fy + dy
+                if 0 <= x < n and 0 <= y < n:
+                    ring = dx in (0, 6) or dy in (0, 6) or (2 <= dx <= 4 and 2 <= dy <= 4)
+                    grid[y][x] = ring and -1 < dx < 7 and -1 < dy < 7
+    for i in range(8, n - 8):
+        grid[6][i] = grid[i][6] = i % 2 == 0
+    for y in range(n):
+        for x in range(n):
+            if grid[y][x]:
+                for yy in range(sc):
+                    for xx in range(sc):
+                        ink.add((ox + x * sc + xx, oy + y * sc + yy))
+    for r in range(4):  # checkbox grid
+        for c in range(5):
+            x0, y0 = 20 + c * 24, 160 + r * 24
+            for k in range(14):
+                for a, b in ((x0 + k, y0), (x0 + k, y0 + 13), (x0, y0 + k), (x0 + 13, y0 + k)):
+                    ink.add((a, b))
+    for x, y in sorted(ink):
+        if 0 <= x < LW and 0 <= y < LH:
+            px[y * LW + x] = 30 + rng.next(20)
+    return px
+
+
 def thumb_page():
     """Text lines, a thumb-like impression (concentric elliptical ridges, 4 px period, on the right)
     and, on the left, hatching with the same period that must not be taken for one. Integer
@@ -718,3 +755,5 @@ if __name__ == "__main__":
     print("wrote thumb_page")
     write_pgm("redaction_page", redaction_page(), LW, LH, LAYOUT_OUT)
     print("wrote redaction_page")
+    write_pgm("qr_page", qr_page(), LW, LH, LAYOUT_OUT)
+    print("wrote qr_page")

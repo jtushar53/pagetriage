@@ -25,6 +25,7 @@ calls the Rust core through `pagetriage_py`, and scores the output.
 | `signature_synth_eval.py` | Signature detector (M7) against synthetic flourishes (`synth/signgen.py`) and seven look-alike pages (handwriting, a black stamp, logos, a box frame, a cross-out, checkboxes, plain text); dev/test split. Results in `docs/detectors/signature.md` |
 | `thumb_synth_eval.py` | Thumb-impression detector (M8) against synthetic ridged ovals (`synth/printgen.py`) under blur, faint ink and smudging, plus seven look-alike textures; dev/test split. Results in `docs/detectors/thumb.md` |
 | `redaction_synth_eval.py` | Redaction-box detector (M12) against blacked-out words and blocks on synthetic text pages (clean, skewed, noisy, blurred, gray boxes) and seven look-alikes; dev/test split. Results in `docs/detectors/redaction.md` |
+| `qr_synth_eval.py` | QR finder-pattern detector (M11) against QR-like symbols (not decodable) on synthetic text pages (clean, rotated, noisy, blurred, 2 px per module) and five look-alikes; dev/test split. Results in `docs/detectors/qr.md` |
 | `tests/` | Offline unit tests (`python -I -m unittest discover -s bench/tests`) |
 
 ## Setup

@@ -15,7 +15,7 @@ The analyser is split into modules. Code that implements one cites its number (f
 | M8 | `pixel.thumb_impression` | Thumb and finger impressions, via ridge coherence and frequency | 3 | implemented, opt-in, **weak on faint or smudged prints**, synthetic checks only: [`thumb`](detectors/thumb.md) |
 | M9 | `pixel.rulings` | Rulings, tables, checkbox grids, and fold lines vs rules | 3 | implemented, opt-in, synthetic checks only: [`rulings`](detectors/rulings.md) |
 | M10 | `pixel.content_type` | Page and region typing (text, form, table, photo, blank, ...) | 0 (blank skeleton), later phases | skeleton: [`blank_page`](detectors/blank_page.md) |
-| M11 | `india.*` | Indian-deed detectors: stamp-paper header, e-stamp QR, registrar endorsement, embossed seal | 4 | planned |
+| M11 | `india.*` | Indian-deed detectors: stamp-paper header, e-stamp QR, registrar endorsement, embossed seal | 4 | e-stamp QR (finder patterns, no decoding): [`qr`](detectors/qr.md) (opt-in, synthetic only); the rest planned |
 | M12 | `provenance.*` | JPEG tables, PDF producer, incremental updates, redaction boxes, near-duplicate pages | 1 and later | near-duplicate pages (perceptual hashes): [`phash`](detectors/phash.md); PDF structure, incremental updates and JPEG tables: [`provenance`](detectors/provenance.md) (cargo feature `pdf`); redaction boxes, pixel part: [`redaction`](detectors/redaction.md) (opt-in, synthetic only); the PDF part is not built |
 | M13 | `fusion` | Log-odds evidence sum, calibration, abstention and cross-detector consistency rules | 0 (sum only), 5 | skeleton |
 

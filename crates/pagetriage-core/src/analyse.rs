@@ -10,6 +10,7 @@ use crate::pixel::content_type::{self, BLANK_PAGE};
 use crate::pixel::handwriting::{self, HANDWRITING};
 use crate::pixel::layout::{self, LAYOUT};
 use crate::pixel::phash::{self, PHASH};
+use crate::pixel::qr::{self, QR};
 use crate::pixel::quality;
 use crate::pixel::redaction::{self, REDACTION};
 use crate::pixel::rulings::{self, RULINGS};
@@ -28,6 +29,7 @@ pub const DETECTORS: &[&str] = &[
     HANDWRITING,
     LAYOUT,
     PHASH,
+    QR,
     REDACTION,
     RULINGS,
     SCRIPT,
@@ -43,6 +45,7 @@ pub const DETECTORS: &[&str] = &[
 pub const OPT_IN: &[&str] = &[
     HANDWRITING,
     LAYOUT,
+    QR,
     REDACTION,
     RULINGS,
     SCRIPT,
@@ -182,6 +185,12 @@ pub fn analyse_page_report(
                 handwriting::detect(page_layout.as_ref().expect("segmented above"), &params)?
             }
             LAYOUT => layout::summarize(page_layout.as_ref().expect("segmented above")),
+            QR => qr::detect(
+                input.gray,
+                input.width as usize,
+                input.height as usize,
+                &params,
+            )?,
             REDACTION => redaction::detect(
                 page_layout.as_ref().expect("segmented above"),
                 input.gray,
