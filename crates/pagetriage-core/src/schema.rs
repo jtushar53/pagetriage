@@ -93,6 +93,10 @@ pub enum Kind {
     BlankPage,
     /// Text on the page that the supplied text layer or OCR boxes do not cover.
     ExtractionGap,
+    /// The page's text does not run left to right with its tops up; `rotate_clockwise_deg` says how to turn it.
+    Misoriented,
+    /// The page is too degraded (quality grade D) for the detectors that read text lines; they were not run.
+    Degraded,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -206,6 +210,85 @@ pub struct PageType {
     pub alternatives: BTreeMap<String, f64>,
 }
 
+/// How much to enlarge or shrink the page for a downstream reader (OCR engines read best at a
+/// character size of a few dozen pixels).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PlanScale {
+    /// Measured height of a lower-case letter, pixels, as the page is.
+    pub xheight_px: f64,
+    pub target_xheight_px: f64,
+    /// Multiply the page's size by this (1.0 leaves it).
+    pub factor: f64,
+    /// The resolution that factor corresponds to, given the analysis dpi.
+    pub suggested_dpi: u32,
+}
+
+/// A piece of the page and where to send it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PlanRegion {
+    /// `[x0, y0, x1, y1]` in the page as given (before any rotation or deskew), pixels.
+    pub bbox: [u32; 4],
+    /// `text_block`, `table`, `handwriting`, `signature`, `stamp`, `seal`, `embossed_seal`,
+    /// `thumb_impression`, `photo`, `qr_code`, `checkbox_grid` or `redaction_box`.
+    pub kind: String,
+    /// `ocr`, `table`, `handwriting`, `mark`, `vision`, `decoded`, `decode`, `fields` or `note`.
+    pub route: String,
+    /// 0 reads first (text, tables, handwriting), 1 next (marks and pictures), 2 last (codes, notes).
+    pub priority: u32,
+}
+
+/// A tile of a page too big to send whole, cut along empty rows and columns, overlapping its neighbours.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PlanTile {
+    pub bbox: [u32; 4],
+    pub row: u32,
+    pub column: u32,
+}
+
+/// Why a page need not be sent anywhere.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PlanSkip {
+    /// `blank` or `near_duplicate`.
+    pub reason: String,
+    /// For a near-duplicate: the `index` of the earlier page it repeats.
+    pub of: Option<u32>,
+}
+
+/// Deterministic instructions for whatever reads this page next (an OCR engine, a handwriting model, a
+/// vision-language model): how to turn and scale the page, which pieces to send where, which to skip.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PagePlan {
+    /// Turn the page this many degrees clockwise first (0, 90, 180 or 270).
+    pub rotate_clockwise_deg: u32,
+    /// Then turn it this many degrees clockwise to level its lines (the measured skew, so a page whose
+    /// text rises to the right is turned clockwise). `None` when the page needs a quarter turn first:
+    /// the skew and the regions below were measured on it sideways.
+    pub deskew_clockwise_deg: Option<f64>,
+    /// The page was read sideways or upside down: analyse the rotated image again for regions.
+    pub needs_rerun: bool,
+    pub scale: PlanScale,
+    /// Box of everything worth reading, with a margin, in the page as given; the whole page if nothing
+    /// was found.
+    pub content_bbox: [u32; 4],
+    /// The binarisation method to use before OCR (module M3).
+    pub binarizer: String,
+    /// 0 (easy) to 1 (hard): a rough budget guide, not a probability.
+    pub difficulty: f64,
+    pub skip: Option<PlanSkip>,
+    /// Scripts the page is probably written in, from the script detector, most likely first.
+    pub scripts: Vec<String>,
+    pub regions: Vec<PlanRegion>,
+    pub tiles: Vec<PlanTile>,
+    /// SHA-256 of the pixels, size and resolution: the same page always has the same key.
+    pub input_sha256: String,
+    pub notes: Vec<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PageReport {
@@ -217,6 +300,8 @@ pub struct PageReport {
     pub quality: Option<Quality>,
     pub findings: Vec<Finding>,
     pub page_type: Option<PageType>,
+    /// What to do with the page next; present when the `plan` detector is selected.
+    pub plan: Option<PagePlan>,
     /// 64-bit perceptual hash as 16 lowercase hex characters (module M12); all zeros for a page
     /// with no structure to hash.
     pub phash: Option<String>,

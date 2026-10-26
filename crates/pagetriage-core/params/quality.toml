@@ -247,6 +247,16 @@ grade_a_max = 0.2
 grade_b_max = 0.4
 grade_c_max = 0.6
 
+# The quality gate (module M3): on a page graded D whose blur severity is at least gate_min_blur_severity
+# the detectors that read text lines are not run, and a `degraded` finding says so. Blur is the cause that
+# merges strokes into blobs (blur 3 px and more has severity 1.0 here); a D from bleed-through, speckle
+# or a blank page leaves the text readable, and the gate stays off for it. Confidence of the finding =
+# sigmoid(gate_prior + gate_llr_per_unit * (blur severity - gate_min_blur_severity)). Source: hand set from
+# a stress test on synthetic pages (blur 4 px and 6 px had the layout invent 262 and 22 lines for 41).
+gate_min_blur_severity = 0.9
+gate_prior = 0.0
+gate_llr_per_unit = 8.0
+
 # Recommend Howe instead of Sauvola when the bleed-through score is at least this ...
 howe_bleed_min = 0.6
 # ... or the ink/paper gap is below this ...

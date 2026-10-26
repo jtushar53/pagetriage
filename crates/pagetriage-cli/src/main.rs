@@ -48,12 +48,19 @@ enum Command {
 struct AnalyseArgs {
     /// Page image (PNG, JPEG, TIFF, PNM or BMP; the first frame is used)
     file: PathBuf,
-    /// Resolution the image was scanned at
-    #[arg(long, default_value_t = 150)]
-    dpi: u16,
+    /// Resolution the image was scanned at. Without it the image's own header is read (PNG, JPEG,
+    /// TIFF, BMP); failing that, 150 is used, with a paper-size hint. Which applied is printed on stderr.
+    #[arg(long)]
+    dpi: Option<u16>,
+    /// Refuse images with more pixels than this (default: no limit)
+    #[arg(long, value_name = "PIXELS")]
+    max_pixels: Option<u64>,
     /// Include raw detector feature values under `debug`
     #[arg(long)]
     debug: bool,
+    /// Run the text-line detectors even on a badly blurred page (by default they are skipped there)
+    #[arg(long)]
+    no_gate: bool,
     /// Indent the output. The default compact form is the canonical, byte-reproducible one.
     #[arg(long)]
     pretty: bool,
@@ -87,9 +94,9 @@ struct DocumentArgs {
     /// Page images, in page order
     #[arg(required = true)]
     files: Vec<PathBuf>,
-    /// Resolution the images were scanned at
-    #[arg(long, default_value_t = 150)]
-    dpi: u16,
+    /// Resolution the images were scanned at (default: read from the first image, as for `analyse`)
+    #[arg(long)]
+    dpi: Option<u16>,
     /// Include raw detector feature values under `debug`
     #[arg(long)]
     debug: bool,
@@ -172,6 +179,7 @@ fn analyse(args: &AnalyseArgs) -> Result<(), String> {
     let bytes =
         fs::read(&args.file).map_err(|e| format!("cannot read {}: {e}", args.file.display()))?;
     let page = load_page(&bytes)?;
+    let dpi = resolve_dpi(args.dpi, &bytes, &page);
 
     let params_toml = match &args.params {
         Some(path) => Some(
@@ -194,6 +202,8 @@ fn analyse(args: &AnalyseArgs) -> Result<(), String> {
         "detectors": args.detectors,
         "params": params_toml,
         "text_boxes": text_boxes,
+        "max_pixels": args.max_pixels,
+        "no_gate": args.no_gate,
     })
     .to_string();
 
@@ -202,7 +212,7 @@ fn analyse(args: &AnalyseArgs) -> Result<(), String> {
         rgb: page.rgb.as_deref(),
         width: page.width,
         height: page.height,
-        dpi: args.dpi,
+        dpi,
     };
     let page_report = analyse_page_report(&input, None, &opts).map_err(|e| e.to_string())?;
 
@@ -245,9 +255,12 @@ fn document(args: &DocumentArgs) -> Result<(), String> {
     });
     let mut all_bytes = Vec::new();
     let mut reports = Vec::new();
+    // One resolution for the whole document: the flag, else what the first image says.
+    let mut doc_dpi = args.dpi;
     for (index, file) in args.files.iter().enumerate() {
         let bytes = fs::read(file).map_err(|e| format!("cannot read {}: {e}", file.display()))?;
         let page = load_page(&bytes).map_err(|e| format!("{}: {e}", file.display()))?;
+        let dpi = *doc_dpi.get_or_insert_with(|| resolve_dpi(None, &bytes, &page));
         let opts = serde_json::json!({
             "debug": args.debug,
             "detectors": detectors,
@@ -260,7 +273,7 @@ fn document(args: &DocumentArgs) -> Result<(), String> {
             rgb: page.rgb.as_deref(),
             width: page.width,
             height: page.height,
-            dpi: args.dpi,
+            dpi,
         };
         reports.push(analyse_page_report(&input, None, &opts).map_err(|e| e.to_string())?);
         all_bytes.extend_from_slice(&bytes);
@@ -347,6 +360,35 @@ fn duplicates(args: &DuplicatesArgs) -> Result<(), String> {
         .collect();
     println!("{}", serde_json::Value::Array(pages));
     Ok(())
+}
+
+/// The resolution to analyse an image at: the flag; else the image's own header; else
+/// 150. What was used is said on stderr, with a paper-size hint when the pixel size fits one.
+fn resolve_dpi(flag: Option<u16>, bytes: &[u8], page: &LoadedPage) -> u16 {
+    if let Some(d) = flag {
+        return d;
+    }
+    if let Some(h) = pagetriage_core::scale::image_dpi(bytes) {
+        let d = h.x.round().clamp(1.0, f64::from(u16::MAX)) as u16;
+        eprintln!(
+            "note: resolution {d} dpi from the image header ({})",
+            h.source
+        );
+        return d;
+    }
+    // A pixel size that fits a standard paper at a standard resolution is only a hint: any crop of a
+    // scan fits some paper somewhere. It is printed, never used.
+    let hint = pagetriage_core::scale::paper_matches(page.width, page.height, 0.01)
+        .first()
+        .map(|m| {
+            format!(
+                " (its {}x{} pixels would fit {} at {} dpi)",
+                page.width, page.height, m.paper, m.dpi
+            )
+        })
+        .unwrap_or_default();
+    eprintln!("note: no resolution in the image; assuming 150 dpi{hint}; pass --dpi to set it");
+    150
 }
 
 struct LoadedPage {

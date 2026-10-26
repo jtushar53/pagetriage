@@ -887,6 +887,7 @@ name = "pagetriage-wasm"
 version = "0.1.0"
 dependencies = [
  "pagetriage-core",
+ "serde_json",
  "wasm-bindgen",
 ]
 

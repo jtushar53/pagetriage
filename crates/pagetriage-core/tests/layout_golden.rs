@@ -1,5 +1,5 @@
 //! Layout golden snapshots: the pages in `tests/golden/layout_inputs/` and `quality_inputs/` are
-//! analysed with only the opt-in `layout`, `script`, `handwriting`, `rulings`, `signature`, `thumb`, `redaction`, `qr`, `emboss` and `photo` detectors (and `{"debug":true}`) at 150 dpi and must match
+//! analysed with only the opt-in `layout`, `script`, `handwriting`, `rulings`, `signature`, `thumb`, `redaction`, `qr`, `emboss`, `photo`, `orientation` and `plan` detectors (and `{"debug":true}`) at 150 dpi and must match
 //! `tests/golden/layout_expected/NAME.json` byte for byte. The Python and WASM runners in
 //! `tests/determinism/` check the same files.
 //!
@@ -11,7 +11,7 @@ use std::path::PathBuf;
 
 use pagetriage_core::{PageInput, analyse_page};
 
-const OPTS: &str = r#"{"debug":true,"detectors":["layout","script","handwriting","rulings","signature","thumb","redaction","qr","emboss","photo"]}"#;
+const OPTS: &str = r#"{"debug":true,"detectors":["layout","script","handwriting","rulings","signature","thumb","redaction","qr","emboss","photo","orientation","plan"]}"#;
 const DPI: u16 = 150;
 
 fn golden_dir() -> PathBuf {

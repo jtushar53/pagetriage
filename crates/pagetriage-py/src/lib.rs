@@ -130,6 +130,25 @@ fn near_duplicates(
         .map_err(|e| PyValueError::new_err(e.to_string()))
 }
 
+/// The resolution an image file states in its header (PNG, JPEG with JFIF or Exif, TIFF, BMP), as
+/// `(x_dpi, y_dpi, source)`, or `None` if the file states none or is not one of those formats.
+#[pyfunction]
+fn image_dpi(data: &[u8]) -> Option<(f64, f64, &'static str)> {
+    pagetriage_core::scale::image_dpi(data).map(|d| (d.x, d.y, d.source))
+}
+
+/// The `(paper, dpi, landscape, error)` tuples that a page of `width x height` pixels fits within
+/// `tolerance` (a fraction), best first. A hint only: scans are cropped, and Letter at 300 dpi has the
+/// same pixels as ANSI C at 150.
+#[pyfunction]
+#[pyo3(signature = (width, height, tolerance = 0.02))]
+fn paper_matches(width: u32, height: u32, tolerance: f64) -> Vec<(&'static str, u16, bool, f64)> {
+    pagetriage_core::scale::paper_matches(width, height, tolerance)
+        .into_iter()
+        .map(|m| (m.paper, m.dpi, m.landscape, m.error))
+        .collect()
+}
+
 /// Document-level pass over the page reports of one document, in page order: near-duplicate pages
 /// (module M12) and registrar-endorsement repetition (module M11). `pages_json` is a JSON array of
 /// the strings `analyse_page` returned; the result is the canonical JSON array with
@@ -178,6 +197,8 @@ fn pagetriage_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(analyse_page, m)?)?;
     m.add_function(wrap_pyfunction!(near_duplicates, m)?)?;
     m.add_function(wrap_pyfunction!(finish_document, m)?)?;
+    m.add_function(wrap_pyfunction!(image_dpi, m)?)?;
+    m.add_function(wrap_pyfunction!(paper_matches, m)?)?;
     m.add_function(wrap_pyfunction!(schema_json, m)?)?;
     m.add_function(wrap_pyfunction!(analyse_pdf_structure, m)?)?;
     m.add_function(wrap_pyfunction!(structure_schema_json, m)?)?;

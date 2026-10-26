@@ -257,6 +257,7 @@ mod tests {
                 })
                 .collect(),
             page_type: None,
+            plan: None,
             phash: None,
             dhash: None,
             near_duplicate_of: None,

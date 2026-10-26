@@ -9,8 +9,8 @@ use std::fs;
 use std::path::PathBuf;
 
 use pagetriage_core::schema::{
-    Binarizer, DocumentInfo, Evidence, GenerationEstimate, PageLabel, PageType, Quality, TextLayer,
-    TextLayerState, Timings,
+    Binarizer, DocumentInfo, Evidence, GenerationEstimate, PageLabel, PagePlan, PageType,
+    PlanRegion, PlanScale, PlanSkip, PlanTile, Quality, TextLayer, TextLayerState, Timings,
 };
 use pagetriage_core::{
     Finding, Kind, PageInput, PageReport, Report, analyse_page, schema_json, to_canonical_json,
@@ -164,6 +164,38 @@ fn a_fully_populated_report_validates_and_round_trips() {
             label: PageLabel::TextWithAnnotations,
             confidence: 0.77,
             alternatives: BTreeMap::from([("form".into(), 0.15), ("mixed".into(), 0.08)]),
+        }),
+        plan: Some(PagePlan {
+            rotate_clockwise_deg: 90,
+            deskew_clockwise_deg: None,
+            needs_rerun: true,
+            scale: PlanScale {
+                xheight_px: 11.0,
+                target_xheight_px: 24.0,
+                factor: 2.18,
+                suggested_dpi: 327,
+            },
+            content_bbox: [0, 0, 100, 200],
+            binarizer: "sauvola".into(),
+            difficulty: 0.3,
+            skip: Some(PlanSkip {
+                reason: "near_duplicate".into(),
+                of: Some(1),
+            }),
+            scripts: vec!["latin".into()],
+            regions: vec![PlanRegion {
+                bbox: [1, 2, 3, 4],
+                kind: "text_block".into(),
+                route: "ocr".into(),
+                priority: 0,
+            }],
+            tiles: vec![PlanTile {
+                bbox: [0, 0, 10, 10],
+                row: 0,
+                column: 0,
+            }],
+            input_sha256: "ab".into(),
+            notes: vec![],
         }),
         phash: Some("c3a1".into()),
         dhash: Some("9f2e".into()),

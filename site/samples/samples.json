@@ -11,7 +11,7 @@
    "width": 827,
    "height": 1170,
    "dpi": 150,
-   "native_report_sha256": "bc4995fb2fe0e8c8cc6711ec15ef4266b45b24c3cd63ac90da467f3cdee5bc8d"
+   "native_report_sha256": "973db0f8e14b4ea71b39e4b2a5f53717102f43eb8189022e9e4e9ded9e3031cf"
   },
   {
    "id": "tilted",
@@ -23,7 +23,7 @@
    "width": 827,
    "height": 1170,
    "dpi": 150,
-   "native_report_sha256": "0b0b2184ae0162b23fa531730a32844056b9dcbdf1ab6e8e51c6249be63af0db"
+   "native_report_sha256": "3151ef739c420d77d4ac79a5e46425d2bc4cf205b521daee5765768b85e507ae"
   },
   {
    "id": "ghosted",
@@ -35,7 +35,7 @@
    "width": 827,
    "height": 1170,
    "dpi": 150,
-   "native_report_sha256": "99a392862595d7b4bb636fc74559d622a0721e46dde3d3552f3bb6a5776e1845"
+   "native_report_sha256": "b40db729016f74ebf75d70400ef39f4baa2fa6e84fe6b9fba8f2f065b6be57de"
   },
   {
    "id": "blurred",
@@ -47,7 +47,31 @@
    "width": 827,
    "height": 1170,
    "dpi": 150,
-   "native_report_sha256": "31eb40618079c38a83381b18fa6dc85ae7e0792471d0c2bea7cb0f2d7f806650"
+   "native_report_sha256": "e2dc627dc8dcc6e44b3c6e383455362068ef9d256fd3e99a515c36fcac0bab9b"
+  },
+  {
+   "id": "blurred_hard",
+   "title": "Badly out of focus",
+   "blurb": "Strokes have merged into blobs. The grade is D. With the line-level detectors switched on (script, handwriting, signature), they are skipped on a page like this and a degraded finding is raised instead of a guess.",
+   "built": "Gaussian blur, radius 4 px.",
+   "file": "samples/blurred_hard.png",
+   "thumb": "samples/blurred_hard.thumb.png",
+   "width": 827,
+   "height": 1170,
+   "dpi": 150,
+   "native_report_sha256": "3a1042f1cac474f08313a1d846223160994b4e7c110e193e9aab5dfa9cea8a14"
+  },
+  {
+   "id": "photocopied",
+   "title": "Photocopied five times",
+   "blurb": "Toner thinned and edges eaten. A known weak spot: the grade stays A and the generation estimate says 2 copies, not 5. Do not trust this readout on heavy copies.",
+   "built": "A simulated copier pass (blur, noise, contrast clip, lighter toner) applied five times.",
+   "file": "samples/photocopied.png",
+   "thumb": "samples/photocopied.thumb.png",
+   "width": 827,
+   "height": 1170,
+   "dpi": 150,
+   "native_report_sha256": "1b5e4c91a20daa230769e502c499d08d9a164e1c36e67b37d2efde0209133d4a"
   },
   {
    "id": "creased",
@@ -59,7 +83,7 @@
    "width": 827,
    "height": 1170,
    "dpi": 150,
-   "native_report_sha256": "9e00073c74fb3203e13fce12b2e0cf5aff92a93fd5434e509ff30de854c547f9"
+   "native_report_sha256": "c025f1be8f6f98190354e518402d97a7f444db16703ed974091897aa92aaa4f8"
   },
   {
    "id": "speckled",
@@ -71,7 +95,7 @@
    "width": 827,
    "height": 1170,
    "dpi": 150,
-   "native_report_sha256": "b35b472f44665138d495268f605979a30fd1c57cefff834aae0cbdecc2df8759"
+   "native_report_sha256": "8f7ad200bc52a404755d23338d43beed13e758dd27c6341f06120847075f364b"
   }
  ],
  "pdfs": [

@@ -31,6 +31,10 @@ calls the Rust core through `pagetriage_py`, and scores the output.
 | `fit_calibration.py` | Fits per-kind confidence calibration maps (isotonic regression) from labelled findings `kind,confidence,label`; `--selftest` checks the tool on synthetic miscalibration. No labelled real data exists, so no map ships |
 | `page_type_synth_eval.py` | Page typing (M10) against eight synthetic page types (text, annotated, form, table, photo, blank, cover, mixed; clean, noisy, blurred); dev/test split. Results in `docs/detectors/page_type.md` |
 | `emboss_synth_eval.py` | Embossed-seal detector (M11) against synthetic blind reliefs (four amplitudes, noise, blur) and six look-alikes; dev/test split. Results in `docs/detectors/emboss.md` |
+| `orientation_synth_eval.py` | Page orientation (M14) on 10 synthetic scripts turned 0/90/180/270 under clean, tilt, noise and blur; scored by acting on the finding; dev/test split. Results in `docs/detectors/orientation.md` |
+| `plan_synth_eval.py` | Page plan (M14) on synthetic forms with known printed and handwritten words: route accuracy, share of the page sent, and the turn named for turned pages. Results in `docs/detectors/plan.md` |
+| `quality_stress.py` | Layout and the quality gate under blur, noise, speckle, bleed-through, photocopying, 25 degrees of skew and a blank page; lines found against the 41 drawn. Results in `docs/detectors/quality.md` |
+| `page_size_eval.py` | Layout, script and quality readouts over paper sizes, resolutions and type sizes. See README, "Page size and resolution" |
 | `qr_synth_eval.py` | QR finder-pattern detector (M11) against QR-like symbols (not decodable) on synthetic text pages (clean, rotated, noisy, blurred, 2 px per module) and five look-alikes; dev/test split. Results in `docs/detectors/qr.md` |
 | `tests/` | Offline unit tests (`python -I -m unittest discover -s bench/tests`) |
 

@@ -11,6 +11,7 @@ pub mod math;
 pub mod params;
 pub mod pixel;
 pub mod raster;
+pub mod scale;
 pub mod schema;
 pub mod structural;
 

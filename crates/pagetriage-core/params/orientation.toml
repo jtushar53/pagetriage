@@ -1,0 +1,57 @@
+# Page orientation (module M14, input to the page plan): whether text runs along rows or columns, and
+# which way up it is. No model. The ink mask is cut into strips (vertical strips for horizontal text,
+# horizontal strips for the other) and each strip's ink profile is read: text lines make a profile that
+# swings between line and gap, so the swing (variance over mean squared) is large across lines and small
+# along them. Up from down: in Latin text ascenders and capitals (about a quarter of letters) stand
+# above the x-height and descenders (about 7%) hang below, so a text line has more ink above its core
+# than below it; in the scripts with a headline (Devanagari, Bengali, Gurmukhi) one sharp row of ink
+# sits at the top of the line. Every key says where it comes from; "placeholder" means a first guess not
+# yet checked against data. Nothing here has been checked on a real document.
+
+# Text lines tilted by up to this many degrees are levelled before they are read: the shear (in steps
+# of tilt_step_deg, refined by half a step) that makes the page's row profile swing most is applied. A
+# first version without it read nothing above about 3 degrees of tilt. Source: placeholder.
+max_tilt_deg = 20.0
+tilt_step_deg = 1.0
+
+# Strip width (vertical strips) or height (horizontal strips) in inches, narrow enough that a few degrees
+# of tilt keep a line inside one band. Source: placeholder.
+strip_in = 0.35
+
+# A strip needs this share of its pixels inked to be read. Source: placeholder.
+min_strip_ink = 0.01
+
+# The profile is smoothed by a box of this many inches. Source: placeholder.
+smooth_in = 0.012
+
+# A text band is a run of rows at least this share of the strip's strongest row, at least min_band_in
+# and at most max_band_in tall (taller is a picture), runs closer than merge_gap_in being one band.
+# Source: placeholder.
+band_share = 0.2
+min_band_in = 0.05
+max_band_in = 0.6
+merge_gap_in = 0.012
+
+# The core of a band is the rows at least this share of its strongest row. Source: placeholder.
+core_share = 0.55
+
+# The page is read by a headline when the ink-weighted mean position of the strongest row in each band
+# (0 top, 1 bottom) is within headline_edge of the top or bottom (top: upright, bottom: upside down) and
+# the mean sharpness (strongest row over the band's mean row) is at least headline_sharpness. On the
+# synthetic pages the headline scripts have a mean position of 0.14 to 0.23 at every blur and noise
+# tried, Latin 0.35 to 0.40 and the other scripts 0.42 to 0.61. Source: placeholder, set on the dev seeds
+# of bench/orientation_synth_eval.py (the first version used a sharpness of 1.7 and missed blurred pages).
+headline_sharpness = 1.3
+headline_edge = 0.27
+
+# Confidence = sigmoid(axis_term) * sigmoid(up_term): the rotation is right when the lines are clearly
+# along one axis and the up/down cue is clearly one way. axis_term = axis_coef * |ln strength ratio| -
+# axis_offset; up_term = up_coef * (|up_z| - up_ref), up_z being the up score over its standard error across bands; each capped at term_clip. Source: placeholder
+# (uncalibrated).
+axis_coef = 2.0
+axis_offset = 1.0
+up_coef = 0.9
+up_ref = 3.0
+term_clip = 4.0
+
+# A rotation is reported as a finding only when the confidence reaches fusion.emit_min_confidence.

@@ -3,15 +3,19 @@
 use std::collections::BTreeMap;
 
 use serde::Deserialize;
+use serde_json::{Map, Value};
 
 use crate::error::{Error, Result};
-use crate::fusion::{calibration, consistency, page_type};
+use crate::fusion::scorer;
+use crate::fusion::{calibration, consistency, page_type, plan};
+use crate::math;
 use crate::params::Params;
 use crate::pixel::content_type::{self, BLANK_PAGE};
 use crate::pixel::coverage::{self, COVERAGE};
 use crate::pixel::emboss::{self, EMBOSS};
 use crate::pixel::handwriting::{self, HANDWRITING};
 use crate::pixel::layout::{self, LAYOUT};
+use crate::pixel::orientation::{self, ORIENTATION};
 use crate::pixel::phash::{self, PHASH};
 use crate::pixel::photo::{self, PHOTO};
 use crate::pixel::qr::{self, QR};
@@ -25,6 +29,10 @@ use crate::pixel::thumb::{self, THUMB};
 use crate::schema::{self, Evidence, Finding, Kind, PageReport};
 use crate::structural::PageStructure;
 
+/// The page plan is not a detector with findings of its own: naming it runs the layout and the
+/// orientation reading and attaches `plan` to the report.
+pub const PLAN: &str = "plan";
+
 /// Detectors that can be named in `Options::detectors`. Grows as phases land. One name per line, in
 /// alphabetical order, so that branches adding detectors do not edit the same line.
 #[rustfmt::skip]
@@ -34,8 +42,10 @@ pub const DETECTORS: &[&str] = &[
     EMBOSS,
     HANDWRITING,
     LAYOUT,
+    ORIENTATION,
     PHASH,
     PHOTO,
+    PLAN,
     QR,
     REDACTION,
     RULINGS,
@@ -54,7 +64,9 @@ pub const OPT_IN: &[&str] = &[
     EMBOSS,
     HANDWRITING,
     LAYOUT,
+    ORIENTATION,
     PHOTO,
+    PLAN,
     QR,
     REDACTION,
     RULINGS,
@@ -89,6 +101,13 @@ pub struct Options {
     /// analysis DPI, for the `coverage` detector. An empty list means "no text"; leaving it out means
     /// "unknown" (a PDF's own text boxes from `structural_json` are used then).
     pub text_boxes: Option<Vec<[u32; 4]>>,
+    /// Refuse pages with more pixels than this (an `InvalidInput` error instead of running out of
+    /// memory; a poster sheet at 300 dpi is about 70 million). `None` sets no limit.
+    pub max_pixels: Option<u64>,
+    /// Run the text-line detectors (script, handwriting, signature, coverage, redaction boxes) even
+    /// on a page graded D. By default they are skipped there and a `degraded` finding says so: on
+    /// such pages they read noise as text.
+    pub no_gate: bool,
     /// Value for the report's `index` field (the page's position in its document).
     pub page_index: u32,
 }
@@ -124,7 +143,7 @@ pub fn analyse_page_report(
     opts_json: &str,
 ) -> Result<PageReport> {
     let options = Options::from_json(opts_json)?;
-    validate_input(input)?;
+    validate_input(input, options.max_pixels)?;
     let structure = match structural_json {
         Some(s) => parse_structural(s)?,
         None => None,
@@ -135,7 +154,7 @@ pub fn analyse_page_report(
         None => Params::defaults()?,
     };
 
-    let selected: Vec<&str> = match &options.detectors {
+    let mut selected: Vec<&str> = match &options.detectors {
         None => DETECTORS
             .iter()
             .copied()
@@ -159,6 +178,12 @@ pub fn analyse_page_report(
         }
     };
 
+    // The plan reads the orientation finding and the layout, so naming it brings them in.
+    if selected.contains(&PLAN) && !selected.contains(&ORIENTATION) {
+        selected.push(ORIENTATION);
+        selected.sort_by_key(|d| DETECTORS.iter().position(|x| x == d));
+    }
+
     // Module M3: degradation triage. Always runs; it is not a finding. It runs first because the
     // layout pass levels the page by its skew.
     let assessment = quality::assess(
@@ -170,6 +195,7 @@ pub fn analyse_page_report(
     )?;
 
     let layout_selected = selected.contains(&LAYOUT);
+    let plan_selected = selected.contains(&PLAN);
 
     // Text boxes for the coverage detector: the caller's, else the PDF's own from the structure.
     let text_boxes: Option<Vec<[u32; 4]>> = options.text_boxes.clone().or_else(|| {
@@ -192,7 +218,7 @@ pub fn analyse_page_report(
     let page_layout = if selected.iter().any(|d| {
         matches!(
             *d,
-            COVERAGE | HANDWRITING | LAYOUT | REDACTION | RULINGS | SCRIPT | SIGNATURE
+            COVERAGE | HANDWRITING | LAYOUT | PLAN | REDACTION | RULINGS | SCRIPT | SIGNATURE
         )
     }) {
         Some(layout::segment(
@@ -206,11 +232,28 @@ pub fn analyse_page_report(
         None
     };
 
+    // Quality gate: on a page graded D the detectors that read text lines are not run.
+    let blur_severity = assessment
+        .features
+        .get("grade_sev_blur")
+        .copied()
+        .unwrap_or(0.0);
+    let gated_page = !options.no_gate
+        && assessment.quality.grade == "D"
+        && blur_severity >= params.quality.gate_min_blur_severity;
+    let mut gated = false;
+
     let mut findings = Vec::new();
     let mut debug: BTreeMap<String, BTreeMap<String, f64>> = BTreeMap::new();
     let mut hashes = None;
     for name in selected {
         let detection = match name {
+            COVERAGE | HANDWRITING | REDACTION | SCRIPT | SIGNATURE if gated_page => {
+                gated = true;
+                let mut d = crate::pixel::Detection::default();
+                d.features.insert("gated".to_owned(), 1.0);
+                d
+            }
             BLANK_PAGE => {
                 content_type::detect_blank_page(input.gray, &params.blank_page, &params.fusion)?
             }
@@ -231,6 +274,14 @@ pub fn analyse_page_report(
                 handwriting::detect(page_layout.as_ref().expect("segmented above"), &params)?
             }
             LAYOUT => layout::summarize(page_layout.as_ref().expect("segmented above")),
+            ORIENTATION => orientation::detect(
+                input.gray,
+                input.width as usize,
+                input.height as usize,
+                input.dpi,
+                &params,
+            )?,
+            PLAN => crate::pixel::Detection::default(),
             PHOTO => photo::detect(
                 input.gray,
                 input.width as usize,
@@ -292,6 +343,10 @@ pub fn analyse_page_report(
         debug.insert(name.to_owned(), detection.features);
     }
 
+    if gated {
+        findings.push(degraded_finding(&assessment, &params)?);
+    }
+
     // The structural layer's verdict for this page (M1) and its legacy-font finding (M2).
     if let Some(ps) = &structure {
         findings.extend(structure_findings(ps, input.dpi));
@@ -311,11 +366,33 @@ pub fn analyse_page_report(
 
     // Module M10: page typing needs the layout, so it runs when `layout` was asked for.
     let page_type = match (&page_layout, layout_selected) {
-        (Some(l), true) => {
+        (Some(l), true) if !gated_page => {
             let facts = page_type::facts(l, &findings, input.gray, &params.page_type);
             debug.insert("page_type".to_owned(), page_type::features(&facts));
             Some(page_type::classify(&facts, &params.page_type))
         }
+        _ => None,
+    };
+
+    let page_plan = match (&page_layout, plan_selected) {
+        (Some(l), true) => Some(plan::build(
+            &plan::PlanInput {
+                gray: input.gray,
+                width: input.width as usize,
+                height: input.height as usize,
+                dpi: input.dpi,
+                layout: l,
+                findings: &findings,
+                quality: &assessment.quality,
+                badness: assessment
+                    .features
+                    .get("grade_badness")
+                    .copied()
+                    .unwrap_or(0.0),
+                gated: gated_page,
+            },
+            &params.plan,
+        )),
         _ => None,
     };
 
@@ -336,6 +413,7 @@ pub fn analyse_page_report(
         quality: Some(assessment.quality),
         findings,
         page_type,
+        plan: page_plan,
         phash: hashes.map(|h| h.phash_hex()),
         dhash: hashes.map(|h| h.dhash_hex()),
         near_duplicate_of: None,
@@ -365,12 +443,72 @@ pub fn finish_document(pages_json: &str, opts_json: &str) -> Result<String> {
         &params.document,
         &params.fusion,
     )?;
+    // A page that repeats an earlier one need not be sent anywhere again.
+    for r in &mut reports {
+        let repeat = r.near_duplicate_of;
+        if let Some(plan) = &mut r.plan {
+            let is_dup_skip = plan
+                .skip
+                .as_ref()
+                .is_some_and(|s| s.reason == "near_duplicate");
+            match repeat {
+                Some(of) if plan.skip.is_none() || is_dup_skip => {
+                    plan.skip = Some(schema::PlanSkip {
+                        reason: "near_duplicate".into(),
+                        of: Some(of),
+                    });
+                }
+                None if is_dup_skip => plan.skip = None,
+                _ => {}
+            }
+        }
+    }
     schema::to_canonical_json(&reports)
 }
 
 /// `structural_json` must be a JSON object. If it has a `text_layer` key it is read as one
 /// [`PageStructure`] (an element of `analyse_pdf_structure`'s `pages`); an object without that key,
 /// such as `{}`, is accepted and ignored.
+/// The `degraded` finding: the blur severity against the gate's threshold.
+fn degraded_finding(assessment: &quality::QualityAssessment, params: &Params) -> Result<Finding> {
+    let severity = assessment
+        .features
+        .get("grade_sev_blur")
+        .copied()
+        .unwrap_or(0.0);
+    let ceiling = params.quality.gate_min_blur_severity;
+    let evidence = vec![Evidence::new(
+        "quality.gate",
+        "grade_sev_blur",
+        math::round_output(severity),
+        Some(ceiling),
+        (params.quality.gate_llr_per_unit * (severity - ceiling))
+            .clamp(-params.fusion.llr_clip, params.fusion.llr_clip),
+        format!(
+            "quality grade D with blur severity {severity:.2} (gate at {ceiling:.2}): text-line detectors skipped"
+        ),
+        "hand set, see params/quality.toml",
+    )?];
+    let confidence = math::round_output(scorer::confidence_capped(
+        params.quality.gate_prior,
+        &evidence,
+        params.fusion.group_cap,
+    ));
+    let mut attributes = Map::new();
+    attributes.insert(
+        "grade".into(),
+        Value::from(assessment.quality.grade.clone()),
+    );
+    Ok(Finding {
+        kind: Kind::Degraded,
+        confidence,
+        bbox: None,
+        polygon: None,
+        attributes,
+        evidence,
+    })
+}
+
 fn parse_structural(s: &str) -> Result<Option<PageStructure>> {
     match serde_json::from_str::<serde_json::Value>(s) {
         Ok(serde_json::Value::Object(map)) => {
@@ -470,7 +608,7 @@ fn legacy_script_finding(ps: &PageStructure) -> Vec<Finding> {
     }]
 }
 
-fn validate_input(input: &PageInput<'_>) -> Result<()> {
+fn validate_input(input: &PageInput<'_>, max_pixels: Option<u64>) -> Result<()> {
     if input.width == 0 || input.height == 0 {
         return Err(Error::InvalidInput(format!(
             "empty page: {}x{}",
@@ -479,6 +617,15 @@ fn validate_input(input: &PageInput<'_>) -> Result<()> {
     }
     if input.dpi == 0 {
         return Err(Error::InvalidInput("dpi must be at least 1".into()));
+    }
+    if let Some(limit) = max_pixels {
+        let n = u64::from(input.width) * u64::from(input.height);
+        if n > limit {
+            return Err(Error::InvalidInput(format!(
+                "page of {n} pixels ({}x{}) exceeds max_pixels {limit}",
+                input.width, input.height
+            )));
+        }
     }
     let pixels = (input.width as usize)
         .checked_mul(input.height as usize)
@@ -639,6 +786,22 @@ mod tests {
         let rgb = vec![0u8; 4 * 4 * 3];
         i.rgb = Some(&rgb);
         assert!(analyse_page(&i, None, "{}").is_ok());
+    }
+
+    #[test]
+    fn max_pixels_refuses_a_large_page_with_a_clear_error() {
+        let gray = vec![255u8; 100 * 50];
+        let input = PageInput {
+            gray: &gray,
+            rgb: None,
+            width: 100,
+            height: 50,
+            dpi: 150,
+        };
+        assert!(analyse_page(&input, None, r#"{"max_pixels":5000}"#).is_ok());
+        let e = analyse_page(&input, None, r#"{"max_pixels":4999}"#).unwrap_err();
+        assert!(e.to_string().contains("exceeds max_pixels 4999"), "{e}");
+        assert!(analyse_page(&input, None, r#"{"max_pixels":null}"#).is_ok());
     }
 
     #[test]

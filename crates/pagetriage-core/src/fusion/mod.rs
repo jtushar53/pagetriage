@@ -11,4 +11,5 @@ pub mod consistency;
 pub mod document;
 pub mod evidence;
 pub mod page_type;
+pub mod plan;
 pub mod scorer;

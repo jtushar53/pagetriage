@@ -69,7 +69,7 @@ text.
 |---|---|---|---|
 | M1 text layer | Per PDF page: real text, scan only, hidden OCR layer under a scan, mixed, drawn lines only, or blank. Reads the content stream, renders nothing | Built | [text_layer](docs/detectors/text_layer.md) |
 | M2 font script | Script of each page's text, and a flag for legacy non-Unicode Indian fonts (Kruti Dev and others) whose text extracts as gibberish | Built | [font_script](docs/detectors/font_script.md) |
-| M3 quality | Skew, blur, contrast, specks, bleed-through, fold lines, an overall grade, and which binariser to use | Built | [quality](docs/detectors/quality.md) |
+| M3 quality | Skew, blur, contrast, specks, bleed-through, fold lines, an overall grade, and which binariser to use. On a badly blurred page (grade D) the text-line detectors are skipped and a `degraded` finding says so | Built | [quality](docs/detectors/quality.md) |
 | Binarisers | Otsu, Sauvola, Wolf-Jolion, and the Howe graph-cut method with automatic parameter tuning | Built | [binarize](docs/detectors/binarize.md) |
 | Layout | Text lines, blocks and columns, with rulings and graphics set aside; groundwork for M4 and M5. Opt-in, checked on synthetic pages only | Built, opt-in | [layout](docs/detectors/layout.md) |
 | M4 script | Script family of a scan: headline (Devanagari, Bengali, Gurmukhi), joined (Arabic script) or separate letters (Latin and the rest). Opt-in, checked on synthetic pages only | Built, opt-in | [script](docs/detectors/script.md) |
@@ -89,6 +89,9 @@ text.
 | M12 near-duplicates | Perceptual hashes per page, and which pages repeat an earlier one | Built, with limits | [phash](docs/detectors/phash.md) |
 | M10 blank page | Blank-page finding | Skeleton, known wrong on faded scans | [blank_page](docs/detectors/blank_page.md) |
 | Extraction coverage | Text on the page that no text box (a PDF's text layer, hidden OCR included, or an OCR run's boxes) sits on. Opt-in, synthetic checks only | Built, opt-in | [coverage](docs/detectors/coverage.md) |
+| Resolution and paper size | dpi read from PNG, JPEG, TIFF and BMP headers; paper-size hints for a pixel size; `--max-pixels`. Not a detector | Built | [scale](docs/detectors/scale.md) |
+| M14 orientation | Whether a page is scanned sideways or upside down, and the quarter turn that fixes it (rows or columns, headline or ascender cue, tilt up to 20 degrees). Opt-in; abstains when unsure; synthetic checks only | Built, opt-in | [orientation](docs/detectors/orientation.md) |
+| M14 page plan | Per page: turn, deskew, scale, crop, regions routed to OCR, handwriting, table, vision or decoded, tiles, skip, difficulty, cache key. Opt-in; hand-set thresholds; synthetic checks only | Built, opt-in | [plan](docs/detectors/plan.md) |
 | Calibrated confidences | Confidences calibrated on labelled real pages (the fitting tool exists, the labelled data does not) | Not possible yet | [roadmap](#roadmap), [modules](docs/modules.md) |
 
 ## Quick start
@@ -288,6 +291,26 @@ Known limits, beyond the table:
 - **No real Indian deed has been tested.** The PDF corpus is synthetic, and the deed-specific
   detectors (stamp-paper header, e-stamp QR code, registrar endorsement, embossed seal) are built and
   measured on synthetic pages only; the stamp-paper header is a guess at what stamp paper looks like.
+
+## Page size and resolution
+
+Nothing is tied to A4 or to 150 dpi. The page size comes from the pixels you pass in, the resolution from
+the `dpi` you give, and the layout measures in x-heights. Checked on one synthetic text page (script
+`bench/page_size_eval.py`, test `crates/pagetriage-core/tests/page_sizes.rs`): A4, Letter, Legal, A5, A3,
+landscape, a 6 in square and a 3.1 in receipt strip at 150 dpi, A4 from 72 to 600 dpi, tilted 3 degrees,
+type from 6 to 24 pt: the lines drawn were found every time and the tilt was read as 3.0.
+
+- **You must give the right dpi.** The core does not read it from the image; the CLI does (PNG, JPEG, TIFF,
+  BMP headers, which scanners often fill with a placeholder), and otherwise assumes 150 with a note and a
+  paper-size hint ([scale](docs/detectors/scale.md)). A wrong dpi leaves the layout alone but changes the page
+  size in the report and every inch- or millimetre-based setting (picture and coverage tiles, seal radius).
+- **Cost grows with the pixel count.** A4 at 150 dpi takes about 0.4 s; at 300 dpi 2 s; at 600 dpi 10 s.
+  A poster sheet (A1 at 300 dpi, 70 megapixels) took 14 s and 1.3 GB in one run with only the layout
+  on. There is no tiling in the core (the page plan suggests tiles) and the pixel cap is opt-in (`--max-pixels`); the browser demo refuses images over 36 megapixels.
+- **Only the layout, script and quality readouts were swept over sizes.** The other detectors were tuned
+  and measured on A4 at 150 dpi and have not been checked at other sizes or resolutions.
+- **Engineering sheets (A1/A0 drawings) are not what this was built for**: it does not recognise symbols or
+  trace lines, and it does not tile sheets that large.
 
 ## Large documents
 

@@ -592,7 +592,8 @@ DOC_OUT = pathlib.Path(__file__).resolve().parent / "document_inputs"
 def document_pages():
     """Page reports of a five-page synthetic deed for the document-level pass: a stamp in the same
     corner of pages 0, 1, 2 and 4 (an endorsement), a seal on page 2 alone, a signature in the same
-    place on pages 1 and 2 only, and the same hashes on pages 0 and 4 (near-duplicates)."""
+    place on pages 1 and 2 only, and the same hashes on pages 0 and 4 (near-duplicates), each page carrying a plan so that the duplicate's
+    plan is marked skipped."""
     import json
 
     def finding(kind, bbox, confidence=0.9):
@@ -612,6 +613,13 @@ def document_pages():
             "index": i, "size_pt": [595.0, 842.0], "analysis_dpi": 150, "timings_ms": None,
             "text_layer": None, "quality": None, "findings": findings, "page_type": None,
             "phash": hashes[i], "dhash": hashes[i], "near_duplicate_of": None, "debug": None,
+            "plan": {
+                "rotate_clockwise_deg": 0, "deskew_clockwise_deg": 0.0, "needs_rerun": False,
+                "scale": {"xheight_px": 12.0, "target_xheight_px": 24.0, "factor": 2.0, "suggested_dpi": 300},
+                "content_bbox": [0, 0, 1239, 1753], "binarizer": "sauvola", "difficulty": 0.1,
+                "skip": None, "scripts": [], "regions": [], "tiles": [],
+                "input_sha256": "0" * 64, "notes": [],
+            },
         })
     return json.dumps(pages, sort_keys=True, separators=(",", ":")) + "\n"
 
