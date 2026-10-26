@@ -63,6 +63,10 @@ struct AnalyseArgs {
     /// Run only these detectors (comma separated)
     #[arg(long, value_delimiter = ',')]
     detectors: Option<Vec<String>>,
+    /// JSON file with the page's text boxes, `[[x0, y0, x1, y1], ...]` in pixels, for the `coverage`
+    /// detector
+    #[arg(long, value_name = "FILE")]
+    text_boxes: Option<PathBuf>,
 }
 
 #[derive(Args)]
@@ -175,10 +179,21 @@ fn analyse(args: &AnalyseArgs) -> Result<(), String> {
         ),
         None => None,
     };
+    let text_boxes: Option<serde_json::Value> = match &args.text_boxes {
+        Some(path) => Some(
+            serde_json::from_str(
+                &fs::read_to_string(path)
+                    .map_err(|e| format!("cannot read {}: {e}", path.display()))?,
+            )
+            .map_err(|e| format!("{}: {e}", path.display()))?,
+        ),
+        None => None,
+    };
     let opts = serde_json::json!({
         "debug": args.debug,
         "detectors": args.detectors,
         "params": params_toml,
+        "text_boxes": text_boxes,
     })
     .to_string();
 

@@ -96,6 +96,8 @@ pub struct PageScan {
     pub images: Vec<ImageUse>,
     pub fonts: BTreeMap<FontKey, FontUse>,
     pub covered: Vec<CoveredText>,
+    /// Estimated extents of every text-show operation (any render mode), page space, in order.
+    pub text_boxes: Vec<[f64; 4]>,
     pub notes: Vec<String>,
 }
 
@@ -221,6 +223,7 @@ pub fn scan_page<'d>(
             images: Vec::new(),
             fonts: BTreeMap::new(),
             covered: Vec::new(),
+            text_boxes: Vec::new(),
             notes: Vec::new(),
         },
         ops: 0,
@@ -980,6 +983,7 @@ impl<'d> Interp<'d, '_> {
                 });
             }
         }
+        self.scan.text_boxes = self.records.iter().map(|r| r.bbox).collect();
         // If the record cap was hit, scale the geometric counts to all glyphs.
         let scale = |v: u64| -> u32 {
             if self.glyphs_recorded == 0 || self.glyphs_recorded == self.glyphs_total {

@@ -84,6 +84,20 @@ for (const file of layoutInputs) {
   }
 }
 
+// The opt-in coverage detector, with text boxes over the top third of the page.
+{
+  const { w, h, pixels } = readPgm(join(golden, "layout_inputs", "layout_one_column.pgm"));
+  const opts = '{"debug":true,"detectors":["coverage"],"text_boxes":[[0,0,319,86]]}';
+  const actual = wasm.analyse_page(pixels, undefined, w, h, DPI, undefined, opts) + "\n";
+  const expected = readFileSync(join(golden, "coverage_expected", "layout_one_column.json"), "utf8");
+  if (actual === expected) {
+    console.log("ok   wasm   coverage layout_one_column");
+  } else {
+    failures++;
+    console.log("FAIL wasm   coverage layout_one_column");
+  }
+}
+
 // The opt-in stamp detector needs a colour page: the P6 files in stamp_inputs/.
 function readPpm(path) {
   const data = readFileSync(path);

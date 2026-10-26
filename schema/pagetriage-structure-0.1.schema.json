@@ -689,6 +689,23 @@
           "maxItems": 2,
           "minItems": 2
         },
+        "text_boxes_pt": {
+          "description": "Where the page's text-show operations put text (any render mode, so a hidden OCR layer counts),\nas `[x0, y0, x1, y1]` in points from the top-left of the page box, estimated with a flat glyph\nwidth. `None` when the page is rotated or its content could not be read; capped at 8192.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "default": null,
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            },
+            "maxItems": 4,
+            "minItems": 4
+          }
+        },
         "text_layer": {
           "description": "`None` when the page could not be analysed (see `notes`).",
           "anyOf": [
@@ -712,6 +729,7 @@
         "rotation",
         "script",
         "size_pt",
+        "text_boxes_pt",
         "text_layer"
       ]
     },

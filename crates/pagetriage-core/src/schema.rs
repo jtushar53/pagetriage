@@ -91,6 +91,8 @@ pub enum Kind {
     VectorGraphic,
     RedactionBox,
     BlankPage,
+    /// Text on the page that the supplied text layer or OCR boxes do not cover.
+    ExtractionGap,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]

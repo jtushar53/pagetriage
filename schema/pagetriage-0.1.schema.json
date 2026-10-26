@@ -202,32 +202,41 @@
       ]
     },
     "Kind": {
-      "type": "string",
-      "enum": [
-        "text_layer",
-        "script",
-        "language_hint",
-        "printed_text",
-        "handwriting",
-        "signature",
-        "stamp",
-        "seal",
-        "embossed_seal",
-        "thumb_impression",
-        "barcode_1d",
-        "qr_code",
-        "estamp_qr",
-        "stamp_paper_header",
-        "registrar_endorsement",
-        "page_number_margin",
-        "table",
-        "ruling_lines",
-        "checkbox_grid",
-        "fold_line",
-        "photo",
-        "vector_graphic",
-        "redaction_box",
-        "blank_page"
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "text_layer",
+            "script",
+            "language_hint",
+            "printed_text",
+            "handwriting",
+            "signature",
+            "stamp",
+            "seal",
+            "embossed_seal",
+            "thumb_impression",
+            "barcode_1d",
+            "qr_code",
+            "estamp_qr",
+            "stamp_paper_header",
+            "registrar_endorsement",
+            "page_number_margin",
+            "table",
+            "ruling_lines",
+            "checkbox_grid",
+            "fold_line",
+            "photo",
+            "vector_graphic",
+            "redaction_box",
+            "blank_page"
+          ]
+        },
+        {
+          "description": "Text on the page that the supplied text layer or OCR boxes do not cover.",
+          "type": "string",
+          "const": "extraction_gap"
+        }
       ]
     },
     "PageLabel": {

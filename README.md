@@ -85,7 +85,8 @@ text.
 | M12 provenance | PDF producer, edits after the first save (incremental updates), edits after a signature, JPEG encoder tables | Built | [provenance](docs/detectors/provenance.md) |
 | M12 near-duplicates | Perceptual hashes per page, and which pages repeat an earlier one | Built, with limits | [phash](docs/detectors/phash.md) |
 | M10 blank page | Blank-page finding | Skeleton, known wrong on faded scans | [blank_page](docs/detectors/blank_page.md) |
-| Extraction coverage and learned or calibrated confidences | How much of the page the text layer or OCR covers; confidences calibrated on labelled real pages | Not built | [roadmap](#roadmap), [modules](docs/modules.md) |
+| Extraction coverage | Text on the page that no text box (a PDF's text layer, hidden OCR included, or an OCR run's boxes) sits on. Opt-in, synthetic checks only | Built, opt-in | [coverage](docs/detectors/coverage.md) |
+| Calibrated confidences | Confidences calibrated on labelled real pages (the fitting tool exists, the labelled data does not) | Not possible yet | [roadmap](#roadmap), [modules](docs/modules.md) |
 
 ## Quick start
 
@@ -364,7 +365,7 @@ opt-in so the default report and the golden files do not change. Status as of 20
 | M10 content type | Page and region typing (text, form, table, photo, blank) | 0 and later | Page typing built (synthetic checks only); region typing not built |
 | M4 script from pixels | Script of a scanned page, without a text layer | 2 | In progress (branch) |
 | M5 handwriting | Handwritten vs machine-printed text, filled-in blanks on forms | 2 | In progress (branch) |
-| Extraction coverage | How much of the page the text layer or OCR actually covers | 2 | In progress (branch) |
+| Extraction coverage | How much of the page the text layer or OCR actually covers | 2 | Built (synthetic checks only) |
 | M6 stamps and seals | Rubber stamps and seals, by colour and by shape | 3 | In progress (branch) |
 | M7 signatures | Wet signatures | 3 | In progress (branch) |
 | M8 thumb impressions | Thumb and finger impressions, via ridge coherence and frequency | 3 | In progress (branch) |

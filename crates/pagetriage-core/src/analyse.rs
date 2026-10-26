@@ -8,6 +8,7 @@ use crate::error::{Error, Result};
 use crate::fusion::{calibration, consistency, page_type};
 use crate::params::Params;
 use crate::pixel::content_type::{self, BLANK_PAGE};
+use crate::pixel::coverage::{self, COVERAGE};
 use crate::pixel::emboss::{self, EMBOSS};
 use crate::pixel::handwriting::{self, HANDWRITING};
 use crate::pixel::layout::{self, LAYOUT};
@@ -28,6 +29,7 @@ use crate::structural::PageStructure;
 #[rustfmt::skip]
 pub const DETECTORS: &[&str] = &[
     BLANK_PAGE,
+    COVERAGE,
     EMBOSS,
     HANDWRITING,
     LAYOUT,
@@ -46,6 +48,7 @@ pub const DETECTORS: &[&str] = &[
 /// been reviewed; promoting it means deleting its line. Same layout rule as [`DETECTORS`].
 #[rustfmt::skip]
 pub const OPT_IN: &[&str] = &[
+    COVERAGE,
     EMBOSS,
     HANDWRITING,
     LAYOUT,
@@ -79,6 +82,10 @@ pub struct Options {
     pub detectors: Option<Vec<String>>,
     /// TOML merged over the embedded `params/*.toml` defaults.
     pub params: Option<String>,
+    /// Where the page's text layer or an OCR run put text, `[x0, y0, x1, y1]` in page pixels at the
+    /// analysis DPI, for the `coverage` detector. An empty list means "no text"; leaving it out means
+    /// "unknown" (a PDF's own text boxes from `structural_json` are used then).
+    pub text_boxes: Option<Vec<[u32; 4]>>,
     /// Value for the report's `index` field (the page's position in its document).
     pub page_index: u32,
 }
@@ -161,11 +168,28 @@ pub fn analyse_page_report(
 
     let layout_selected = selected.contains(&LAYOUT);
 
+    // Text boxes for the coverage detector: the caller's, else the PDF's own from the structure.
+    let text_boxes: Option<Vec<[u32; 4]>> = options.text_boxes.clone().or_else(|| {
+        let scale = f64::from(input.dpi) / 72.0;
+        structure
+            .as_ref()
+            .and_then(|ps| ps.text_boxes_pt.as_ref())
+            .map(|boxes| {
+                boxes
+                    .iter()
+                    .map(|b| {
+                        let px = |v: f64| (v * scale).max(0.0).round() as u32;
+                        [px(b[0]), px(b[1]), px(b[2]), px(b[3])]
+                    })
+                    .collect()
+            })
+    });
+
     // The layout pass is shared by every detector that works line by line; run it once.
     let page_layout = if selected.iter().any(|d| {
         matches!(
             *d,
-            HANDWRITING | LAYOUT | REDACTION | RULINGS | SCRIPT | SIGNATURE
+            COVERAGE | HANDWRITING | LAYOUT | REDACTION | RULINGS | SCRIPT | SIGNATURE
         )
     }) {
         Some(layout::segment(
@@ -187,6 +211,12 @@ pub fn analyse_page_report(
             BLANK_PAGE => {
                 content_type::detect_blank_page(input.gray, &params.blank_page, &params.fusion)?
             }
+            COVERAGE => coverage::detect(
+                page_layout.as_ref().expect("segmented above"),
+                text_boxes.as_deref(),
+                input.dpi,
+                &params,
+            )?,
             EMBOSS => emboss::detect(
                 input.gray,
                 input.width as usize,
@@ -636,6 +666,7 @@ mod tests {
         use crate::structural::types::{FontInfo, PageStructure, ScriptInfo};
         let ps = PageStructure {
             covered_text: Vec::new(),
+            text_boxes_pt: None,
             index: 0,
             size_pt: [612.0, 792.0],
             rotation: 0,

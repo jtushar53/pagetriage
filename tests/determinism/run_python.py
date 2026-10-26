@@ -13,6 +13,7 @@ GOLDEN = pathlib.Path(__file__).resolve().parents[1] / "golden"
 OPTS = '{"debug":true}'
 STAMP_OPTS = '{"debug":true,"detectors":["stamp"]}'
 LAYOUT_OPTS = '{"debug":true,"detectors":["layout","script","handwriting","rulings","signature","thumb","redaction","qr","emboss"]}'
+COVERAGE_OPTS = '{"debug":true,"detectors":["coverage"],"text_boxes":[[0,0,319,86]]}'
 DPI = 150
 
 
@@ -85,6 +86,16 @@ def main():
         else:
             failures += 1
             print(f"FAIL python layout {path.stem}")
+
+    # The opt-in coverage detector, with text boxes over the top third of the page.
+    w, h, gray = read_pgm(GOLDEN / "layout_inputs" / "layout_one_column.pgm")
+    actual = pagetriage_py.analyse_page(gray, w, h, DPI, None, None, COVERAGE_OPTS) + "\n"
+    expected = (GOLDEN / "coverage_expected" / "layout_one_column.json").read_text(encoding="utf-8")
+    if actual == expected:
+        print("ok   python coverage layout_one_column")
+    else:
+        failures += 1
+        print("FAIL python coverage layout_one_column")
 
     # The opt-in stamp detector needs a colour page: the P6 files in stamp_inputs/.
     stamp_inputs = sorted((GOLDEN / "stamp_inputs").glob("*.ppm"))

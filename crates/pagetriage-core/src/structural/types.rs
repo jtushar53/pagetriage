@@ -159,6 +159,11 @@ pub struct PageStructure {
     /// Filled boxes over live text (redaction or white-out that left the text in the file).
     #[serde(default)]
     pub covered_text: Vec<CoveredTextBox>,
+    /// Where the page's text-show operations put text (any render mode, so a hidden OCR layer counts),
+    /// as `[x0, y0, x1, y1]` in points from the top-left of the page box, estimated with a flat glyph
+    /// width. `None` when the page is rotated or its content could not be read; capped at 8192.
+    #[serde(default)]
+    pub text_boxes_pt: Option<Vec<[f64; 4]>>,
     /// Inconsistencies between the page's own signals, e.g. `raster_only+legacy_devanagari`.
     pub conflicts: Vec<String>,
     pub notes: Vec<String>,
