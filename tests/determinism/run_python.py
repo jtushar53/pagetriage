@@ -12,7 +12,7 @@ import pagetriage_py
 GOLDEN = pathlib.Path(__file__).resolve().parents[1] / "golden"
 OPTS = '{"debug":true}'
 STAMP_OPTS = '{"debug":true,"detectors":["stamp"]}'
-LAYOUT_OPTS = '{"debug":true,"detectors":["layout","script","handwriting","rulings","signature"]}'
+LAYOUT_OPTS = '{"debug":true,"detectors":["layout","script","handwriting","rulings","signature","thumb"]}'
 DPI = 150
 
 
@@ -74,8 +74,8 @@ def main():
 
     # The opt-in layout detector, on the layout pages and the quality pages.
     layout_inputs = sorted([*(GOLDEN / "layout_inputs").glob("*.pgm"), *(GOLDEN / "quality_inputs").glob("*.pgm")])
-    if len(layout_inputs) < 14:
-        sys.exit(f"expected at least 14 layout inputs, found {len(layout_inputs)}")
+    if len(layout_inputs) < 15:
+        sys.exit(f"expected at least 15 layout inputs, found {len(layout_inputs)}")
     for path in layout_inputs:
         w, h, gray = read_pgm(path)
         actual = pagetriage_py.analyse_page(gray, w, h, DPI, None, None, LAYOUT_OPTS) + "\n"

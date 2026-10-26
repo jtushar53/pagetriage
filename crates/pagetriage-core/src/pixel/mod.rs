@@ -16,6 +16,7 @@ pub mod rulings;
 pub mod script;
 pub mod signature;
 pub mod stamp;
+pub mod thumb;
 
 #[derive(Debug, Default)]
 pub struct Detection {

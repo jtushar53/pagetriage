@@ -12,7 +12,7 @@ The analyser is split into modules. Code that implements one cites its number (f
 | M5 | `pixel.handwriting` | Handwritten vs machine-printed text, including filled-in blanks on printed forms | 2 | implemented, opt-in, **weak**: [`handwriting`](detectors/handwriting.md) (finds round cursive-like writing in synthetic tests, nothing in block capitals; real handwriting untested) |
 | M6 | `pixel.stamp_seal` | Rubber stamps and seals, by colour clustering and by shape | 3 | implemented, opt-in, needs a colour page, synthetic checks only: [`stamp`](detectors/stamp.md) |
 | M7 | `pixel.signature` | Wet signatures | 3 | implemented, opt-in, synthetic checks only; overlaps handwriting: [`signature`](detectors/signature.md) |
-| M8 | `pixel.thumb_impression` | Thumb and finger impressions, via ridge coherence and frequency | 3 | planned |
+| M8 | `pixel.thumb_impression` | Thumb and finger impressions, via ridge coherence and frequency | 3 | implemented, opt-in, **weak on faint or smudged prints**, synthetic checks only: [`thumb`](detectors/thumb.md) |
 | M9 | `pixel.rulings` | Rulings, tables, checkbox grids, and fold lines vs rules | 3 | implemented, opt-in, synthetic checks only: [`rulings`](detectors/rulings.md) |
 | M10 | `pixel.content_type` | Page and region typing (text, form, table, photo, blank, ...) | 0 (blank skeleton), later phases | skeleton: [`blank_page`](detectors/blank_page.md) |
 | M11 | `india.*` | Indian-deed detectors: stamp-paper header, e-stamp QR, registrar endorsement, embossed seal | 4 | planned |

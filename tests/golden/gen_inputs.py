@@ -486,6 +486,33 @@ def layout_hand_form():
 RW, RH = 320, 500
 
 
+def thumb_page():
+    """Text lines, a thumb-like impression (concentric elliptical ridges, 4 px period, on the right)
+    and, on the left, hatching with the same period that must not be taken for one. Integer
+    arithmetic and math.isqrt only, so the bytes are the same everywhere."""
+    import math
+    rng = Lcg(111)
+    px = [235 + rng.next(5) for _ in range(LW * LH)]
+    ink = set()
+    _ink_lines(rng, ink, 14, 300, 8, 3)
+    for y in range(120, 190):  # hatching block
+        if (y // 2) % 2 == 0:
+            for x in range(20, 100):
+                ink.add((x, y))
+    cx, cy, a, b = 220, 160, 60, 75
+    for y in range(cy - b, cy + b + 1):
+        for x in range(cx - a, cx + a + 1):
+            dx, dy = x - cx, y - cy
+            if 1000 * 1000 * dx * dx // (a * a) + 1000 * 1000 * dy * dy // (b * b) <= 1000 * 1000:
+                r = math.isqrt(9 * dx * dx + 4 * dy * dy) // 3
+                if r % 4 < 2:
+                    ink.add((x, y))
+    for x, y in sorted(ink):
+        if 0 <= x < LW and 0 <= y < LH:
+            px[y * LW + x] = 45 + rng.next(15)
+    return px
+
+
 def signature_page():
     """Three lines of text, a flourish of six loops with an underswing (a signature), and a black
     double-ringed stamp that must not be taken for one."""
@@ -666,3 +693,5 @@ if __name__ == "__main__":
         print("wrote", fn.__name__)
     write_pgm("signature_page", signature_page(), LW, LH, LAYOUT_OUT)
     print("wrote signature_page")
+    write_pgm("thumb_page", thumb_page(), LW, LH, LAYOUT_OUT)
+    print("wrote thumb_page")

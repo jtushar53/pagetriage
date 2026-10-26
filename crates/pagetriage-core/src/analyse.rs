@@ -15,6 +15,7 @@ use crate::pixel::rulings::{self, RULINGS};
 use crate::pixel::script::{self, SCRIPT};
 use crate::pixel::signature::{self, SIGNATURE};
 use crate::pixel::stamp::{self, STAMP};
+use crate::pixel::thumb::{self, THUMB};
 use crate::schema::{self, Finding, Kind, PageReport};
 use crate::structural::PageStructure;
 
@@ -30,6 +31,7 @@ pub const DETECTORS: &[&str] = &[
     SCRIPT,
     SIGNATURE,
     STAMP,
+    THUMB,
 ];
 
 /// Detectors in [`DETECTORS`] that run only when `Options::detectors` names them. A new detector
@@ -43,6 +45,7 @@ pub const OPT_IN: &[&str] = &[
     SCRIPT,
     SIGNATURE,
     STAMP,
+    THUMB,
 ];
 
 /// One rasterised page. `gray` is `width * height` bytes, row-major. `rgb`, when present, is
@@ -182,6 +185,13 @@ pub fn analyse_page_report(
             )?,
             SIGNATURE => signature::detect(
                 page_layout.as_ref().expect("segmented above"),
+                input.dpi,
+                &params,
+            )?,
+            THUMB => thumb::detect(
+                input.gray,
+                input.width as usize,
+                input.height as usize,
                 input.dpi,
                 &params,
             )?,

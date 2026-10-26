@@ -23,6 +23,7 @@ calls the Rust core through `pagetriage_py`, and scores the output.
 | `rulings_synth_eval.py` | Rulings, table and checkbox detector (M9) against synthetic ruled tables, checkbox lists, mixed pages and text pages with look-alike letters, under skew, noise, blur and 100 dpi; dev/test split. Results in `docs/detectors/rulings.md` |
 | `stamp_synth_eval.py` | Stamp and seal detector (M6) against synthetic circular, double-ringed and rectangular stamps in four inks (`synth/stampgen.py`) under faint ink and blur, plus five look-alikes (headings, blue handwriting, bare frames, highlighter, logos); dev/test split. Results in `docs/detectors/stamp.md` |
 | `signature_synth_eval.py` | Signature detector (M7) against synthetic flourishes (`synth/signgen.py`) and seven look-alike pages (handwriting, a black stamp, logos, a box frame, a cross-out, checkboxes, plain text); dev/test split. Results in `docs/detectors/signature.md` |
+| `thumb_synth_eval.py` | Thumb-impression detector (M8) against synthetic ridged ovals (`synth/printgen.py`) under blur, faint ink and smudging, plus seven look-alike textures; dev/test split. Results in `docs/detectors/thumb.md` |
 | `tests/` | Offline unit tests (`python -I -m unittest discover -s bench/tests`) |
 
 ## Setup

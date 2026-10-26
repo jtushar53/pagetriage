@@ -1,5 +1,5 @@
 //! Layout golden snapshots: the pages in `tests/golden/layout_inputs/` and `quality_inputs/` are
-//! analysed with only the opt-in `layout`, `script`, `handwriting`, `rulings` and `signature` detectors (and `{"debug":true}`) at 150 dpi and must match
+//! analysed with only the opt-in `layout`, `script`, `handwriting`, `rulings`, `signature` and `thumb` detectors (and `{"debug":true}`) at 150 dpi and must match
 //! `tests/golden/layout_expected/NAME.json` byte for byte. The Python and WASM runners in
 //! `tests/determinism/` check the same files.
 //!
@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use pagetriage_core::{PageInput, analyse_page};
 
 const OPTS: &str =
-    r#"{"debug":true,"detectors":["layout","script","handwriting","rulings","signature"]}"#;
+    r#"{"debug":true,"detectors":["layout","script","handwriting","rulings","signature","thumb"]}"#;
 const DPI: u16 = 150;
 
 fn golden_dir() -> PathBuf {
@@ -71,7 +71,7 @@ fn layout_reports_match_byte_for_byte() {
     let expected_dir = golden_dir().join("layout_expected");
     fs::create_dir_all(&expected_dir).unwrap();
     let all = fixtures();
-    assert!(all.len() >= 14, "found only {} layout inputs", all.len());
+    assert!(all.len() >= 15, "found only {} layout inputs", all.len());
     for (name, path) in all {
         let actual = report(&path);
         let expected_path = expected_dir.join(format!("{name}.json"));
@@ -185,6 +185,16 @@ fn layout_pages_have_the_structure_they_were_drawn_with() {
     assert_eq!(found("signature_page", "signature").len(), 1);
     assert!(found("layout_one_column", "signature").is_empty());
     assert!(found("rulings_table", "signature").is_empty());
+    // Thumb impressions (module M8): the ridged oval on thumb_page, and not the hatching beside it.
+    let prints = found("thumb_page", "thumb_impression");
+    assert_eq!(prints.len(), 1);
+    let b = prints[0]["bbox"].as_array().unwrap();
+    assert!(
+        b[0].as_u64().unwrap() >= 150 && b[2].as_u64().unwrap() <= 290,
+        "{b:?}"
+    );
+    assert!(found("layout_one_column", "thumb_impression").is_empty());
+    assert!(found("signature_page", "thumb_impression").is_empty());
     assert_eq!(regions("layout_hand_form"), 3);
     assert_eq!(regions("layout_one_column"), 0);
     assert_eq!(regions("layout_form"), 0);
