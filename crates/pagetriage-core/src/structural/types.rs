@@ -129,6 +129,20 @@ pub struct PageFeatures {
     pub truncated: bool,
 }
 
+/// A filled rectangle drawn over text that is still in the page's content stream: a redaction (black)
+/// or white-out (white) box that does not remove the text underneath (module M12).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CoveredTextBox {
+    /// `[x0, y0, x1, y1]` in points from the top-left of the page box. Empty when the page is rotated
+    /// and the box was not placed.
+    pub bbox_pt: Option<[f64; 4]>,
+    /// `black` or `white`.
+    pub fill: String,
+    /// Glyphs of text-show operations that the box covers.
+    pub glyphs: u32,
+}
+
 /// The structural result for one page: what `analyse_page`'s `structural_json` accepts.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -142,6 +156,9 @@ pub struct PageStructure {
     pub script: Option<ScriptInfo>,
     pub features: Option<PageFeatures>,
     pub images: Vec<ImageInfo>,
+    /// Filled boxes over live text (redaction or white-out that left the text in the file).
+    #[serde(default)]
+    pub covered_text: Vec<CoveredTextBox>,
     /// Inconsistencies between the page's own signals, e.g. `raster_only+legacy_devanagari`.
     pub conflicts: Vec<String>,
     pub notes: Vec<String>,

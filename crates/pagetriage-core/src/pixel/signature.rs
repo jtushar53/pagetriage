@@ -361,7 +361,11 @@ pub fn detect_with(
                 )
             })
             .collect::<Result<Vec<_>>>()?;
-        let confidence = math::round_output(scorer::confidence(p.prior, &evidence));
+        let confidence = math::round_output(scorer::confidence_capped(
+            p.prior,
+            &evidence,
+            fusion.group_cap,
+        ));
         // A box with a hole this big is a ring or a frame (a stamp, a circled word), not a flourish.
         if c.max_hole >= p.veto_hole || confidence < fusion.emit_min_confidence {
             continue;

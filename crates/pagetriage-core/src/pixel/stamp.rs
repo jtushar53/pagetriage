@@ -572,7 +572,11 @@ pub fn detect_with(
         for e in &mut evidence {
             e.llr = e.llr.clamp(-fusion.llr_clip, fusion.llr_clip);
         }
-        let confidence = math::round_output(scorer::confidence(prior, &evidence));
+        let confidence = math::round_output(scorer::confidence_capped(
+            prior,
+            &evidence,
+            fusion.group_cap,
+        ));
         if shape == "unframed" || bare || confidence < fusion.emit_min_confidence {
             continue;
         }

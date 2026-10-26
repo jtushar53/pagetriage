@@ -5,16 +5,39 @@ name or a number is blacked out. It reports `kind: "redaction_box"` with a page-
 `attributes`: `sides_with_text`, `height_xh`, `width_xh`, `fill`. The detector is **opt-in**
 (`"detectors": ["redaction"]`) and runs on the [`layout`](layout.md) pass plus the gray page.
 
-Only the **pixel** part of M12's "redaction boxes" is here. The PDF side (a filled rectangle drawn over
-text that is still in the content stream, which is the common failed redaction) is a structural check
-that is **not built**.
+This page covers both halves of M12's "redaction boxes": the **pixel** part (below) and the **PDF**
+part (next section). The PDF part is for born-digital PDFs, where the usual failed redaction is a filled
+rectangle drawn over text that is still in the file.
 
-**White-out cannot be found**: a white box is paper. **Read this first**: checked on synthetic
+**In pixels, white-out cannot be found**: a white box is paper. In a PDF it can: see below. **Read this first**: checked on synthetic
 rectangles drawn on clean text pages by the author of the detector (black, gray, rotated 2 degrees,
 blurred 1 px). Real redactions are marker strokes, bars drawn in an editor and printed, or ragged
 scans.
 
-## Algorithm
+## PDF part: boxes over live text
+
+Needs the `pdf` cargo feature and a PDF (it comes out of `analyse_pdf_structure` as `covered_text` on
+each page, and turns into `redaction_box` findings when that page structure is passed to `analyse_page`
+as `structural_json`; the finding has `attributes.source = "pdf_content_stream"`, `fill`
+(`black` or `white`), `text_recoverable: true` and `glyphs_covered`, and a bbox in page pixels).
+
+1. The content-stream interpreter tracks the fill colour (`g`, `rg`, `k`, `sc`, `scn`, reduced to a
+   luminance) and records each single-rectangle path that is filled (`re` then `f`/`B`).
+2. It records each text-show operation's start, estimated extent (flat 0.5 em per glyph) and order.
+3. A filled box counts when its luminance is at most `redaction_dark_gray` (0.15) or at least
+   `redaction_light_gray` (0.92), it is under `redaction_max_page_fraction` (50%) of the page, it was
+   painted **after** a visible text operation, it spans at least `redaction_cover_fraction` (70%) of
+   that line's height, and the share of the operation's width it covers holds at least
+   `redaction_min_glyphs` (3) glyphs.
+4. Confidence is `sigmoid(0.5 * glyphs)` (capped at 12 glyphs), one evidence entry, not calibrated.
+
+Checked on one synthetic PDF (`tests/golden/pdf/redacted_text.pdf`): a black box over a name, a white
+box over an address, a box painted *before* its text (reversed heading, not flagged) and a one-point
+rule (not flagged): 2 boxes found and the two decoys not. Nothing else has been tried; no real
+redacted PDF has been seen. Flattened redactions (the page rasterised) have no text under the box and
+are the pixel part's business.
+
+## Algorithm (pixel part)
 
 1. **Dark mask.** Pixels at least `dark_delta` (120) gray levels below the paper (the most common
    bright gray) in the layout's levelled frame, and its 8-connected components. The layout's own
@@ -80,7 +103,11 @@ Checked on the golden page by the native, Python and WASM runners.
 | Case | What happens | Where |
 |---|---|---|
 | **White-out** | Not found. | By construction |
-| **PDF redactions** | The structural check (a filled rectangle over live text) is not built. | Open |
+| **PDF: glyph positions are estimated** | Width uses a flat 0.5 em per glyph, not the font's widths; a box over a narrow or wide word covers a different number of glyphs than counted. | By construction |
+| **PDF: other ways to cover text** | Clipping, image masks, annotations (a `Redact`/`Square` annotation), transparency and optional content are not interpreted; a pattern or shading fill is not read as a colour. | By construction |
+| **PDF: rotated pages** | The box is reported without a bbox. | By construction |
+| **PDF: a coloured redaction** | Only near-black and near-white boxes count; a yellow highlight over text is left alone. | By construction |
+| **PDF: table cell shading, checkboxes** | A white or black filled cell drawn over text is reported (it is indistinguishable here). | By construction |
 | **Ragged or hand-drawn marker bars** | The edge test (0.9 of the two outer rows) fails on a bar with a torn edge. Not tested. | Open |
 | **Boxes touching text** | A redaction pressed against letters merges with them into a component that is not a rectangle. The golden and unit-test boxes had their neighbours cleared for this reason; the synthetic pages have a gap of a few pixels. | Found building the unit tests |
 | **One or two letters** | Under 2.2 x-heights wide: not found (the same limit that excludes filled checkboxes). | By construction |

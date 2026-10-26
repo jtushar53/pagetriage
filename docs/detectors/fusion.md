@@ -40,13 +40,29 @@ findings labelled on real documents, which this project does not have, so every 
 hand-set evidence", not "how often right". The machinery is tested (interpolation, flat ends, kinds
 without a map untouched, bad maps rejected).
 
+## Evidence group caps (`fusion.group_cap`)
+
+Each evidence term is clipped to `llr_clip` (8). Terms from one detector are also summed and the sum
+clamped to `group_cap` (12) before the groups are added (`scorer::confidence_capped`, used by every
+detector that scores with a sum), so several correlated features of one detector cannot add up to
+more than 1.5 clipped terms on their own. Terms of different detectors (the groups are the evidence
+entries' `detector` strings) add without a cap. With the shipped parameters no existing golden
+finding reaches the cap, so the goldens did not change; it is a guard, not a measured improvement.
+Where two detectors measure nearly the same thing (handwriting and signature on a flourish), rule 1
+above is the only guard.
+
+## Fitting calibration maps
+
+`bench/fit_calibration.py labelled.csv` fits the maps by isotonic regression (pool-adjacent-violators)
+from rows `kind,confidence,label` and prints the `[calibration]` override. Its `--selftest` draws
+synthetic data from a known miscalibration (true rate = confidence squared), checks the fit is monotone
+and close to the truth, and that the core accepts the output and rejects a non-monotone map. That is a
+test of the tool; **no labelled real findings exist, so no map ships**.
+
 ## What is not built
 
-- **Correlated-evidence group caps.** Each detector's own terms are clipped; evidence lists are not
-  shared between detectors, so nothing is double counted by the sum. Where two detectors measure
-  nearly the same thing (handwriting and signature on a flourish), rule 1 is the only guard.
-- **Learned weights, isotonic fits, a confidence reliability table.** No labelled data.
-- **Embossed seals, registrar endorsement beyond repetition, decoding of any code.**
+- **Learned weights and a confidence reliability table.** No labelled data.
+- **Decoding of any code** beyond what `qr` says (see its page).
 
 ## Evaluation
 
@@ -69,4 +85,4 @@ the code does what it was written to, not that stamp paper looks like this.
 | **A real stamp paper** | Never seen; the heading may be small, in an ornamental band, or in Hindi, and the QR can be elsewhere. | Open |
 | **Overlap rule on a signature across a stamp** | A real signature written over a stamp (very common) loses 1.5 log-odds as the weaker of the two. | By construction |
 | **Blank rule** | Needs another detector to have found something; a faint page that none sees stays blank. | By construction |
-| **Calibration** | None. | Open |
+| **Calibration** | None shipped (the tool exists, the data does not). | Open |

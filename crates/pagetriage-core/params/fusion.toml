@@ -7,3 +7,9 @@ emit_min_confidence = 0.5
 # Per-evidence cap on |llr|, so one saturated feature cannot dominate the log-odds sum.
 # Source: module M13 (correlated-evidence cap). Phase 0 placeholder; tuned on <none yet>.
 llr_clip = 8.0
+
+# Cap on the summed llr of the evidence entries of one detector within a finding, so several correlated
+# features of one detector cannot add up to more than this on their own (each entry is already clipped
+# to llr_clip). Evidence from different detectors adds without a cap. Source: module M13
+# (correlated-evidence group cap); the value is a placeholder, 12 = 1.5 clipped entries. Tuned on <none>.
+group_cap = 12.0

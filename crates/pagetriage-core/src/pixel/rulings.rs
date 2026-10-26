@@ -607,7 +607,11 @@ pub fn detect_with(
                    attributes: Map<String, serde_json::Value>| {
         Finding {
             kind,
-            confidence: math::round_output(scorer::confidence(prior, &evidence)),
+            confidence: math::round_output(scorer::confidence_capped(
+                prior,
+                &evidence,
+                fusion.group_cap,
+            )),
             bbox: Some(layout.rect_to_page(&bbox)),
             polygon: None,
             attributes,

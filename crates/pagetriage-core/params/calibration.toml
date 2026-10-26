@@ -6,7 +6,7 @@
 #
 # No map ships. Calibrating needs findings labelled on real documents, which this project does not
 # have; the confidences are sigmoids of hand-set log-odds and say how much evidence, not how often
-# the detector is right. A map fitted by isotonic regression on a labelled set is the same family.
-# Example:
+# the detector is right. `bench/fit_calibration.py` fits maps by isotonic regression from a labelled
+# CSV and prints the override. Example:
 #   maps = { stamp = [[0.0, 0.0], [0.5, 0.35], [1.0, 0.9]] }
 maps = {}

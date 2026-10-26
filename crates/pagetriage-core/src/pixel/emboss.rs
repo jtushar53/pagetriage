@@ -505,7 +505,11 @@ pub fn detect_with(
                 "minus the correlation of the shading with itself turned through 180 degrees (1 for a relief lit from one side, negative for an inked or stained ring)",
             )?,
         ];
-        let confidence = math::round_output(scorer::confidence(p.prior, &evidence));
+        let confidence = math::round_output(scorer::confidence_capped(
+            p.prior,
+            &evidence,
+            fusion.group_cap,
+        ));
         if confidence < fusion.emit_min_confidence {
             continue;
         }

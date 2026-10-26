@@ -70,6 +70,30 @@ approx_advance_em = 0.5
 # Source: engineering limit.
 max_text_records = 100000
 
+# ---- covered text (module M12, PDF side of redaction boxes) ------------------------------------
+# A rectangle filled after text was shown, covering most of it, is a redaction box over text that is
+# still in the content stream (so it can be copied out). Black or white boxes count: a white box is
+# the PDF form of white-out, which the pixel side cannot see.
+
+# Fill luminance (0 black, 1 white; gray, RGB and CMYK are reduced with 0.299/0.587/0.114 and
+# 0.3/0.59/0.11) at or below which a box is dark, and at or above which it is light.
+# Source: placeholder.
+redaction_dark_gray = 0.15
+redaction_light_gray = 0.92
+
+# Share of a text line's height that the box must span. The glyphs under the box are the share of the
+# text-show operation's estimated width that it covers; the width uses the flat approx_advance_em, so
+# it is rough. Source: placeholder.
+redaction_cover_fraction = 0.7
+
+# Fewest glyphs under the box for it to count. Source: placeholder.
+redaction_min_glyphs = 3
+
+# A box covering more than this share of the page is a background or a page cover, not a redaction.
+# Source: placeholder.
+redaction_max_page_fraction = 0.5
+
+
 # Log-odds weight of each piece of evidence (|llr|; the sign follows whether the check passed).
 # confidence = sigmoid(base_logit + sum of llr). Source: placeholder weights, one per evidence
 # kind. Tuned on <none>.

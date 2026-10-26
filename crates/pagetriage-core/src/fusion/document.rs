@@ -195,7 +195,11 @@ pub fn mark_repeated_endorsements(
                 CITATION,
             )?);
         }
-        let confidence = math::round_output(crate::fusion::scorer::confidence(p.prior, &evidence));
+        let confidence = math::round_output(crate::fusion::scorer::confidence_capped(
+            p.prior,
+            &evidence,
+            fusion.group_cap,
+        ));
         if confidence < fusion.emit_min_confidence {
             continue;
         }

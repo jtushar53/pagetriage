@@ -84,3 +84,26 @@ fn the_encrypted_fixture_degrades_instead_of_failing() {
     assert_eq!(v["structure"]["encrypted"], true);
     assert!(v["pages"][0]["text_layer"].is_null());
 }
+
+/// `redacted_text.pdf` has a black and a white box painted over words that are still in the file, a
+/// box painted before its text, and a rule with nothing under it: only the first two are covered text.
+#[test]
+fn redacted_text_has_two_boxes_over_live_text() {
+    let bytes = fs::read(golden_dir().join("pdf/redacted_text.pdf")).unwrap();
+    let report: serde_json::Value =
+        serde_json::from_str(&analyse_pdf_structure(&bytes, "{}").unwrap()).unwrap();
+    let boxes = report["pages"][0]["covered_text"].as_array().unwrap();
+    assert_eq!(boxes.len(), 2, "{boxes:?}");
+    assert_eq!(boxes[0]["fill"], "black");
+    assert_eq!(boxes[1]["fill"], "white");
+    // The other fixtures have none.
+    let bytes = fs::read(golden_dir().join("pdf/native_latin.pdf")).unwrap();
+    let report: serde_json::Value =
+        serde_json::from_str(&analyse_pdf_structure(&bytes, "{}").unwrap()).unwrap();
+    assert!(
+        report["pages"][0]["covered_text"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+}

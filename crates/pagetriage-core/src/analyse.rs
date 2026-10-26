@@ -20,7 +20,7 @@ use crate::pixel::script::{self, SCRIPT};
 use crate::pixel::signature::{self, SIGNATURE};
 use crate::pixel::stamp::{self, STAMP};
 use crate::pixel::thumb::{self, THUMB};
-use crate::schema::{self, Finding, Kind, PageReport};
+use crate::schema::{self, Evidence, Finding, Kind, PageReport};
 use crate::structural::PageStructure;
 
 /// Detectors that can be named in `Options::detectors`. Grows as phases land. One name per line, in
@@ -254,7 +254,7 @@ pub fn analyse_page_report(
 
     // The structural layer's verdict for this page (M1) and its legacy-font finding (M2).
     if let Some(ps) = &structure {
-        findings.extend(structure_findings(ps));
+        findings.extend(structure_findings(ps, input.dpi));
     }
 
     // Module M13: rules across detectors, then the composites of module M11 that are built from
@@ -351,7 +351,55 @@ fn parse_structural(s: &str) -> Result<Option<PageStructure>> {
 
 /// A legacy-encoded page becomes a `script` finding: its extracted text is not Unicode, so any
 /// consumer that reads the text layer needs to know.
-fn structure_findings(ps: &PageStructure) -> Vec<Finding> {
+fn structure_findings(ps: &PageStructure, dpi: u16) -> Vec<Finding> {
+    let mut out = covered_text_findings(ps, dpi);
+    out.extend(legacy_script_finding(ps));
+    out
+}
+
+/// A filled box over text that is still in the file (module M12, PDF side): a `redaction_box` whose
+/// text can be copied out, or a white one (white-out).
+fn covered_text_findings(ps: &PageStructure, dpi: u16) -> Vec<Finding> {
+    let scale = f64::from(dpi) / 72.0;
+    ps.covered_text
+        .iter()
+        .map(|c| {
+            let mut attributes = serde_json::Map::new();
+            attributes.insert("source".into(), "pdf_content_stream".into());
+            attributes.insert("fill".into(), c.fill.clone().into());
+            attributes.insert("text_recoverable".into(), true.into());
+            attributes.insert("glyphs_covered".into(), c.glyphs.into());
+            // Seen in the file, not estimated from pixels: the confidence rises with the glyphs
+            // under the box (0.5 log-odds each, capped at 12 glyphs) and is not calibrated.
+            let llr = 0.5 * f64::from(c.glyphs.min(12));
+            let evidence: Vec<Evidence> = Evidence::new(
+                "structural.covered_text",
+                "glyphs_covered",
+                f64::from(c.glyphs),
+                None,
+                llr,
+                format!("{} glyphs of text-show operations lie under a {} box", c.glyphs, c.fill),
+                "module M12: a filled rectangle painted over text that is still in the content stream",
+            )
+            .into_iter()
+            .collect();
+            let confidence = crate::math::round_output(crate::fusion::scorer::confidence(0.0, &evidence));
+            Finding {
+                kind: Kind::RedactionBox,
+                confidence,
+                bbox: c.bbox_pt.map(|b| {
+                    let px = |v: f64| (v * scale).max(0.0).round() as u32;
+                    [px(b[0]), px(b[1]), px(b[2]), px(b[3])]
+                }),
+                polygon: None,
+                attributes,
+                evidence,
+            }
+        })
+        .collect()
+}
+
+fn legacy_script_finding(ps: &PageStructure) -> Vec<Finding> {
     let Some(script) = ps.script.as_ref().filter(|s| s.legacy_encoded) else {
         return Vec::new();
     };
@@ -554,10 +602,40 @@ mod tests {
     }
 
     #[test]
+    fn covered_text_becomes_a_redaction_box_in_page_pixels() {
+        let structural = r#"{"index":0,"size_pt":[612.0,792.0],"rotation":0,"text_layer":null,"script":null,"features":null,"images":[],"conflicts":[],"notes":[],"covered_text":[{"bbox_pt":[72.0,100.0,144.0,124.0],"fill":"black","glyphs":10},{"bbox_pt":null,"fill":"white","glyphs":4}]}"#;
+        let gray = vec![255u8; 8 * 8];
+        let input = PageInput {
+            gray: &gray,
+            rgb: None,
+            width: 8,
+            height: 8,
+            dpi: 144,
+        };
+        let r = analyse_page_report(&input, Some(structural), r#"{"detectors":[]}"#).unwrap();
+        let boxes: Vec<_> = r
+            .findings
+            .iter()
+            .filter(|f| f.kind == Kind::RedactionBox)
+            .collect();
+        assert_eq!(boxes.len(), 2);
+        // 144 dpi is two pixels per point.
+        assert_eq!(boxes[0].bbox, Some([144, 200, 288, 248]));
+        assert_eq!(boxes[0].attributes["fill"], "black");
+        assert_eq!(boxes[0].attributes["text_recoverable"], true);
+        assert!(
+            boxes[0].confidence > boxes[1].confidence,
+            "more glyphs, more confident"
+        );
+        assert_eq!(boxes[1].bbox, None, "a rotated page's box is not placed");
+    }
+
+    #[test]
     fn structural_page_fills_text_layer_and_legacy_finding() {
         use crate::schema::{TextLayer, TextLayerState};
         use crate::structural::types::{FontInfo, PageStructure, ScriptInfo};
         let ps = PageStructure {
+            covered_text: Vec::new(),
             index: 0,
             size_pt: [612.0, 792.0],
             rotation: 0,

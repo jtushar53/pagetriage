@@ -89,6 +89,7 @@ pub struct PhashParams {
 pub struct FusionParams {
     pub emit_min_confidence: f64,
     pub llr_clip: f64,
+    pub group_cap: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]

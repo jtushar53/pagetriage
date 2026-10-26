@@ -354,7 +354,11 @@ pub fn detect_with(
                 CITATION,
             )?,
         ];
-        let confidence = math::round_output(scorer::confidence(p.prior, &evidence));
+        let confidence = math::round_output(scorer::confidence_capped(
+            p.prior,
+            &evidence,
+            fusion.group_cap,
+        ));
         if confidence < fusion.emit_min_confidence {
             continue;
         }

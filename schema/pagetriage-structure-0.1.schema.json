@@ -42,6 +42,41 @@
     "warnings"
   ],
   "$defs": {
+    "CoveredTextBox": {
+      "description": "A filled rectangle drawn over text that is still in the page's content stream: a redaction (black)\nor white-out (white) box that does not remove the text underneath (module M12).",
+      "type": "object",
+      "properties": {
+        "bbox_pt": {
+          "description": "`[x0, y0, x1, y1]` in points from the top-left of the page box. Empty when the page is rotated\nand the box was not placed.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "number",
+            "format": "double"
+          },
+          "maxItems": 4,
+          "minItems": 4
+        },
+        "fill": {
+          "description": "`black` or `white`.",
+          "type": "string"
+        },
+        "glyphs": {
+          "description": "Glyphs of text-show operations that the box covers.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "bbox_pt",
+        "fill",
+        "glyphs"
+      ]
+    },
     "DocumentInfo": {
       "type": "object",
       "properties": {
@@ -594,6 +629,14 @@
             "type": "string"
           }
         },
+        "covered_text": {
+          "description": "Filled boxes over live text (redaction or white-out that left the text in the file).",
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CoveredTextBox"
+          }
+        },
         "features": {
           "anyOf": [
             {
@@ -661,6 +704,7 @@
       "additionalProperties": false,
       "required": [
         "conflicts",
+        "covered_text",
         "features",
         "images",
         "index",

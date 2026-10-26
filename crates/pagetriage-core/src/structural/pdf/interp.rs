@@ -95,6 +95,7 @@ pub struct PageScan {
     pub obs: PageObservation,
     pub images: Vec<ImageUse>,
     pub fonts: BTreeMap<FontKey, FontUse>,
+    pub covered: Vec<CoveredText>,
     pub notes: Vec<String>,
 }
 
@@ -113,12 +114,31 @@ struct Gs {
     th: f64,
     tl: f64,
     render: i64,
+    /// Non-stroking colour as a luminance in [0, 1] (0 black).
+    fill: f64,
 }
 
 #[derive(Default)]
 struct PathState {
     bbox: Option<[f64; 4]>,
     segments: u32,
+    rects: u32,
+}
+
+/// A rectangle painted with a fill, in page space, with the operator count at which it was painted.
+struct FillRect {
+    bbox: [f64; 4],
+    fill: f64,
+    order: usize,
+}
+
+/// A filled rectangle drawn over text that is still in the content stream.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CoveredText {
+    /// `[x0, y0, x1, y1]` in the page box's coordinates (PDF user space, origin bottom-left).
+    pub bbox: [f64; 4],
+    pub fill: f64,
+    pub glyphs: u32,
 }
 
 struct TextRecord {
@@ -127,9 +147,13 @@ struct TextRecord {
     glyphs: u32,
     visible: bool,
     occluded: bool,
+    /// Estimated extent of the shown text, page space.
+    bbox: [f64; 4],
+    order: usize,
 }
 
 const MAX_AABBS: usize = 2048;
+const MAX_FILLS: usize = 256;
 const MAX_OCCLUSION_SCANS: u32 = 64;
 
 struct Interp<'d, 'c> {
@@ -149,6 +173,7 @@ struct Interp<'d, 'c> {
     forms_done: usize,
     visiting: Vec<ObjectId>,
     records: Vec<TextRecord>,
+    fills: Vec<FillRect>,
     aabbs: Vec<[f64; 4]>,
     glyphs_total: u64,
     glyphs_recorded: u64,
@@ -185,6 +210,7 @@ pub fn scan_page<'d>(
             th: 1.0,
             tl: 0.0,
             render: 0,
+            fill: 0.0,
         },
         stack: Vec::new(),
         tm: IDENT,
@@ -194,6 +220,7 @@ pub fn scan_page<'d>(
             obs: PageObservation::default(),
             images: Vec::new(),
             fonts: BTreeMap::new(),
+            covered: Vec::new(),
             notes: Vec::new(),
         },
         ops: 0,
@@ -201,6 +228,7 @@ pub fn scan_page<'d>(
         forms_done: 0,
         visiting: Vec::new(),
         records: Vec::new(),
+        fills: Vec::new(),
         aabbs: Vec::new(),
         glyphs_total: 0,
         glyphs_recorded: 0,
@@ -288,6 +316,37 @@ impl<'d> Interp<'d, '_> {
                 self.gs.size = Self::num(a, 1);
                 if let Some(name) = a[0].as_name() {
                     self.set_font(res, name);
+                }
+            }
+            b"g" => self.gs.fill = Self::num(a, 0).clamp(0.0, 1.0),
+            b"rg" => {
+                self.gs.fill =
+                    (0.299 * Self::num(a, 0) + 0.587 * Self::num(a, 1) + 0.114 * Self::num(a, 2))
+                        .clamp(0.0, 1.0);
+            }
+            b"k" => {
+                let (c, m, y, k) = (
+                    Self::num(a, 0),
+                    Self::num(a, 1),
+                    Self::num(a, 2),
+                    Self::num(a, 3),
+                );
+                self.gs.fill = (1.0 - (0.3 * c + 0.59 * m + 0.11 * y + k).min(1.0)).clamp(0.0, 1.0);
+            }
+            // sc / scn with one, three or four numbers: gray, RGB or CMYK; names (patterns) leave it.
+            b"sc" | b"scn" => {
+                let nums: Vec<f64> = a.iter().filter_map(Operand::as_f64).collect();
+                match nums.len() {
+                    1 => self.gs.fill = nums[0].clamp(0.0, 1.0),
+                    3 => {
+                        self.gs.fill =
+                            (0.299 * nums[0] + 0.587 * nums[1] + 0.114 * nums[2]).clamp(0.0, 1.0);
+                    }
+                    4 => {
+                        let ink = 0.3 * nums[0] + 0.59 * nums[1] + 0.11 * nums[2] + nums[3];
+                        self.gs.fill = (1.0 - ink.min(1.0)).clamp(0.0, 1.0);
+                    }
+                    _ => {}
                 }
             }
             b"Tc" => self.gs.tc = Self::num(a, 0),
@@ -381,6 +440,7 @@ impl<'d> Interp<'d, '_> {
                     self.path_point(qx, qy);
                 }
                 self.path.segments += 4;
+                self.path.rects += 1;
             }
             // Painting.
             b"S" | b"s" => self.paint(false),
@@ -410,6 +470,18 @@ impl<'d> Interp<'d, '_> {
                 self.scan.obs.small_filled_paths =
                     self.scan.obs.small_filled_paths.saturating_add(1);
             }
+        }
+        if fill
+            && self.path.rects == 1
+            && self.path.segments == 4
+            && self.fills.len() < MAX_FILLS
+            && let Some(bbox) = self.path.bbox
+        {
+            self.fills.push(FillRect {
+                bbox,
+                fill: self.gs.fill,
+                order: self.ops,
+            });
         }
         self.path = PathState::default();
     }
@@ -509,12 +581,18 @@ impl<'d> Interp<'d, '_> {
         self.glyphs_total += u64::from(glyphs);
         if self.records.len() < self.p.text_layer.max_text_records {
             self.glyphs_recorded += u64::from(glyphs);
+            let (ex, _) = apply(self.gs.ctm, self.tm[4], self.tm[5]);
+            let em = self.gs.size.abs()
+                * (self.gs.ctm[2] * self.gs.ctm[2] + self.gs.ctm[3] * self.gs.ctm[3]).sqrt()
+                * (self.tm[2] * self.tm[2] + self.tm[3] * self.tm[3]).sqrt();
             self.records.push(TextRecord {
                 x,
                 y,
                 glyphs,
                 visible,
                 occluded: false,
+                bbox: [x.min(ex), y - 0.2 * em, x.max(ex), y + 0.8 * em],
+                order: self.ops,
             });
         }
     }
@@ -862,6 +940,44 @@ impl<'d> Interp<'d, '_> {
                 {
                     in_image += u64::from(r.glyphs);
                 }
+            }
+        }
+        // Filled rectangles painted after visible text that cover most of it: the text is still in the
+        // content stream, so it can be copied out from under a black or white box.
+        let t = &self.p.text_layer;
+        let page_area = w * h;
+        for f in &self.fills {
+            let b = f.bbox;
+            let area = (b[2] - b[0]) * (b[3] - b[1]);
+            let dark = f.fill <= t.redaction_dark_gray;
+            let light = f.fill >= t.redaction_light_gray;
+            if !(dark || light) || area <= 0.0 || area > t.redaction_max_page_fraction * page_area {
+                continue;
+            }
+            let mut glyphs = 0u32;
+            for r in &self.records {
+                if !r.visible || r.order >= f.order {
+                    continue;
+                }
+                let tb = r.bbox;
+                let (ix, iy) = (
+                    (tb[2].min(b[2]) - tb[0].max(b[0])).max(0.0),
+                    (tb[3].min(b[3]) - tb[1].max(b[1])).max(0.0),
+                );
+                // The box must span most of the line's height; the glyphs under it are the share of the
+                // operation's width it covers (glyphs are taken as evenly spaced along the operation).
+                let (tw, th) = (tb[2] - tb[0], tb[3] - tb[1]);
+                if tw > 0.0 && th > 0.0 && iy >= t.redaction_cover_fraction * th {
+                    glyphs =
+                        glyphs.saturating_add((f64::from(r.glyphs) * (ix / tw)).round() as u32);
+                }
+            }
+            if glyphs >= t.redaction_min_glyphs {
+                self.scan.covered.push(CoveredText {
+                    bbox: b,
+                    fill: f.fill,
+                    glyphs,
+                });
             }
         }
         // If the record cap was hit, scale the geometric counts to all glyphs.
