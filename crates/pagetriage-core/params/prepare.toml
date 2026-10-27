@@ -1,0 +1,37 @@
+# Applying the page plan (`prepare`, module M14): turn, level, crop and scale a page, and cut the
+# regions out of it. Pixel arithmetic is fixed point, and the one rotation uses libm's sin and cos, so the
+# output pixels are the same on every target. Every key says where it comes from; nothing here has been
+# checked against a real downstream reader or a real document.
+
+# Detectors run for each analysis of the page when the caller names none: everything that feeds the plan.
+# `coverage` is left out (it needs text boxes) and so are the document-level passes. Source: hand set.
+detectors = [
+  "blank_page", "emboss", "handwriting", "layout", "orientation", "phash", "photo", "plan", "qr",
+  "redaction", "rulings", "script", "signature", "stamp", "thumb",
+]
+
+# A page is levelled only when its measured skew is at least min_deskew_deg (turning by less costs a
+# resampling blur for a gain below the skew estimate's own error, about 0.1 degree on the synthetic
+# pages) and at most max_deskew_deg (beyond it the skew search is out of its range and wrong readings
+# are likely). Source: hand set from bench/quality_synth_eval.py skew rows.
+min_deskew_deg = 0.5
+max_deskew_deg = 20.0
+
+# Most analyses of one page: the first, one after levelling that turns out to have been done on a
+# sideways page, one after the quarter turn, one after levelling again. Source: hand set.
+max_analyses = 4
+
+# The plan's scale factor is not applied when it is within this of 1 (resampling for 5% gains nothing).
+# Source: hand set.
+min_scale_change = 0.1
+
+# No output is scaled to more than this many pixels on its longest side. Source: hand set (a common
+# limit of image decoders and of vision-model inputs).
+max_output_side_px = 8192
+
+# Each region is cut with this much margin on every side, inches. Source: hand set.
+region_pad_in = 0.02
+
+# Routes whose regions get no image file: the content is already decoded (a QR code's text) or is a
+# note for the caller. Source: hand set.
+skip_routes = ["decoded", "note"]

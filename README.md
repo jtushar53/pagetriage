@@ -92,6 +92,7 @@ text.
 | Resolution and paper size | dpi read from PNG, JPEG, TIFF and BMP headers; paper-size hints for a pixel size; `--max-pixels`. Not a detector | Built | [scale](docs/detectors/scale.md) |
 | M14 orientation | Whether a page is scanned sideways or upside down, and the quarter turn that fixes it (rows or columns, headline or ascender cue, tilt up to 20 degrees). Opt-in; abstains when unsure; synthetic checks only | Built, opt-in | [orientation](docs/detectors/orientation.md) |
 | M14 page plan | Per page: turn, deskew, scale, crop, regions routed to OCR, handwriting, table, vision or decoded, tiles, skip, difficulty, cache key. Opt-in; hand-set thresholds; synthetic checks only | Built, opt-in | [plan](docs/detectors/plan.md) |
+| M14 prepare | `pagetriage prepare`: applies the plan. Turns, levels, crops and scales a page and cuts its regions into images, with a manifest that maps every box back to the original. CLI only for now; synthetic checks only | Built | [prepare](docs/prepare.md) |
 | Calibrated confidences | Confidences calibrated on labelled real pages (the fitting tool exists, the labelled data does not) | Not possible yet | [roadmap](#roadmap), [modules](docs/modules.md) |
 
 ## Quick start
@@ -110,6 +111,7 @@ cargo build --release -p pagetriage-cli
 target/release/pagetriage analyse page.png --pretty            # quality readout, hashes, findings
 target/release/pagetriage structure file.pdf --pretty          # text layer, script, provenance
 target/release/pagetriage duplicates page1.png page2.png ...   # near-duplicate pages, in page order
+target/release/pagetriage prepare page.png -o out/             # turn, level, crop, scale; regions cut out; manifest.json
 target/release/pagetriage schema                               # JSON Schema of the page report
 target/release/pagetriage params                               # default detector thresholds, as TOML
 ```

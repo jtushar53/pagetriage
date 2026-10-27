@@ -10,6 +10,7 @@ pub mod hash;
 pub mod math;
 pub mod params;
 pub mod pixel;
+pub mod prepare;
 pub mod raster;
 pub mod scale;
 pub mod schema;

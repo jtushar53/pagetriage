@@ -319,10 +319,10 @@ pub fn build(input: &PlanInput<'_>, p: &PlanParams) -> PagePlan {
         })
         .unwrap_or_default();
 
-    let tiles = tiles(input, p);
+    let tiles = tiles(input, p, content_bbox);
     if !tiles.is_empty() {
         notes.push(format!(
-            "the page is larger than {} px on a side: send the tiles, not the whole page",
+            "the content is larger than {} px on a side: send the tiles, not the whole page",
             p.tile_max_side_px
         ));
     }
@@ -355,12 +355,19 @@ pub fn build(input: &PlanInput<'_>, p: &PlanParams) -> PagePlan {
     }
 }
 
-/// Tiles for a page with a side over `tile_max_side_px`: a grid whose cuts fall on the emptiest rows
-/// and columns near an even split, each tile reaching `tile_overlap` into its neighbours.
-fn tiles(input: &PlanInput<'_>, p: &PlanParams) -> Vec<PlanTile> {
-    let (w, h) = (input.width, input.height);
+/// Tiles for content (the box `area`, at most the page) with a side over `tile_max_side_px`: a grid
+/// whose cuts fall on the emptiest rows and columns near an even split, each tile reaching
+/// `tile_overlap` into its neighbours. Empty margins are not tiled: a small page on a big canvas (a
+/// tilted scan) needs none.
+fn tiles(input: &PlanInput<'_>, p: &PlanParams, area: [u32; 4]) -> Vec<PlanTile> {
+    let (full_w, full_h) = (input.width, input.height);
+    let (ax, ay) = (area[0] as usize, area[1] as usize);
+    let (w, h) = (
+        (area[2] as usize + 1).min(full_w).saturating_sub(ax),
+        (area[3] as usize + 1).min(full_h).saturating_sub(ay),
+    );
     let max_side = p.tile_max_side_px as usize;
-    if w <= max_side && h <= max_side {
+    if (w <= max_side && h <= max_side) || w == 0 || h == 0 {
         return Vec::new();
     }
     let mut histogram = [0u64; 256];
@@ -376,10 +383,11 @@ fn tiles(input: &PlanInput<'_>, p: &PlanParams) -> Vec<PlanTile> {
     let dark = paper.saturating_sub(usize::from(p.tile_ink_delta));
     let mut rows = vec![0u32; h];
     let mut cols = vec![0u32; w];
-    for (y, row) in input.gray.chunks_exact(w).enumerate() {
+    for (y, count) in rows.iter_mut().enumerate() {
+        let row = &input.gray[(ay + y) * full_w + ax..(ay + y) * full_w + ax + w];
         for (x, &v) in row.iter().enumerate() {
             if usize::from(v) < dark {
-                rows[y] += 1;
+                *count += 1;
                 cols[x] += 1;
             }
         }
@@ -414,10 +422,10 @@ fn tiles(input: &PlanInput<'_>, p: &PlanParams) -> Vec<PlanTile> {
             let (ox, oy) = (grow(xs[1] - xs[0]), grow(ys[1] - ys[0]));
             out.push(PlanTile {
                 bbox: [
-                    xs[0].saturating_sub(ox) as u32,
-                    ys[0].saturating_sub(oy) as u32,
-                    ((xs[1] + ox).min(w) - 1) as u32,
-                    ((ys[1] + oy).min(h) - 1) as u32,
+                    (ax + xs[0].saturating_sub(ox)) as u32,
+                    (ay + ys[0].saturating_sub(oy)) as u32,
+                    (ax + (xs[1] + ox).min(w) - 1) as u32,
+                    (ay + (ys[1] + oy).min(h) - 1) as u32,
                 ],
                 row: r as u32,
                 column: c as u32,
