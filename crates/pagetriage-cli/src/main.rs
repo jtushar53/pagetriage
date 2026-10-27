@@ -38,6 +38,9 @@ enum Command {
     /// Analyse the page images of one document and print one report with the document-level pass
     /// (near-duplicate pages, registrar endorsements) applied
     Document(DocumentArgs),
+    /// Apply the page plan: turn, level, crop and scale a page image and cut out its regions, into a
+    /// directory of images with a manifest (`manifest.json`, also printed on stdout)
+    Prepare(PrepareArgs),
     /// Print the JSON Schema of the report
     Schema,
     /// Print the embedded default detector parameters as TOML
@@ -74,6 +77,35 @@ struct AnalyseArgs {
     /// detector
     #[arg(long, value_name = "FILE")]
     text_boxes: Option<PathBuf>,
+}
+
+#[derive(Args)]
+struct PrepareArgs {
+    /// Page image (PNG, JPEG, TIFF, PNM or BMP; the first frame is used)
+    file: PathBuf,
+    /// Directory for the output images and `manifest.json` (created if missing). Files of an earlier
+    /// run (`page.png`, `tiles/`, `regions/`, `manifest.json`) are replaced.
+    #[arg(long, short, value_name = "DIR")]
+    out: PathBuf,
+    /// Resolution the image was scanned at (see `analyse --dpi`)
+    #[arg(long)]
+    dpi: Option<u16>,
+    /// Refuse images with more pixels than this (default: no limit)
+    #[arg(long, value_name = "PIXELS")]
+    max_pixels: Option<u64>,
+    /// Run the text-line detectors even on a badly blurred page
+    #[arg(long)]
+    no_gate: bool,
+    /// Turn the page clockwise by this many degrees (0, 90, 180 or 270) before anything else, when
+    /// you know it was scanned sideways or upside down and the detector is not sure
+    #[arg(long, value_name = "DEG", value_parser = clap::value_parser!(u32).range(0..=270))]
+    rotate: Option<u32>,
+    /// TOML file merged over the embedded default parameters
+    #[arg(long, value_name = "FILE")]
+    params: Option<PathBuf>,
+    /// Run only these detectors (comma separated; `plan` is always added). Default: all that feed the plan
+    #[arg(long, value_delimiter = ',')]
+    detectors: Option<Vec<String>>,
 }
 
 #[derive(Args)]
@@ -137,6 +169,7 @@ fn run(cli: Cli) -> Result<(), String> {
         Command::Structure(args) => structure(&args),
         Command::Duplicates(args) => duplicates(&args),
         Command::Document(args) => document(&args),
+        Command::Prepare(args) => prepare(&args),
         Command::Schema => {
             print!("{}", schema_json());
             Ok(())
@@ -237,6 +270,95 @@ fn analyse(args: &AnalyseArgs) -> Result<(), String> {
     } else {
         println!("{canonical}");
     }
+    Ok(())
+}
+
+fn prepare(args: &PrepareArgs) -> Result<(), String> {
+    let bytes =
+        fs::read(&args.file).map_err(|e| format!("cannot read {}: {e}", args.file.display()))?;
+    let page = load_page(&bytes)?;
+    let dpi = resolve_dpi(args.dpi, &bytes, &page);
+    let params_toml = match &args.params {
+        Some(path) => Some(
+            fs::read_to_string(path).map_err(|e| format!("cannot read {}: {e}", path.display()))?,
+        ),
+        None => None,
+    };
+    let opts = serde_json::json!({
+        "detectors": args.detectors,
+        "params": params_toml,
+        "max_pixels": args.max_pixels,
+        "no_gate": args.no_gate,
+        "pre_rotate_deg": args.rotate,
+    })
+    .to_string();
+    let input = PageInput {
+        gray: &page.gray,
+        rgb: page.rgb.as_deref(),
+        width: page.width,
+        height: page.height,
+        dpi,
+    };
+    let prepared = pagetriage_core::prepare::prepare(&input, &opts).map_err(|e| e.to_string())?;
+
+    // Remove what an earlier run left, so the directory never mixes two runs.
+    for stale in ["tiles", "regions"] {
+        let path = args.out.join(stale);
+        if path.is_dir() {
+            fs::remove_dir_all(&path)
+                .map_err(|e| format!("cannot clear {}: {e}", path.display()))?;
+        }
+    }
+    for stale in ["page.png", "manifest.json"] {
+        let path = args.out.join(stale);
+        if path.is_file() {
+            fs::remove_file(&path).map_err(|e| format!("cannot remove {}: {e}", path.display()))?;
+        }
+    }
+    fs::create_dir_all(&args.out)
+        .map_err(|e| format!("cannot create {}: {e}", args.out.display()))?;
+    for out in &prepared.outputs {
+        let path = args.out.join(&out.name);
+        if let Some(dir) = path.parent() {
+            fs::create_dir_all(dir).map_err(|e| format!("cannot create {}: {e}", dir.display()))?;
+        }
+        let r = &out.raster;
+        let color = if r.channels == 3 {
+            image::ColorType::Rgb8
+        } else {
+            image::ColorType::L8
+        };
+        image::save_buffer(&path, &r.data, r.width as u32, r.height as u32, color)
+            .map_err(|e| format!("cannot write {}: {e}", path.display()))?;
+    }
+    let canonical = to_canonical_json(&prepared.manifest).map_err(|e| e.to_string())?;
+    let value: serde_json::Value = serde_json::from_str(&canonical).map_err(|e| e.to_string())?;
+    let pretty = serde_json::to_string_pretty(&value).map_err(|e| e.to_string())?;
+    let manifest_path = args.out.join("manifest.json");
+    fs::write(&manifest_path, format!("{pretty}\n"))
+        .map_err(|e| format!("cannot write {}: {e}", manifest_path.display()))?;
+
+    let m = &prepared.manifest;
+    match &m.skip {
+        Some(skip) => eprintln!("skipped: the page is {}; no images written", skip.reason),
+        None => eprintln!(
+            "wrote {} image{} to {} (analysed {}x; steps: {})",
+            prepared.outputs.len(),
+            if prepared.outputs.len() == 1 { "" } else { "s" },
+            args.out.display(),
+            m.analyses,
+            if m.steps.is_empty() {
+                "none".to_owned()
+            } else {
+                m.steps
+                    .iter()
+                    .map(|s| format!("{} {:.1}", s.op, s.clockwise_deg))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            }
+        ),
+    }
+    println!("{canonical}");
     Ok(())
 }
 

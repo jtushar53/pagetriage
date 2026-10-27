@@ -306,3 +306,94 @@ fn duplicates_command_needs_at_least_one_file() {
     let out = bin().arg("duplicates").output().unwrap();
     assert!(!out.status.success());
 }
+
+/// A page of drawn text-like lines: dark bars 8 px high and 300 px wide every 30 px.
+fn bars_page(w: usize, h: usize) -> Vec<u8> {
+    let mut g = vec![245u8; w * h];
+    let mut y = 40;
+    while y + 20 < h {
+        for yy in y..y + 8 {
+            for xx in 20..w - 20 {
+                if (xx / 7) % 4 != 0 {
+                    g[yy * w + xx] = 30;
+                }
+            }
+        }
+        y += 30;
+    }
+    g
+}
+
+#[test]
+fn prepare_writes_images_and_a_manifest() {
+    let path = write_pgm("prep_bars.pgm", 400, 300, &bars_page(400, 300));
+    let dir = scratch("prep_bars_out");
+    let out = bin()
+        .args(["prepare", "--dpi", "150", "-o"])
+        .arg(&dir)
+        .arg(&path)
+        .output()
+        .unwrap();
+    let on_stdout = stdout_json(&out);
+    assert_eq!(on_stdout["schema"], "pagetriage-prepare/0.1");
+    let manifest: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(dir.join("manifest.json")).unwrap()).unwrap();
+    assert_eq!(manifest, on_stdout, "the file and stdout say the same");
+    let page = image::open(dir.join("page.png")).expect("page.png is an image");
+    let info = &manifest["outputs"][0];
+    assert_eq!(info["file"], "page.png");
+    assert_eq!(info["width"], page.width());
+    assert_eq!(info["height"], page.height());
+}
+
+#[test]
+fn prepare_rotate_turns_the_page_first_and_says_so() {
+    let path = write_pgm("prep_rot.pgm", 400, 300, &bars_page(400, 300));
+    let dir = scratch("prep_rot_out");
+    let out = bin()
+        .args(["prepare", "--dpi", "150", "--rotate", "90", "-o"])
+        .arg(&dir)
+        .arg(&path)
+        .output()
+        .unwrap();
+    let m = stdout_json(&out);
+    assert_eq!(m["steps"][0]["op"], "rotate");
+    assert_eq!(m["steps"][0]["clockwise_deg"], 90.0);
+    assert_eq!(m["frame"]["source_width"], 400);
+    assert_eq!(
+        m["frame"]["width"], 300,
+        "turned a quarter, so the sides swap"
+    );
+}
+
+#[test]
+fn prepare_a_blank_page_writes_only_the_manifest_and_clears_an_earlier_run() {
+    let dir = scratch("prep_blank_out");
+    fs::create_dir_all(dir.join("regions")).unwrap();
+    fs::write(dir.join("regions/old.png"), b"x").unwrap();
+    fs::write(dir.join("page.png"), b"x").unwrap();
+    let path = write_pgm("prep_blank.pgm", 200, 300, &vec![250; 60_000]);
+    let out = bin()
+        .args(["prepare", "--dpi", "150", "-o"])
+        .arg(&dir)
+        .arg(&path)
+        .output()
+        .unwrap();
+    let m = stdout_json(&out);
+    assert_eq!(m["skip"]["reason"], "blank");
+    assert_eq!(m["outputs"].as_array().unwrap().len(), 0);
+    assert!(dir.join("manifest.json").is_file());
+    assert!(!dir.join("page.png").exists() && !dir.join("regions").exists());
+}
+
+#[test]
+fn prepare_refuses_a_bad_rotation() {
+    let path = write_pgm("prep_bad.pgm", 20, 30, &vec![250; 600]);
+    let out = bin()
+        .args(["prepare", "--rotate", "45", "-o"])
+        .arg(scratch("prep_bad_out"))
+        .arg(&path)
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+}

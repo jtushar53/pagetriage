@@ -20,7 +20,7 @@ The routes are only as good as the detectors behind them (handwriting is weak, s
 | `content_bbox` | Ink box plus 0.1 in margin: crop to it. |
 | `binarizer` | The M3 recommendation. |
 | `regions` | Boxes with a `route` (`ocr`, `handwriting`, `table`, `mark`, `vision`, `decoded`, `fields`, `note`), a `kind` and a `priority`, sorted by priority then y, x. Text blocks lying 60% inside a table, mark, photo or QR are dropped; a block 50% inside a handwriting finding is routed to `handwriting`. A decoded QR is `decoded` (nothing for a model to do). |
-| `tiles` | When a side exceeds 2048 px: overlapping (8%) tiles whose cuts go through the least-ink row or column. |
+| `tiles` | When the content box (not the whole canvas) exceeds 2048 px on a side: overlapping (8%) tiles of it whose cuts go through the least-ink row or column. |
 | `skip` | `blank`, or `near_duplicate` of an earlier page (set by the document pass; cleared if no longer a duplicate). |
 | `difficulty` | 0 to 1: quality badness plus bonuses (handwriting, table, a turn, small text). |
 | gated page | On a badly blurred page (the [quality gate](quality.md#the-quality-gate)) the line detectors did not run: one `vision` region over the whole page and a note. |
