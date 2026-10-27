@@ -71,8 +71,8 @@ the skew `analyse` measures on `page.png` for pages turned right, and the skew i
 
 "Page crop" is the area of `page.png` (before scaling) over the input's area: the forms fill about the top third
 of the page, so a model is given a third of the pixels (a tilted page is measured against its larger canvas).
-**No page was turned the wrong way**; every page turned right came out level; a quarter of the turned pages were
-left turned because the orientation detector abstained.
+**No page was turned the wrong way**; every page turned right came out level; about 3 in 10 of the turned pages were
+left turned because the orientation detector abstained (22 of the 72 turned pages, about 3 in 10).
 
 The skew is read by the same estimator that chose the angle, so the near-zero residual shows the levelling is
 consistent with it; that the estimator is right comes from the input baselines matching the tilt applied
@@ -86,7 +86,7 @@ levels, a blank page is skipped, outputs are described and reproducible), the un
 
 | Case | What happens | Where |
 |---|---|---|
-| **Turned page, orientation unsure** | The detector abstains (4 of 12 turned forms per split with no tilt), the page is prepared as it is, and the manifest says `the page may be turned N degrees clockwise (confidence c, too low to act on)` when it read a turn but too weakly. Pass `--rotate`. | Measured (synthetic) |
+| **Turned page, orientation unsure** | The detector abstains (4 of 9 turned forms per split with no tilt; 22 of 72 over all tilts), the page is prepared as it is, and the manifest says `the page may be turned N degrees clockwise (confidence c, too low to act on)` when it read a turn but too weakly. Pass `--rotate`. | Measured (synthetic) |
 | **Skew measured on a sideways page** | If the first reading is of a sideways page the skew is meaningless; the page is levelled, then turned when the second reading is sure, and the levelling is redone. Costs analyses; if the budget runs out the page may be left unlevelled. | By construction |
 | **Skew over 20 degrees** | Not levelled; a note says so. | By construction |
 | **Handwriting regions** | Only as good as the handwriting detector (about half of handwritten words in synthetic forms): the rest are cut as `ocr` text blocks. | Measured, see [plan](detectors/plan.md) |
